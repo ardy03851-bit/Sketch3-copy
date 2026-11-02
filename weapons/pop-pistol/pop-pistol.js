@@ -24,7 +24,7 @@ Weapon({
   recoil: 120,
   bounces: 0,
 
-  sprite: { length: 46, gripX: 0.49, gripY: 0.8, muzzleX: 0.84, muzzleY: 0.43, holdDistance: 16 },
+  sprite: { length: 34, gripX: 0.27, gripY: 0.72, muzzleX: 0.89, muzzleY: 0.28, holdDistance: 16 },
 
   destruction: { crater: 0 },
   vfx: { tracer: "#ffd0e8", light: "#ffb0dc", muzzleFlash: 0.8, sparks: 0.8, smoke: 0.6, shells: true },

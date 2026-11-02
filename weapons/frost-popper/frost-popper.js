@@ -26,7 +26,7 @@ Weapon({
   bounces: 0,
   status: { chill: 1 },
 
-  sprite: { length: 64, gripX: 0.41, gripY: 0.83, muzzleX: 0.9, muzzleY: 0.46, holdDistance: 17 },
+  sprite: { length: 60, gripX: 0.33, gripY: 0.74, muzzleX: 0.86, muzzleY: 0.38, holdDistance: 17 },
   projectile: { color: "#dff4ff", glow: "#bfeaff", size: 5, spin: 0 },
 
   destruction: { crater: 0 },

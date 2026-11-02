@@ -22,7 +22,7 @@ Weapon({
   lifesteal: 0.22,
   shockwave: { radius: 130, damage: 22, knockback: 820 },
 
-  sprite: { length: 84, gripX: 0.36, gripY: 0.5, muzzleX: 0.96, muzzleY: 0.39, holdDistance: 14 },
+  sprite: { length: 65, gripX: 0.19, gripY: 0.53, muzzleX: 0.96, muzzleY: 0.47, holdDistance: 14 },
 
   destruction: { crater: 0 },
   vfx: { trail: "#ff9ad0", trailWidth: 1.2, sparks: 1.2, light: "#ff9ad0" },

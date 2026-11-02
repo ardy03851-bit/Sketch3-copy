@@ -27,7 +27,7 @@ Weapon({
   recoil: 90,
   bounces: 0,
 
-  sprite: { length: 92, gripX: 0.48, gripY: 0.48, muzzleX: 0.95, muzzleY: 0.44, holdDistance: 20 },
+  sprite: { length: 89, gripX: 0.26, gripY: 0.49, muzzleX: 0.97, muzzleY: 0.46, holdDistance: 20 },
   projectile: { color: "#8df1ff", glow: "#d9fbff", size: 7, spin: 0 },
 
   destruction: { crater: 9, jagged: 0.2, debris: 4, dust: 0.6, scorch: 0.25, dent: false },

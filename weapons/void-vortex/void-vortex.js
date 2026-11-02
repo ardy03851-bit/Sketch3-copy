@@ -28,7 +28,7 @@ Weapon({
   pull: { radius: 190, force: 1000 },
   explosion: { radius: 120, damage: 34, knockback: 820, selfDamage: 0.5 },
 
-  sprite: { length: 76, gripX: 0.34, gripY: 0.78, muzzleX: 0.8, muzzleY: 0.48, holdDistance: 20 },
+  sprite: { length: 60, gripX: 0.26, gripY: 0.73, muzzleX: 0.83, muzzleY: 0.4, holdDistance: 20 },
   projectile: { type: "rocket", color: "#cda2ff", glow: "#8a5cd6", size: 13, spin: 1.2 },
 
   destruction: { crater: 26, jagged: 0.5, debris: 10, dust: 1.4, scorch: 0.7, dent: true },
