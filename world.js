@@ -697,7 +697,7 @@ THEMES.push(
 );
 const _drawTreeLineOld = drawTreeLine;
 drawTreeLine = function (x, R, th, base, M) {
-  const kind = th.bgTrees; const NEW = ['bamboo', 'birches', 'acacias', 'crystals', 'graves', 'ruins', 'shrooms', 'willows', 'lavrows'];
+  const kind = th.bgTrees; const NEW = ['bamboo', 'birches', 'acacias', 'crystals', 'graves', 'ruins', 'shrooms', 'willows', 'lavrows', 'orchard'];
   if (!NEW.includes(kind)) return _drawTreeLineOld(x, R, th, base, M);
   const col = mix(th.far[1], '#1f1c24', .22), edge = 'rgba(31,28,36,.25)'; x.lineJoin = 'round'; x.lineCap = 'round';
   const gyAt = px => base - (fbm(px * .0025, T.seed + 7) * .5 + .5) * 160 + 30;
@@ -711,6 +711,14 @@ drawTreeLine = function (x, R, th, base, M) {
     if (kind === 'ruins') { const bw = 14 + R() * 10, bh = h * (.8 + R() * 1.2); x.fillStyle = mix(th.far[1], '#e8e0c8', .2); x.beginPath(); x.moveTo(px, gy); x.lineTo(px, gy - bh); for (let k = 0; k < 4; k++) x.lineTo(px + bw * (k + 1) / 4, gy - bh + (R() - .3) * 10); x.lineTo(px + bw, gy); x.closePath(); x.fill(); x.stroke(); if (R() < .3) { x.fillRect(px - 4, gy - bh - 6, bw + 40, 6); } px += 60 + R() * 120; continue; }
     if (kind === 'shrooms') { const c2 = R() < .5 ? mix('#c95b8a', th.far[1], .5) : mix('#d9573b', th.far[1], .5); x.fillStyle = col; x.fillRect(px - 3, gy - h, 6, h); x.fillStyle = c2; x.beginPath(); x.ellipse(px, gy - h, h * .45, h * .22, 0, Math.PI, 0); x.closePath(); x.fill(); x.stroke(); px += 30 + R() * 50; continue; }
     if (kind === 'willows') { x.beginPath(); x.ellipse(px, gy - h, h * .5, h * .35, 0, Math.PI, 0); x.fill(); x.lineWidth = 2; x.strokeStyle = col; x.beginPath(); for (let k = -4; k <= 4; k++) { x.moveTo(px + k * h * .11, gy - h); x.quadraticCurveTo(px + k * h * .13, gy - h * .5, px + k * h * .12, gy - h * .1); } x.stroke(); x.fillRect(px - 2.5, gy - h, 5, h); px += 40 + R() * 50; continue; }
+    if (kind === 'orchard') {
+      const hh = 34 + R() * 48, lean = (R() - .5) * 8;
+      x.strokeStyle = col; x.lineWidth = 3.2; x.beginPath(); x.moveTo(px, gy); x.quadraticCurveTo(px + lean * .4, gy - hh * .4, px + lean, gy - hh * .62); x.stroke();
+      x.fillStyle = mix(th.cap || '#7fae58', th.far[1], .38); x.strokeStyle = edge; x.lineWidth = 1.4;
+      x.beginPath(); x.ellipse(px + lean, gy - hh * .72, hh * .29, hh * .33, 0, 0, TAU); x.fill(); x.stroke();
+      x.beginPath(); x.ellipse(px + lean - hh * .17, gy - hh * .62, hh * .18, hh * .22, 0, 0, TAU); x.fill(); x.stroke();
+      px += 38 + R() * 42; continue;
+    }
     if (kind === 'lavrows') { x.fillStyle = mix(th.flower || '#9b7fc7', th.far[1], .45); for (let k = 0; k < 6; k++) { x.beginPath(); x.ellipse(px + k * 12, gy - 5, 7, 6, 0, Math.PI, 0); x.fill(); } px += 80 + R() * 30; continue; }
     px += 40;
   }

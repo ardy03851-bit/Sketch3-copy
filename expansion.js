@@ -81,63 +81,131 @@ function platformTiers(R, mc, seed, floorY, topY, avoid) {
     y -= 190 + R() * 35; tier++; }
   return plats;
 }
-/* The Simple Lands: a hand-drawn stepped skyline with gorge gaps, stone
-   bridges, little stone spires and floating stepping stones. Any biome can
-   opt into it with style: 'stepped'. Everything is drawn into the terrain
-   mask before the grid is rebuilt, so it collides and breaks like normal land. */
-function terraceLand(R, mc, seed, base) {
-  const scale = W / 1600, parts = []; let x = -80;
-  while (x < W + 80) {
-    const w = Math.min(W + 100 - x, (190 + R() * 150) * scale);
-    const prev = parts[parts.length - 1];
-    const top = prev ? clamp(prev.top + (R() - .5) * 220, base - 235, base + 35) : base - 55 - R() * 80;
-    parts.push({ x0: x, x1: x + w, top });
-    x += w + (prev && R() < .34 ? (80 + R() * 70) * scale : 0);
+/* The Simple Lands: a contour-map landscape built from stacked terraces.
+   Each mesa has one to three inset shelves, so its silhouette climbs in
+   broad hand-drawn steps. Gorges split the mesas, stone viaducts bridge
+   them, and ziggurat spires + floating stones add alternative routes.
+   Only biomes with style: 'stepped' use this generator. */
+function terraceTop(x0, x1, top, seed, idx) {
+  const n = Math.max(5, Math.round((x1 - x0) / 26)), pts = [];
+  for (let k = 0; k <= n; k++) {
+    const t = k / n, px = lerp(x0, x1, t);
+    const lip = (1 - Math.min(1, Math.min(t, 1 - t) * 8)) * 6;
+    pts.push([px, top + (fbm(px * .018, seed + idx * 19) - .5) * 9 + lip]);
   }
-  const pts = [[-120, H + 140]];
-  for (let i = 0; i < parts.length; i++) {
-    const p = parts[i], prev = parts[i - 1];
-    if (prev && p.x0 - prev.x1 > 2) { pts.push([prev.x1 - 6, H + 140], [p.x0 + 6, H + 140], [p.x0, p.top + 8]); }
-    else if (prev) pts.push([p.x0 + 2, p.top + 8]);
-    const n = Math.max(4, Math.round((p.x1 - p.x0) / 22));
-    for (let k = 0; k <= n; k++) {
-      const t = k / n, px = p.x0 + (p.x1 - p.x0) * t;
-      pts.push([px, p.top + (fbm(px * .019, seed + i * 13) - .5) * 11 + (1 - Math.min(1, Math.min(t, 1 - t) * 10)) * 7]);
-    }
-    pts.push([p.x1 - 2, p.top + 8]);
-  }
-  pts.push([parts[parts.length - 1].x1 + 120, H + 140]);
+  return pts;
+}
+function terraceBlock(mc, x0, x1, top, seed, idx, bottom = H + 140) {
+  const pts = [[x0 - 5, bottom], [x0 + 1, top + 30], [x0 - 1, top + 12]];
+  for (const p of terraceTop(x0, x1, top, seed, idx)) pts.push(p);
+  pts.push([x1 + 1, top + 12], [x1 - 1, top + 30], [x1 + 5, bottom]);
   fillShape(mc, pts);
+}
+function terraceLand(R, mc, seed, base) {
+  const scale = W / 1600, count = 5 + (R() * 4 | 0), slot = (W + 160) / count;
+  const gaps = []; const bigGap = R() < .72 ? (R() * Math.max(1, count - 1) | 0) : -1;
+  let gapTotal = 0;
+  for (let i = 0; i < count - 1; i++) { const g = (i === bigGap ? 235 + R() * 105 : 46 + R() * 92) * scale; gaps.push(g); gapTotal += g; }
+  const raw = []; let rawTotal = 0;
+  for (let i = 0; i < count; i++) { const w = slot * (.66 + R() * .38); raw.push(w); rawTotal += w; }
+  const fit = (W + 160 - gapTotal) / rawTotal;
+  let x = -80, top = base - 70 - R() * 60;
+  const parts = [];
+  for (let i = 0; i < count; i++) {
+    if (i) x += gaps[i - 1];
+    const w = i === count - 1 ? W + 80 - x : raw[i] * fit;
+    if (i) top = clamp(top + (R() - .5) * (R() < .18 ? 250 : 170), base - 225, base + 20);
+    const part = { x0: x, x1: x + w, top };
+    const layers = [{ x0: part.x0, x1: part.x1, top }];
+    terraceBlock(mc, part.x0, part.x1, top, seed, i * 7 + 1);
+    let cx0 = part.x0, cx1 = part.x1, cy = top;
+    const tiers = 1 + (R() < .72 ? 1 : 0) + (R() < .32 ? 1 : 0);
+    for (let k = 0; k < tiers; k++) {
+      const narrow = Math.min(96, (cx1 - cx0) * .22);
+      const li = 34 + R() * Math.max(8, narrow - 24), ri = 34 + R() * Math.max(8, narrow - 24);
+      if (cx1 - cx0 - li - ri < 118) break;
+      const rise = 58 + R() * 34, nt = Math.max(base - 382, cy - rise);
+      if (cy - nt < 30) break;
+      cx0 += li; cx1 -= ri; cy = nt;
+      terraceBlock(mc, cx0, cx1, cy, seed, i * 7 + k * 3 + 3);
+      layers.push({ x0: cx0, x1: cx1, top: cy });
+    }
+    part.layers = layers; parts.push(part);
+    x += w;
+  }
+  // buttress steps jutting into the gorges make the cliff walls read as terraces too
+  for (let i = 1; i < parts.length; i++) {
+    const a = parts[i - 1], b = parts[i];
+    if (b.x0 - a.x1 < 46 || R() > .55) continue;
+    const w = 28 + R() * 24;
+    if (R() < .5) terraceBlock(mc, b.x0 - w, b.x0 + 4, b.top + 55 + R() * 20, seed, 900 + i);
+    else terraceBlock(mc, a.x1 - 4, a.x1 + w, a.top + 55 + R() * 20, seed, 920 + i);
+  }
   return parts;
 }
 function stoneBridge(R, mc, x0, x1, y0, y1) {
-  const l = x0 - 24, r = x1 + 24, n = Math.max(4, Math.round((r - l) / 26)), top = [], bot = [];
-  for (let i = 0; i <= n; i++) { const t = i / n, px = lerp(l, r, t); top.push([px, lerp(y0, y1, t) + 6 + Math.sin(t * Math.PI) * (8 + R() * 5)]); bot.push([px, lerp(y0, y1, t) + 30 + Math.sin(t * Math.PI) * (6 + R() * 4)]); }
+  const gap = x1 - x0, l = x0 - 34, r = x1 + 34, n = Math.max(6, Math.round((r - l) / 22));
+  const hump = Math.min(17, gap * .07), top = [], bot = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n, px = lerp(l, r, t), yy = lerp(y0, y1, t);
+    top.push([px, yy + 4 - Math.sin(t * Math.PI) * hump]);
+    bot.push([px, yy + 31 - Math.sin(t * Math.PI) * (hump + 4)]);
+  }
   bot.reverse(); fillShape(mc, top.concat(bot));
-  if (x1 - x0 > 92) { const px = (x0 + x1) / 2, py = lerp(y0, y1, .5) + 30; fillShape(mc, [[px - 5, py], [px - 3, H + 140], [px + 4, H + 140], [px + 6, py]]); }
+  const piers = gap > 210 ? [.32, .68] : [.5];
+  for (const t of piers) {
+    const px = lerp(x0, x1, t), py = lerp(y0, y1, t) + 27, w = 9 + R() * 4;
+    fillShape(mc, [[px - w, py - 4], [px - w * 1.65, H + 140], [px + w * 1.65, H + 140], [px + w, py - 4]]);
+  }
+  for (const [px, py, dir] of [[l + 4, y0, -1], [r - 4, y1, 1]]) {
+    fillShape(mc, [[px, py + 6], [px + dir * (18 + R() * 7), py + 15], [px + dir * (13 + R() * 6), py + 30], [px, py + 32]]);
+  }
 }
-function stoneSpire(R, mc, cx, baseY, h, w) {
-  const lean = (R() - .5) * w * .5, tip = baseY - h;
-  fillShape(mc, [[cx - w * .6, baseY + 60], [cx - w * .52, baseY - h * .12], [cx - w * .38, baseY - h * .5], [cx - w * .3 + lean, tip + 4], [cx - w * .08 + lean, tip - 2], [cx + w * .16 + lean, tip + 1], [cx + w * .28 + lean, tip + 5], [cx + w * .4, baseY - h * .46], [cx + w * .53, baseY - h * .12], [cx + w * .62, baseY + 60]]);
-  fillShape(mc, [[cx - w * .12 + lean, tip + 2], [cx + w * .13 + lean, tip + 3], [cx + w * .16 + lean, tip + 9], [cx - w * .14 + lean, tip + 8]]);
+function stoneSpire(R, mc, cx, baseY, h, w, seed) {
+  const tiers = 3 + (R() < .4 ? 1 : 0);
+  let y = baseY, ww = w, lean = (R() - .5) * 6;
+  for (let i = 0; i < tiers; i++) {
+    const bh = h / tiers * (.82 + R() * .3), top = Math.max(120, y - bh);
+    const cxx = cx + lean * (i / tiers), w2 = Math.max(16, ww * (.78 + R() * .12));
+    terraceBlock(mc, cxx - w2 / 2, cxx + w2 / 2, top, seed, 700 + i * 5);
+    y = top; ww = w2;
+  }
+}
+function steppingStone(R, mc, x, y, w, seed) {
+  const th = 30 + R() * 24, pts = [];
+  for (const p of terraceTop(x, x + w, y, seed, 600)) pts.push(p);
+  pts.push([x + w + 7, y + th * .38], [x + w - 12, y + th * .9], [x + w * .62, y + th], [x + w * .28, y + th * .9], [x + 10, y + th * .76], [x - 7, y + th * .34]);
+  fillShape(mc, pts);
 }
 function simpleLand(R, mc, seed, base, big) {
   const parts = terraceLand(R, mc, seed, base);
-  for (let i = 1; i < parts.length; i++) { const a = parts[i - 1], b = parts[i]; if (b.x0 - a.x1 > 44) stoneBridge(R, mc, a.x1, b.x0, a.top, b.top); }
-  const nSpire = 2 + (R() < .55 ? 1 : 0) + (big ? 2 : 0), used = [];
-  for (let i = 0; i < nSpire; i++) {
-    const p = parts[(R() * parts.length) | 0], w = 44 + R() * 34, h = 105 + R() * 100;
-    if (p.x1 - p.x0 < w * 2.6) continue;
-    const cx = p.x0 + w + R() * (p.x1 - p.x0 - w * 2);
-    if (used.some(u => Math.abs(u - cx) < 170)) continue; used.push(cx);
-    stoneSpire(R, mc, cx, p.top, h, w);
+  for (let i = 1; i < parts.length; i++) {
+    const a = parts[i - 1], b = parts[i];
+    if (b.x0 - a.x1 > 32) stoneBridge(R, mc, a.x1, b.x0, a.top, b.top);
   }
-  const sets = (big ? 2 : 1) + (R() < .65 ? 1 : 0) + (R() < .35 ? 1 : 0);
+  const ledges = [];
+  for (const p of parts) for (const l of p.layers) if (l.x1 - l.x0 > 120) ledges.push(l);
+  const used = [], nSpire = (big ? 3 : 2) + (R() < .5 ? 1 : 0) + (R() < .28 ? 1 : 0);
+  for (let i = 0; i < nSpire; i++) {
+    const L = ledges[(R() * ledges.length) | 0]; if (!L) break;
+    const w = 42 + R() * 28, h = 110 + R() * 85;
+    if (L.x1 - L.x0 < w * 2.8) continue;
+    const cx = L.x0 + w * 1.5 + R() * (L.x1 - L.x0 - w * 3);
+    if (used.some(u => Math.abs(u.x - cx) < 175 && Math.abs(u.y - L.top) < 90)) continue;
+    used.push({ x: cx, y: L.top });
+    stoneSpire(R, mc, cx, L.top, h, w, seed + i * 29);
+  }
+  const sets = (big ? 2 : 1) + (R() < .7 ? 1 : 0) + (R() < .35 ? 1 : 0);
   for (let s = 0; s < sets; s++) {
-    const n = 3 + (R() * 3 | 0), dir = R() < .5 ? -1 : 1, x0 = 120 + R() * (W - 260), y0 = base - 130 - R() * 130;
+    const p = parts[1 + ((R() * Math.max(1, parts.length - 2)) | 0)] || parts[0];
+    const dir = p.x0 + (p.x1 - p.x0) * .5 < W * .5 ? 1 : -1, n = 3 + (R() * 3 | 0);
+    let x = clamp(p.x0 + (p.x1 - p.x0) * (.3 + R() * .4), 60, W - 180);
+    let y = p.top - 65 - R() * 60;
     for (let i = 0; i < n; i++) {
-      const w = 52 + R() * 52, px = clamp(x0 + dir * i * (95 + R() * 38), 60, W - 60 - w), py = clamp(y0 - i * (34 + R() * 22), 180, base - 50);
-      fillShape(mc, islandPoly(R, px, px + w, py, 36 + R() * 32, seed + s * 37 + i, true));
+      const w = 54 + R() * 44;
+      x = clamp(x + dir * (88 + R() * 34) * (W / 1600), 30, W - 40 - w);
+      y = clamp(y - Math.sin((i + .5) / n * Math.PI) * 34 + (R() - .5) * 16, 170, base - 55);
+      steppingStone(R, mc, x, y, w, seed + s * 41 + i * 7);
     }
   }
   return parts;
@@ -207,6 +275,26 @@ buildTexture = function (R) {
   if (th.icy) { c.fillStyle = 'rgba(210,235,255,.25)'; for (let i = 0; i < 260; i++) { c.beginPath(); c.arc(R() * W, R() * H, 2 + R() * 7, 0, TAU); c.fill(); } }
   if (th.lava) { c.strokeStyle = 'rgba(255,120,40,.22)'; c.lineWidth = 1.5; for (let i = 0; i < 70; i++) { let x = R() * W, y = H * .45 + R() * H * .55; c.beginPath(); c.moveTo(x, y); for (let k = 0; k < 5; k++) { x += (R() - .5) * 40; y += R() * 22; c.lineTo(x, y); } c.stroke(); } }
   if (th.style === 'sea') { c.fillStyle = 'rgba(255,248,225,.24)'; for (let i = 0; i < 900; i++) c.fillRect(R() * W, R() * H, 1.5, 1.5); }
+  if (th.style === 'stepped') {
+    c.lineWidth = 1.2;
+    for (let y = H * .38; y < H; y += 34 + R() * 24) {
+      c.strokeStyle = `rgba(31,28,36,${(.03 + R() * .035).toFixed(3)})`; c.beginPath(); c.moveTo(0, y);
+      for (let x = 0; x <= W; x += 48) c.lineTo(x, y + Math.sin(x * .007 + y) * 5 + (fbm(x * .005, y) - .5) * 8);
+      c.stroke();
+    }
+    const cols = ['#fff8df', '#f3b6c4', '#f2c230', '#c7dd8a'];
+    for (let x = 42; x < W - 42; x += 54 + R() * 64) {
+      const gx = clamp(x / CELL | 0, 0, GW - 1); let gy = 0;
+      while (gy < GH && !T.grid[gy * GW + gx]) gy++;
+      if (gy < 2 || gy > GH - 3) continue;
+      const sy = gy * CELL; if (sy < H * .24) continue;
+      c.strokeStyle = 'rgba(74,98,52,.5)'; c.lineWidth = .9;
+      c.beginPath(); c.moveTo(x - 2, sy + 8); c.lineTo(x - 3, sy + 2); c.moveTo(x + 2, sy + 8); c.lineTo(x + 4, sy + 3); c.stroke();
+      c.fillStyle = cols[(R() * cols.length) | 0];
+      for (let k = 0; k < 2 + (R() * 3 | 0); k++) { c.beginPath(); c.arc(x + (R() - .5) * 26, sy + 3 + R() * 9, .8 + R() * 1.5, 0, TAU); c.fill(); }
+    }
+  }
+
   c.setTransform(1, 0, 0, 1, 0, 0);
 };
 

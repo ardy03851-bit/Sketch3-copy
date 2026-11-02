@@ -740,7 +740,7 @@ One file can call `Biome({...})` more than once; the extra biomes get ids like `
 
 ### Stepped terrain (The Simple Lands)
 
-`style: "stepped"` draws a contour-map skyline instead of one field: flat terraces at different heights, deep little gorges between them, stone bridges across the gorges, tall ink spires to fight around, and chains of floating stepping stones. It scales with The Big Wilds and is destructible like every other surface. Use it when a biome should feel built out of big, simple shapes.
+`style: "stepped"` draws a contour-map landscape instead of one field: broad mesas climb in one to three inset shelves, with steep gorges and one wider canyon between them. Stacked stone viaducts carry the route across, ziggurat spires and floating stone chains add extra platforms, and the topsoil gets map-only contour seams and tiny wildflowers. It scales with The Big Wilds and is destructible like every other surface. Use it when a biome should feel built out of big, simple shapes; The Simple Lands pairs it with the `orchard` background tree line and its windmill, well, picnic and flower-cart props.
 
 ```js
 Biome({
