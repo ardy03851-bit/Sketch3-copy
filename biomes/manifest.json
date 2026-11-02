@@ -105,11 +105,27 @@
    ]
   },
   {
+   "id": "hexfall-heights",
+   "js": "hexfall-heights.js",
+   "png": null,
+   "files": [
+    "hexfall-heights.js"
+   ]
+  },
+  {
    "id": "lavender-fields",
    "js": "lavender-fields.js",
    "png": null,
    "files": [
     "lavender-fields.js"
+   ]
+  },
+  {
+   "id": "lumen-atolls",
+   "js": "lumen-atolls.js",
+   "png": null,
+   "files": [
+    "lumen-atolls.js"
    ]
   },
   {
@@ -150,6 +166,14 @@
    "png": null,
    "files": [
     "night-swamp.js"
+   ]
+  },
+  {
+   "id": "paper-peaks",
+   "js": "paper-peaks.js",
+   "png": null,
+   "files": [
+    "paper-peaks.js"
    ]
   },
   {

@@ -252,6 +252,7 @@ const MainMenu = {
 /* ---------- the new-game setup screen ---------- */
 const SETUP_MODES = [
   { id: 'arena', n: 'Arena', d: 'Tight, destructible arenas. Up to 8 players. Last scribble standing.' },
+  { id: 'inkhold', n: 'Inkhold', d: 'Hold the glowing ink ring to score. First to the target takes the match.' },
   { id: 'wilds', n: 'Big Wilds', d: 'A huge map, bot crowds, the Tool Box and teams if you want.' },
   { id: 'war', n: 'War', d: 'Teams, a build phase with the kit, banners and shared lives.' },
 ];
@@ -281,7 +282,7 @@ const Setup = {
     this.tab = 0; this.render(); UI.show('setup');
   },
   refresh() { MainMenu.evInfo(); if (this.el && UI.cur === 'setup') this.render(); },
-  isBig() { return this.s.mode !== 'arena'; },
+  isBig() { return this.s.mode === 'wilds' || this.s.mode === 'war'; },
   botSteps() { return this.isBig() ? SETUP_BOTS_WILDS : SETUP_BOTS_ARENA; },
   rules() { return RulesPanel.vals; },
   chips(key, opts, cur, cls = '') { return `<div class="su-chips ${cls}">${opts.map(([v, n]) => `<button data-pick="${key}" data-v="${v}" class="${String(cur) === String(v) ? 'on' : ''}">${n}</button>`).join('')}</div>`; },
@@ -293,7 +294,9 @@ const Setup = {
     $('#suTitle').textContent = ev ? `${EventInfo.name} game` : s.online ? 'Host a room' : 'Set up a game';
     el.querySelectorAll('#suWhere button').forEach(b => b.classList.toggle('on', +b.dataset.where === (s.online ? 1 : 0)));
     el.querySelectorAll('#suTabs button').forEach(b => b.classList.toggle('on', +b.dataset.tab === this.tab));
-    const bi = biomeIndexes(s.set); const steps = this.botSteps(); if (!steps.includes(s.bots)) s.bots = steps.reduce((a, b) => Math.abs(b - s.bots) < Math.abs(a - s.bots) ? b : a, steps[0]);
+    let bi = biomeIndexes(s.set);
+    if (s.mode === 'inkhold') { bi = THEMES.reduce((a, t, i) => { if (t.inkhold) a.push(i); return a; }, []); if (s.biome >= 0 && !THEMES[s.biome]?.inkhold) s.biome = -1; }
+    const steps = this.botSteps(); if (!steps.includes(s.bots)) s.bots = steps.reduce((a, b) => Math.abs(b - s.bots) < Math.abs(a - s.bots) ? b : a, steps[0]);
     const tile = i => { const t = THEMES[i]; const far = (t.far && t.far[0]) || t.mid; return `<button class="su-bio${s.biome === i ? ' on' : ''}" data-pick="biome" data-v="${i}" title="${esc(t.name)}"><i style="background:linear-gradient(180deg,${t.skyT} 0%,${t.skyB} 46%,${far} 46%,${far} 60%,${t.cap || t.top} 60%,${t.top} 66%,${t.mid} 66%,${t.deep} 100%)"></i><em>${esc(t.name)}</em></button>`; };
     const ruleChips = (k, extra = '') => { const f = this.rf(k); return f ? `<div class="su-sec ${extra}"><span class="lbl">${f.l}</span>${this.chips('r:' + k, f.o, v[k])}</div>` : ''; };
     const pane0 = `<div class="su-sec"><span class="lbl">Mode</span><div class="su-modes">${SETUP_MODES.map(m => `<button class="su-mode${s.mode === m.id ? ' on' : ''}" data-pick="mode" data-v="${m.id}"><b>${m.n}</b><span>${m.d}</span></button>`).join('')}</div></div>
@@ -338,7 +341,7 @@ const Setup = {
     v.war = war ? 1 : 0; if (war && !(v.teams >= 2)) v.teams = 2; v.crowd = big && s.bots > 7 ? s.bots : 0; v.terrain = s.terrain; v.set = s.set;
     setCookie('ib_rules', JSON.stringify(Object.assign({}, v, { set: 'main' })));
     const name = s.online ? (cleanName(s.room || `${UI.name}'s room`).slice(0, 24) || 'Room') : (s.set === 'event' ? EventInfo.name : 'Practice');
-    startHost({ offline: !s.online, name, max: s.online ? s.max : 8, target: s.target, bots: big ? s.bots : Math.min(7, s.bots), gameMode: big ? 'expedition' : 'arena', biome: s.biome, public: s.pub, set: s.set, terrain: s.terrain });
+    startHost({ offline: !s.online, name, max: s.online ? s.max : 8, target: s.target, bots: big ? s.bots : Math.min(7, s.bots), gameMode: s.mode === 'inkhold' ? 'inkhold' : (big ? 'expedition' : 'arena'), biome: s.biome, public: s.pub, set: s.set, terrain: s.terrain });
   },
 };
 

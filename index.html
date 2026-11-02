@@ -223,13 +223,41 @@ select{font:700 15px var(--font);background:#f6f0e4;border:2px solid var(--ink);
 .exp-note{background:#ded3bd;border-left:3px solid var(--teal);padding:10px 12px;font-size:13px;line-height:1.5;margin:0 0 18px}
 .setting-row{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:14px 0;border-bottom:1px solid #c8bca7;font-weight:700}.setting-row select{width:160px}.setting-row input{width:130px;accent-color:var(--teal)}.setting-row input[type=checkbox]{width:22px;height:22px}
 #wcard{border-top:4px solid var(--rarity,var(--ink))}.rarity-label{text-transform:uppercase;letter-spacing:.12em;font-size:10px;font-weight:800;color:var(--rarity,#645b50);margin-bottom:3px}
-.witem{border-top:4px solid var(--rarity,var(--ink))}.witem .tag{background:var(--rarity,var(--ink));color:#fff}.witem .desc{min-height:44px;line-height:1.4}.reveal .rc{border-top:5px solid var(--rarity,var(--ink));height:155px}.reveal small{font-size:11px;text-transform:uppercase;letter-spacing:.13em;color:var(--rarity)}
+.witem{border-top:4px solid var(--rarity,var(--ink))}.witem .tag{background:var(--rarity,var(--ink));color:#fff}.witem .desc{min-height:44px;line-height:1.4}.reveal .rc{border-top:5px solid var(--rarity,var(--ink));height:auto;min-height:155px}.reveal small{font-size:11px;text-transform:uppercase;letter-spacing:.13em;color:var(--rarity)}
+
+/* ---------- MYTHIC rarity: animated cards ----------
+   The mythic gradient sweeps, sparkles drift and twinkle over the card,
+   the tag pill shimmers, and the reveal card catches a traveling shine. */
+@keyframes mythSweep{0%{background-position:0% 50%}100%{background-position:300% 50%}}
+@keyframes mythPulse{0%,100%{transform:scale(1);opacity:.7}50%{transform:scale(1.16);opacity:1}}
+@keyframes mythTwinkle{0%,100%{opacity:.25}50%{opacity:1}}
+@keyframes mythDrift{0%{background-position:0 0,40px 20px,90px 60px,20px 80px}100%{background-position:0 -120px,40px -100px,90px -60px,20px -40px}}
+@keyframes mythShine{0%{transform:translateX(-140%) skewX(-18deg)}55%,100%{transform:translateX(260%) skewX(-18deg)}}
+@keyframes mythFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+.witem.rar-mythic{border-top-color:transparent;position:relative;overflow:hidden}
+.witem.rar-mythic::before{content:"";position:absolute;top:-4px;left:0;right:0;height:4px;z-index:1;border-radius:8px 8px 0 0;
+  background:linear-gradient(90deg,#ff5db1,#ffb347,#7ee8a2,#6ec3ff,#b48cff,#ff5db1);background-size:300% 100%;animation:mythSweep 3s linear infinite}
+.witem.rar-mythic::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(3px 3px at 18% 30%,rgba(255,255,255,.95),transparent 60%),radial-gradient(2px 2px at 70% 22%,rgba(255,214,255,.9),transparent 60%),radial-gradient(2.5px 2.5px at 40% 75%,rgba(214,240,255,.9),transparent 60%),radial-gradient(2px 2px at 85% 65%,rgba(255,240,214,.85),transparent 60%);
+  background-size:120px 120px,90px 90px,140px 140px,100px 100px;animation:mythDrift 7s linear infinite,mythTwinkle 2.4s ease-in-out infinite}
+.witem.rar-mythic .tag{background:linear-gradient(90deg,#ff5db1,#ffb347,#7ee8a2,#6ec3ff,#b48cff,#ff5db1);background-size:300% 100%;animation:mythSweep 3s linear infinite;color:#fff}
+.witem.rar-mythic .thumb{position:relative}
+.witem.rar-mythic .thumb::before{content:"";position:absolute;inset:-8px;pointer-events:none;background:radial-gradient(closest-side,rgba(224,85,216,.28),transparent 70%);animation:mythPulse 2.2s ease-in-out infinite}
+.wcard.rar-mythic .wimg{position:relative;animation:mythFloat 3s ease-in-out infinite}
+.wcard.rar-mythic .wimg::before{content:"";position:absolute;inset:-10px;pointer-events:none;background:radial-gradient(closest-side,rgba(224,85,216,.32),transparent 70%);animation:mythPulse 2.2s ease-in-out infinite}
+.wcard.rar-mythic::before{background:linear-gradient(90deg,transparent,#ff5db1,#ffb347,#7ee8a2,#6ec3ff,#b48cff,transparent)!important;background-size:250% 100%;animation:mythSweep 2.6s linear infinite}
+.wcard.rar-mythic .rarity-label{background:linear-gradient(90deg,#ff5db1,#ffb347,#7ee8a2,#6ec3ff,#b48cff,#ff5db1)!important;background-size:300% 100%;animation:mythSweep 3s linear infinite;border-color:rgba(224,85,216,.7);color:#fff;text-shadow:0 1px 2px rgba(90,20,80,.35)}
+.reveal .rc.rar-mythic{border-top-color:transparent;position:relative;overflow:hidden;padding:6px 12px 10px}
+.reveal .rc.rar-mythic::before{content:"";position:absolute;top:-5px;left:0;right:0;height:5px;z-index:2;border-radius:8px 8px 0 0;
+  background:linear-gradient(90deg,#ff5db1,#ffb347,#7ee8a2,#6ec3ff,#b48cff,#ff5db1);background-size:300% 100%;animation:mythSweep 3s linear infinite}
+.reveal .rc.rar-mythic::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.65) 50%,transparent 65%);transform:translateX(-140%) skewX(-18deg);animation:mythShine 2.8s ease-in-out infinite}
+.reveal .rc.rar-mythic .rarity-label{display:inline-block;background:linear-gradient(90deg,#ff5db1,#ffb347,#7ee8a2,#6ec3ff,#b48cff,#ff5db1);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:mythSweep 3s linear infinite}
 .round-chip{position:absolute;top:74px;left:50%;transform:translateX(-50%);background:rgba(246,240,228,.9);border:1.5px solid var(--ink);padding:5px 12px;border-radius:5px 12px 5px 12px;font-size:12px;font-weight:800;white-space:nowrap}.round-chip b{font-variant-numeric:tabular-nums;margin-left:8px}
 .reload-track{height:3px;overflow:hidden;border-radius:3px;margin-top:5px;background:#d0c4ad}.reload-track i{display:block;height:100%;width:0;background:var(--teal)}#statusText{font-size:10px;letter-spacing:.07em;font-weight:800;color:#80513c;min-height:13px;margin-top:3px}.wcard{min-width:225px}.wcard .hpbar{width:145px}
 #miniMap{position:absolute;right:14px;bottom:38px;width:170px;height:90px;border:2px solid var(--ink);border-radius:8px 15px 8px 15px;background:rgba(236,227,209,.85)}
 #fpsReadout{position:absolute;left:12px;bottom:10px;font:700 11px var(--font);color:var(--ink-soft);background:rgba(246,240,228,.8);padding:3px 7px;border-radius:5px}button:focus-visible,[role=button]:focus-visible{outline:3px solid var(--teal);outline-offset:4px}.screen .sub{line-height:1.5}
 @media(max-width:600px){.screen{padding:14px;align-items:flex-start}.screen>.card{margin:auto 0;max-height:calc(100dvh - 28px);padding:18px}.tagline{font-size:12px;text-align:center}#title .wrap{margin:auto 0;gap:14px}.menu-card{padding:18px}.menu-btns .btn{font-size:14px;padding:10px 8px}.sw.char{width:40px;height:40px}.swatches{gap:9px}.chips{gap:7px}.chip{font-size:11px;padding:7px 9px}.scores{gap:4px;padding-top:2px}.score{font-size:10px;padding:4px 6px;gap:3px}.score .blob{width:12px;height:12px}.codechip{display:none}.hud-btn{width:40px;height:40px}.round-chip{top:66px;font-size:10px}.wcard{bottom:12px;gap:7px;min-width:190px;padding:6px 10px}.wcard .wimg{width:45px}.wcard .wimg img{max-width:45px}.wcard .wn{font-size:13px}.wcard .hpbar{width:120px}#miniMap{width:120px;height:62px;right:8px;top:96px;bottom:auto}.wcard .pips small{display:none}.wcard .rarity-label{font-size:9px;margin-bottom:0}#statusText{min-height:0;font-size:9px}.net{font-size:9px;max-width:90px;text-align:right}.hint{bottom:calc(112px + var(--safe-b));max-width:92vw;white-space:normal;text-align:center;font-size:12px}.killfeed{top:100px}.gm-exp .killfeed{top:166px}.kf{font-size:11px}.banner .small{font-size:14px}.setting-row select{width:130px}.setup-grid{gap:8px}.tlabel{display:none}}
-@media(max-height:550px){#title .wrap{gap:9px}.logo{font-size:48px}.tagline{font-size:12px}.sw.char{width:34px;height:34px}.field{margin-bottom:8px}.menu-btns .btn{min-height:44px;font-size:14px}.screen{padding:12px}.screen>.card{max-height:calc(100dvh - 24px)}.menu-card{padding:12px 20px}.round-chip{top:55px}.reveal{top:60%}.reveal .rc{height:112px;width:190px}.reveal .rc img{max-height:45px}.wcard{bottom:8px}.banner{top:22%}}
+@media(max-height:550px){#title .wrap{gap:9px}.logo{font-size:48px}.tagline{font-size:12px}.sw.char{width:34px;height:34px}.field{margin-bottom:8px}.menu-btns .btn{min-height:44px;font-size:14px}.screen{padding:12px}.screen>.card{max-height:calc(100dvh - 24px)}.menu-card{padding:12px 20px}.round-chip{top:55px}.reveal{top:60%}.reveal .rc{height:auto;min-height:112px;width:190px}.reveal .rc img{max-height:45px}.wcard{bottom:8px}.banner{top:22%}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-iteration-count:1!important;scroll-behavior:auto!important}}
 button,.btn,input,select,.screen{touch-action:manipulation}html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 </style>

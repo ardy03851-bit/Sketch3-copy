@@ -23,6 +23,10 @@ function biomeIndexes(set = contentSet()) {
 }
 let lastRandomBiome = -1;
 function randomBiome() {
+  if (G.gameMode === 'inkhold') { // the mode has its own map pool
+    const L = THEMES.reduce((a, t, i) => { if (t.inkhold) a.push(i); return a; }, []);
+    if (L.length) return (lastRandomBiome = L[(Math.random() * L.length) | 0]);
+  }
   const L = biomeIndexes(); let pick = L[(Math.random() * L.length) | 0];
   if (L.length > 2 && pick === lastRandomBiome) pick = L[(L.indexOf(pick) + 1 + ((Math.random() * (L.length - 1)) | 0)) % L.length];
   return (lastRandomBiome = pick);

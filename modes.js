@@ -23,7 +23,7 @@ function teamsOn() { return teamCount() >= 2; }
 function warOn() { return !!(G.opts && G.opts.war) && G.gameMode === 'expedition'; }
 function fightElapsed() { return (G.roundLen || 150) - (G.phaseEnd - now()); }
 function warBuildPhase() { return warOn() && G.phase === 'fight' && fightElapsed() < (G.opts.buildT | 0); }
-function roundTimeFor() { const o = G.opts; if (o.time > 0) return o.time + (warOn() ? o.buildT | 0 : 0); if (warOn()) return 300 + (o.buildT | 0); return G.gameMode === 'expedition' ? 150 : ROUND_TIME; }
+function roundTimeFor() { const o = G.opts; if (G.gameMode === 'inkhold') return 300; if (o.time > 0) return o.time + (warOn() ? o.buildT | 0 : 0); if (warOn()) return 300 + (o.buildT | 0); return G.gameMode === 'expedition' ? 150 : ROUND_TIME; }
 function warKitMats() { return G.opts.mats || 150; }
 Build.kitAllowed = () => warOn() && (G.phase === 'fight' || G.phase === 'warmup' || G.phase === 'countdown');
 BOT_NAMES.push('Eraser', 'Crayon', 'Margin', 'Pastel', 'Gouache', 'Biro', 'Squiggle', 'Hatch', 'Stipple', 'Smear', 'Tracer', 'Pencilneck', 'Rubber', 'Sharpie', 'Staple', 'Folio', 'Doodlebug', 'Scribble', 'Splotch', 'Wobble');
@@ -96,6 +96,7 @@ function endSoloRound(win) { if (win) win.score++; const champ = win && win.scor
 /* called by the core fight-phase rules; returns true when it handled this frame */
 function fightRules(all, alive, t) {
   const o = G.opts; const timeUp = G.phaseEnd > 0 && t >= G.phaseEnd;
+  if (G.gameMode === 'inkhold') { inkholdRules(all, alive, t, timeUp); return true; }
   if (!teamsOn()) { if (timeUp && !o.sd) { endSoloRound(alive.slice().sort((a, b) => b.hp - a.hp)[0] || null); return true; } return false; }
   const war = warOn(); const n = teamCount();
   if (war) { // respawn tickets
@@ -357,4 +358,115 @@ function pauseAction(a) {
   emit({ k: 'opts', o, mo: G.gameMode }); assignTeams(true);
   if (G.players.size >= 2) setPhase('over', 1.6, { win: null, wt: null, msg: a === 'war' ? (o.war ? 'War mode' : 'War mode over') : (teamsOn() ? teamCount() + ' teams' : 'Free for all') });
   else setPhase('warmup', 0);
+}
+
+/* ---------- Inkhold: king of the ink ring ----------
+   A glowing ring hops across the map every 20 seconds. Be the only
+   player (or the only team) inside it to score a point per second.
+   First player to the target wins the match; fallen players respawn. */
+const INKHOLD_RING_R = 116, INKHOLD_HOP = 20;
+function inkholdOn() { return G.gameMode === 'inkhold'; }
+// every peer computes the same ring spot from the map seed + fight clock
+function inkholdRing() {
+  if (!inkholdOn() || G.phase !== 'fight') return null;
+  const elapsed = Math.max(0, (G.roundLen || 300) - (G.phaseEnd - now()));
+  const idx = Math.min(Math.floor(elapsed / INKHOLD_HOP), 14);
+  const R = rng((T.seed >>> 0) + 7919 * (idx + 1));
+  for (let tries = 0; tries < 60; tries++) {
+    const x = W * (0.16 + R() * 0.68);
+    const y = surfaceFromGrid(x);
+    if (y != null && y > 150 && y < H - 140) return { x, y: y | 0, r: INKHOLD_RING_R, idx, age: elapsed - idx * INKHOLD_HOP };
+  }
+  return { x: W / 2, y: H / 2, r: INKHOLD_RING_R, idx, age: 1 };
+}
+function inkholdRules(all, alive, t, timeUp) {
+  const h = Env.inkhold;
+  if (G._ihPhase !== G.phase) { G._ihPhase = G.phase; if (G.phase === 'fight') { G._ihLast = t; G._ihAcc = 0; } } // fresh round
+  // the fallen come back: the ring never stops
+  for (const p of all) if (!p.alive && t > (p.respawnAt || 0) + 1.6) hostSpawn(p);
+  if (!h) return;
+  // score a point per second for the sole holder
+  const dt = Math.max(0, t - (G._ihLast ?? t)); G._ihLast = t;
+  G._ihAcc = (G._ihAcc || 0) + dt;
+  if (G._ihAcc >= 1) {
+    G._ihAcc -= 1;
+    const cy = h.y - 30;
+    const inside = alive.filter(p => Math.hypot(p.x - h.x, p.y - cy) < h.r);
+    if (inside.length) {
+      let gain = [];
+      if (teamsOn()) { const tm = new Set(inside.map(p => p.team | 0)); if (tm.size === 1) gain = inside; }
+      else if (inside.length === 1) gain = inside;
+      for (const p of gain) p.score++;
+    }
+  }
+  // win check
+  const target = Math.max(1, G.target | 0 || 5);
+  for (const p of all) if (p.score >= target) { setPhase('champion', 6, { win: p.id }); return; }
+  if (timeUp) {
+    const lead = all.slice().sort((a, b) => b.score - a.score || b.kills - a.kills || String(a.name).localeCompare(b.name))[0];
+    setPhase(lead && lead.score > 0 ? 'champion' : 'over', lead && lead.score > 0 ? 6 : 2.4, { win: lead ? lead.id : null });
+  }
+}
+function drawInkholdRing(c, V, t) {
+  const h = Env.inkhold; if (!h || !inkholdOn() || G.phase !== 'fight') return;
+  const x = h.x, y = h.y - 30;
+  const k = 1 - Math.pow(1 - Math.min(1, h.age / 1.1), 3); // ring pops in after each hop
+  const r = h.r * (.3 + .7 * k) * (1 + Math.sin(t * 2.6) * .03);
+  const inside = [];
+  for (const p of G.players.values()) if (p.alive && Math.hypot(p.x - h.x, p.y - y) < r) inside.push(p);
+  let col = '#e055d8'; // unheld: mythic pink
+  if (inside.length === 1) col = inside[0].col;
+  else if (inside.length > 1) { const tm = new Set(inside.map(p => p.team | 0)); col = tm.size > 1 ? '#f2ecdf' : inside[0].col; }
+  // soft glow disc
+  const g = c.createRadialGradient(x, y, r * .1, x, y, r);
+  g.addColorStop(0, col + '26'); g.addColorStop(.8, col + '14'); g.addColorStop(1, col + '00');
+  c.fillStyle = g; c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill();
+  // rotating dashed ring
+  c.save();
+  c.strokeStyle = col; c.globalAlpha = .75; c.lineWidth = 3.5;
+  c.setLineDash([16, 11]); c.lineDashOffset = -t * 26;
+  c.beginPath(); c.arc(x, y, r, 0, TAU); c.stroke();
+  c.restore();
+  // pulsing ink-drop glyph at the heart
+  c.save();
+  c.translate(x, y); c.globalAlpha = .45 + Math.sin(t * 2.6) * .15; c.fillStyle = col;
+  c.beginPath(); c.moveTo(0, -15); c.bezierCurveTo(11, -2, 9, 11, 0, 13); c.bezierCurveTo(-9, 11, -11, -2, 0, -15); c.fill();
+  c.restore();
+}
+{ // hook the environment update + zone drawing so every peer sees the same ring
+  const _updateEnvInk = updateEnvironment;
+  updateEnvironment = function (dt) { _updateEnvInk.call(this, dt); try { Env.inkhold = inkholdRing(); } catch (err) { Env.inkhold = null; } };
+  const _drawZoneInk = drawZone;
+  drawZone = function (c, V, t) { _drawZoneInk.call(this, c, V, t); try { drawInkholdRing(c, V, t); } catch (err) { } };
+}
+{ // bots: march to the ring, fight anything that contests it
+  const _botThinkInk = botThink;
+  botThink = function (p, dt) {
+    _botThinkInk.call(this, p, dt);
+    if (!inkholdOn() || G.phase !== 'fight' || !Env.inkhold || !p.alive || !p.ai) return;
+    const h = Env.inkhold, ai = p.ai;
+    const q = ai.target && G.players.get(ai.target);
+    if (q && q.alive && Math.hypot(q.x - p.x, q.y - p.y) < 500) return; // busy fighting
+    const d = h.x - p.x;
+    if (Math.abs(d) > h.r * .6) {
+      p.input.mx = Math.abs(d) > 300 ? Math.sign(d) : Math.sign(d) * Math.min(1, Math.abs(d) / 120);
+      if (p.grounded && Math.random() < dt * 2) p.input.jump = true; // hop up ledges on the way
+    } else p.input.mx *= .3; // settle on the ring
+  };
+}
+{ // inkhold banners
+  const _phaseInk = UI.phase;
+  UI.phase = function (e) {
+    if (!inkholdOn()) return _phaseInk.call(this, e);
+    if (e.ph === 'countdown') {
+      _phaseInk.call(this, e);
+      UI.banner([{ b: '#e055d8', t: 'Inkhold', sub: `Hold the ring to score — first to ${Math.max(1, G.target | 0 || 5)} wins` }], 2.4);
+      return;
+    }
+    if ((e.ph === 'over' || e.ph === 'champion') && e.winner == null) {
+      const lead = scoresList().slice().sort((a, b) => b[1] - a[1])[0];
+      if (lead && lead[1] > 0) e = { ...e, ph: 'champion', winner: lead[0] };
+    }
+    return _phaseInk.call(this, e);
+  };
 }

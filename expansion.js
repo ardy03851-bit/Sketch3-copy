@@ -28,7 +28,7 @@ THEMES.push(
   { name: 'Cherry Blossom', style: 'ground', weather: 'petals', wind: 32, pits: 0, puddles: 2, pond: true, skyT: '#f5d6dc', skyB: '#fbf0e3', sun: '#fffaf2', far: ['#d9b3c0', '#c49aac'], top: '#7c6656', mid: '#5c4a41', deep: '#33282a', cap: '#86a65a', props: [['cherry', .9], ['bush', .3], ['lamp', .08]], bgTrees: 'cherry', cloud: '#ffffff', water: '#7fa9c0', leaf: ['#f7b6c8', '#f39bb4', '#fde2ea'] },
   { name: 'Midnight Harbor', style: 'sea', weather: 'drizzle', wind: -40, skyT: '#121b30', skyB: '#34405c', sun: '#f6f0d6', sunKind: 'moon', night: true, far: ['#25304a', '#1b2438'], top: '#6b6a72', mid: '#46454f', deep: '#24232b', cap: '#8b8677', props: [['lamp', .5], ['barrel', .35], ['crate', .25]], bgTrees: 'harbor', cloud: '#4a5570', dark: .38, water: '#1f4e6b', shallow: '#3c7590' }
 );
-const RARITY = { common: { c: '#7d756b', n: 'Common', w: 1 }, rare: { c: '#3f8a86', n: 'Rare', w: 1.15 }, epic: { c: '#7a5aa8', n: 'Epic', w: 1.3 }, legendary: { c: '#d08a25', n: 'Legendary', w: 1.5 } };
+const RARITY = { common: { c: '#7d756b', n: 'Common', w: 1 }, rare: { c: '#3f8a86', n: 'Rare', w: 1.15 }, epic: { c: '#7a5aa8', n: 'Epic', w: 1.3 }, legendary: { c: '#d08a25', n: 'Legendary', w: 1.5 }, mythic: { c: '#e055d8', n: 'Mythic', w: 1.7 } };
 const rarityOf = w => RARITY[(w && w.rarity) || 'common'] || RARITY.common;
 
 /* ---------- biome scripting ----------
@@ -993,16 +993,16 @@ function initExpansionUI() {
 const _hudWeapon = UI.hudWeapon.bind(UI);
 UI.hudWeapon = function (force) {
   const me = G.players.get(G.myId); _hudWeapon(force); if (!me) return; const w = weaponOf(me); const r = rarityOf(w); const card = $('#wcard');
-  const rk = w.id + r.n; if (force || this._rk !== rk) { this._rk = rk; card.style.setProperty('--rarity', r.c); $('#wcRarity').textContent = w.id === '_fists' ? 'bare hands' : r.n + (w.type === 'melee' ? ' melee' : ''); }
+  const rk = w.id + r.n; if (force || this._rk !== rk) { this._rk = rk; card.style.setProperty('--rarity', r.c); card.classList.toggle('rar-mythic', w.rarity === 'mythic'); $('#wcRarity').textContent = w.id === '_fists' ? 'bare hands' : r.n + (w.type === 'melee' ? ' melee' : ''); }
   if (magOf(w)) { const k = `${w.id}:${me.mag}:${me.ammo}`; if (force || this._mk !== k) { this._mk = k; const tot = w.ammo > 0 ? ` <small style="color:var(--ink-soft)">/ ${Math.max(0, me.ammo - (me.mag | 0))}</small>` : ''; $('#wcPips').innerHTML = `<span class="pip-count">${me.mag ?? magOf(w)}</span>${tot}`; } }
   const rl = me.reloadEnd > now() ? 1 - (me.reloadEnd - now()) / (me.reloadDur || w.reloadTime || 1.2) : (me.charging ? me.charging.t / me.charging.dur : (w.spinUp ? me.spin || 0 : 0)); $('#reloadBar').style.width = Math.round(clamp(rl, 0, 1) * 100) + '%';
   const st = me.status || {}; const parts = []; if (me.reloadEnd > now()) parts.push('reloading'); if (me.charging) parts.push('charging'); if (st.burn > 0) parts.push('burning'); if (st.freeze > 0) parts.push('frozen'); else if (st.chill > 0) parts.push('chilled'); if (st.shock > 0) parts.push('shocked'); if (st.bubble > 0) parts.push('bubbled'); if (me.wasWet) parts.push('swimming');
   const s = parts.join(' · '); const el = $('#statusText'); if (el.textContent !== s) el.textContent = s;
 };
 const _reveal = UI.reveal.bind(UI);
-UI.reveal = function (w) { _reveal(w); if (G.demo) return; const r = rarityOf(w); const rc = $('#reveal .rc'); if (!rc) return; rc.style.setProperty('--rarity', r.c); rc.insertAdjacentHTML('afterbegin', `<div class="rarity-label">${w.id === '_fists' ? 'bare hands' : r.n}</div>`); if (w.description) rc.insertAdjacentHTML('beforeend', `<small>${esc(w.description)}</small>`); };
+UI.reveal = function (w) { _reveal(w); if (G.demo) return; const r = rarityOf(w); const rc = $('#reveal .rc'); if (!rc) return; rc.style.setProperty('--rarity', r.c); rc.classList.toggle('rar-mythic', w.rarity === 'mythic'); rc.insertAdjacentHTML('afterbegin', `<div class="rarity-label">${w.id === '_fists' ? 'bare hands' : r.n}</div>`); if (w.description) rc.insertAdjacentHTML('beforeend', `<small>${esc(w.description)}</small>`); };
 const _renderWeapons = UI.renderWeapons.bind(UI);
-UI.renderWeapons = function () { _renderWeapons(); const items = Weapons.list.length ? Weapons.list : [FISTS]; const els = document.querySelectorAll('#wlist .witem'); els.forEach((el, i) => { const w = items[i]; if (!w) return; const r = rarityOf(w); el.style.setProperty('--rarity', r.c); const tag = el.querySelector('.tag'); if (tag) tag.textContent = r.n + ' ' + w.type; if (w.description) el.insertAdjacentHTML('beforeend', `<small class="desc">${esc(w.description)}</small>`); }); };
+UI.renderWeapons = function () { _renderWeapons(); const items = Weapons.list.length ? Weapons.list : [FISTS]; const els = document.querySelectorAll('#wlist .witem'); els.forEach((el, i) => { const w = items[i]; if (!w) return; const r = rarityOf(w); el.style.setProperty('--rarity', r.c); el.classList.toggle('rar-mythic', w.rarity === 'mythic'); const tag = el.querySelector('.tag'); if (tag) tag.textContent = r.n + ' ' + w.type; if (w.description) el.insertAdjacentHTML('beforeend', `<small class="desc">${esc(w.description)}</small>`); }); };
 UI.streak = function (n) { const names = ['', '', 'Double splat', 'Triple splat', 'Rampage', 'Unstoppable', 'Ink legend']; this.banner(names[Math.min(n, 6)], n + ' in a row', 1.1); Audio2.play('streak'); };
 const _killfeed = UI.killfeed.bind(UI);
 UI.killfeed = function (e) {

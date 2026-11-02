@@ -56,6 +56,15 @@
    ]
   },
   {
+   "id": "bounce-blaster",
+   "js": "bounce-blaster.js",
+   "png": "bounce-blaster.png",
+   "files": [
+    "bounce-blaster.js",
+    "bounce-blaster.png"
+   ]
+  },
+  {
    "id": "bubble",
    "js": "bubble.js",
    "png": "bubble.png",
@@ -155,6 +164,15 @@
    "files": [
     "flaregun.js",
     "flaregun.png"
+   ]
+  },
+  {
+   "id": "frost-popper",
+   "js": "frost-popper.js",
+   "png": "frost-popper.png",
+   "files": [
+    "frost-popper.js",
+    "frost-popper.png"
    ]
   },
   {
@@ -334,6 +352,24 @@
    ]
   },
   {
+   "id": "pop-pistol",
+   "js": "pop-pistol.js",
+   "png": "pop-pistol.png",
+   "files": [
+    "pop-pistol.js",
+    "pop-pistol.png"
+   ]
+  },
+  {
+   "id": "prism-lance",
+   "js": "prism-lance.js",
+   "png": "prism-lance.png",
+   "files": [
+    "prism-lance.js",
+    "prism-lance.png"
+   ]
+  },
+  {
    "id": "railgun",
    "js": "railgun.js",
    "png": "railgun.png",
@@ -378,6 +414,15 @@
     "C",
     "rocket.js",
     "rocket.png"
+   ]
+  },
+  {
+   "id": "rosethorn",
+   "js": "rosethorn.js",
+   "png": "rosethorn.png",
+   "files": [
+    "rosethorn.js",
+    "rosethorn.png"
    ]
   },
   {
@@ -492,6 +537,15 @@
    ]
   },
   {
+   "id": "storm-serpent",
+   "js": "storm-serpent.js",
+   "png": "storm-serpent.png",
+   "files": [
+    "storm-serpent.js",
+    "storm-serpent.png"
+   ]
+  },
+  {
    "id": "supasword",
    "js": "script.js",
    "png": "IMG_2303.png",
@@ -584,6 +638,15 @@
    ]
   },
   {
+   "id": "void-vortex",
+   "js": "void-vortex.js",
+   "png": "void-vortex.png",
+   "files": [
+    "void-vortex.js",
+    "void-vortex.png"
+   ]
+  },
+  {
    "id": "voidgun",
    "js": "voidgun.js",
    "png": "voidgun.png",
@@ -591,6 +654,15 @@
     "F",
     "voidgun.js",
     "voidgun.png"
+   ]
+  },
+  {
+   "id": "woodpecker",
+   "js": "woodpecker.js",
+   "png": "woodpecker.png",
+   "files": [
+    "woodpecker.js",
+    "woodpecker.png"
    ]
   }
  ]
