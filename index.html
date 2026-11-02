@@ -1006,7 +1006,7 @@ function physicsStep(p, dt) {
     if (p.grounded || p.coyote > 0) { p.vy = -JUMP; p.grounded = false; p.coyote = 0; p.jumpBuf = 0; p.sq = 1.28; p.sqv = 0; FX.dustPuff(p.x, p.y + HH, 6, .8); Audio2.play('jump', p.x); }
     else if (p.jumps > 0) { p.vy = -JUMP2; p.jumps--; p.jumpBuf = 0; p.sq = 1.22; p.sqv = 0; FX.ring(p.x, p.y + HH, 26, 'rgba(255,248,232,.8)'); Audio2.play('jump2', p.x); }
   }
-  let g = GRAV; if (!inp.jumpHeld && p.vy < -200) g *= 2.1; if (inp.down) g *= 1.7;
+  let g = GRAV * (T.theme && T.theme.gravity || 1); if (!inp.jumpHeld && p.vy < -200) g *= 2.1; if (inp.down) g *= 1.7;
   p.vy = Math.min(MAXFALL, p.vy + g * dt);
   // integrate x with step-up
   let dx = p.vx * dt; const sx = Math.sign(dx); let steps = Math.ceil(Math.abs(dx) / 3);
@@ -2092,11 +2092,13 @@ window.render_game_to_text = () => JSON.stringify({
 
 </script>
 <script src="expansion.js"></script>
+<script src="weather.js"></script>
 <script src="world.js"></script>
 <script src="build.js"></script>
 <script src="modes.js"></script>
 <script src="content.js"></script>
 <script src="menu.js"></script>
+<script src="net.js"></script>
 <script>
 /* ---------- boot ---------- */
 (async function boot() {

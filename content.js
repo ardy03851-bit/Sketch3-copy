@@ -53,7 +53,7 @@ function weaponInSet(w, set = contentSet()) {
 const BIOME_TEMPLATE = JSON.parse(JSON.stringify(THEMES[0]));
 function cleanBiome(def, id, set, base) {
   const t = Object.assign(JSON.parse(JSON.stringify(BIOME_TEMPLATE)), def);
-  delete t.newProps; delete t.order;
+  delete t.newProps; delete t.newWeather; delete t.order;
   t.id = String(def.id || id); t.set = set; t.path = base; t.name = String(def.name || id).slice(0, 28);
   t.order = Number.isFinite(+def.order) ? +def.order : 1000;
   if (!Array.isArray(t.props) || !t.props.length) t.props = BIOME_TEMPLATE.props;
@@ -88,7 +88,7 @@ async function loadBiomeFolder(root, set) {
     try { new Function('Biome', 'PROPS', 'folder', src)(d => { if (d && typeof d === 'object') defs.push(d); }, PROPS, base); }
     catch (e) { Content.log.push(`${tag}: ${e.message}`); return; }
     for (let i = 0; i < defs.length; i++) {
-      try { await registerBiomeProps(defs[i].newProps, base, tag); out.push(cleanBiome(defs[i], defs.length > 1 ? `${name}-${i + 1}` : name, set, base)); }
+      try { await registerBiomeProps(defs[i].newProps, base, tag); for (const [k, d] of Object.entries(defs[i].newWeather || {})) Weather.register(k, d); out.push(cleanBiome(defs[i], defs.length > 1 ? `${name}-${i + 1}` : name, set, base)); }
       catch (e) { Content.log.push(`${tag}: ${e.message}`); }
     }
   }));

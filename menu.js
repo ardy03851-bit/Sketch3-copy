@@ -298,17 +298,18 @@ const Setup = {
     const ruleChips = (k, extra = '') => { const f = this.rf(k); return f ? `<div class="su-sec ${extra}"><span class="lbl">${f.l}</span>${this.chips('r:' + k, f.o, v[k])}</div>` : ''; };
     const pane0 = `<div class="su-sec"><span class="lbl">Mode</span><div class="su-modes">${SETUP_MODES.map(m => `<button class="su-mode${s.mode === m.id ? ' on' : ''}" data-pick="mode" data-v="${m.id}"><b>${m.n}</b><span>${m.d}</span></button>`).join('')}</div></div>
       <div class="su-grid2"><div class="su-sec"><span class="lbl">Terrain</span>${this.chips('terrain', [['normal', 'Normal hills'], ['flat', 'Flat']], s.terrain)}<p class="su-note">${s.terrain === 'flat' ? 'One long flat field. Great for building and big battles.' : 'Hills, pits, islands and caves, like always.'}</p></div>
+      ${ruleChips('weather')}
       <div class="su-sec${big ? '' : ' su-off'}"><span class="lbl">Map size</span>${this.chips('r:mapSize', this.rf('mapSize').o, v.mapSize)}</div></div>
       <div class="su-sec"><span class="lbl">World${ev ? ' (event biomes)' : ''}</span><div class="su-biomes"><button class="su-bio rand${s.biome < 0 ? ' on' : ''}" data-pick="biome" data-v="-1"><i></i><b>?</b><em>Random</em></button>${bi.map(tile).join('')}</div></div>`;
     const tOpts = war ? [[2, '2 teams'], [3, '3 teams'], [4, '4 teams']] : this.rf('teams').o;
     const pane1 = `<div class="su-grid2"><div class="su-sec"><span class="lbl">Bots</span><div class="su-step"><button data-step="-1">&minus;</button><b id="suBots">${s.bots}</b><button data-step="1">+</button></div><p class="su-note">${big ? 'Big Wilds can take up to 100 bots.' : 'Arena fits up to 7 bots.'}</p></div>
       <div class="su-sec"><span class="lbl">First to</span>${this.chips('target', [[3, '3'], [5, '5'], [10, '10'], [20, '20']], s.target)}</div>
       ${ruleChips('skill')}
-      <div class="su-sec${big ? '' : ' su-off'}"><span class="lbl">Teams</span>${this.chips('r:teams', tOpts, war ? Math.max(2, v.teams || 2) : v.teams)}</div>
+      <div class="su-sec"><span class="lbl">Teams</span>${this.chips('r:teams', tOpts, war ? Math.max(2, v.teams || 2) : v.teams)}</div>
       <div class="su-sec${s.online ? '' : ' su-off'}"><span class="lbl">Max real players</span>${this.chips('max', [[2, '2'], [4, '4'], [6, '6'], [8, '8'], [12, '12']], s.max)}</div>
       <div class="su-sec${s.online ? '' : ' su-off'}"><span class="lbl">Visibility</span>${this.chips('pub', [[1, 'Public (in Servers)'], [0, 'Private (code only)']], s.pub ? 1 : 0)}</div></div>
       <div class="su-sec${s.online ? '' : ' su-off'}"><label class="lbl" for="suRoom">Room name</label><input class="txt" id="suRoom" maxlength="24" autocomplete="off" spellcheck="false" value="${esc(s.room)}"></div>`;
-    const pane2 = `<div class="su-grid2">${ruleChips('hp')}${ruleChips('time')}${ruleChips('sd')}${ruleChips('drops')}${ruleChips('weapons')}${ruleChips('ff', big && (war || v.teams) ? '' : 'su-off')}${ruleChips('storm', big ? '' : 'su-off')}${ruleChips('tickets', war ? '' : 'su-off')}${ruleChips('buildT', war ? '' : 'su-off')}</div>
+    const pane2 = `<div class="su-grid2">${ruleChips('hp')}${ruleChips('time')}${ruleChips('sd')}${ruleChips('drops')}${ruleChips('weapons')}${ruleChips('ff', (war || v.teams) ? '' : 'su-off')}${ruleChips('storm', big ? '' : 'su-off')}${ruleChips('tickets', war ? '' : 'su-off')}${ruleChips('buildT', war ? '' : 'su-off')}</div>
       <p class="su-note">Rules are saved for next time. The host can change bots, teams and War mode from the pause menu too.</p>`;
     $('#suBody').innerHTML = `<div class="su-pane${this.tab === 0 ? ' on' : ''}">${pane0}</div><div class="su-pane${this.tab === 1 ? ' on' : ''}">${pane1}</div><div class="su-pane${this.tab === 2 ? ' on' : ''}">${pane2}</div>`;
     this.summary();
@@ -316,7 +317,7 @@ const Setup = {
   summary() {
     const s = this.s, v = this.rules(); const m = SETUP_MODES.find(x => x.id === s.mode); const b = s.biome >= 0 && THEMES[s.biome] ? THEMES[s.biome].name : 'random world';
     const parts = [s.online ? 'Online' : 'Offline', m.n, s.terrain === 'flat' ? 'flat' : 'hills', b, s.bots + ' bot' + (s.bots === 1 ? '' : 's'), 'first to ' + s.target];
-    if (s.mode === 'war') parts.splice(2, 0, Math.max(2, v.teams || 2) + ' teams'); else if (s.mode === 'wilds' && v.teams) parts.splice(2, 0, v.teams + ' teams');
+    if (s.mode === 'war') parts.splice(2, 0, Math.max(2, v.teams || 2) + ' teams'); else if (v.teams) parts.splice(2, 0, v.teams + ' teams');
     if (s.set === 'event') parts.unshift(EventInfo.name); $('#suSum').textContent = parts.join(' · ');
   },
   click(e) {

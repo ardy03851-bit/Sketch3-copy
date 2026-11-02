@@ -12,13 +12,13 @@
    Everything here is host-authoritative; clients only receive options/teams.
    ===================================================================== */
 
-const RULE_DEFAULTS = { hp: 100, time: 0, sd: 1, drops: 1, skill: 1, weapons: 'random', teams: 0, ff: 0, mapSize: 4, storm: 0, war: 0, tickets: 10, buildT: 30, crowd: 0 };
+const RULE_DEFAULTS = { hp: 100, time: 0, sd: 1, drops: 1, skill: 1, weapons: 'random', teams: 0, ff: 0, mapSize: 4, storm: 0, war: 0, tickets: 10, buildT: 30, crowd: 0, weather: 'biome' };
 G.opts = Object.assign({}, RULE_DEFAULTS);
 G.teamScore = {}; G.tickets = {}; G.bases = [];
 const TEAM_INFO = [null, { n: 'Red', c: '#d9573b' }, { n: 'Blue', c: '#3f7fbf' }, { n: 'Green', c: '#5f9a46' }, { n: 'Gold', c: '#e0a22e' }];
 function teamColor(t) { return (TEAM_INFO[t] || TEAM_INFO[1]).c; }
 function teamName(t) { return (TEAM_INFO[t] || { n: 'Team ' + t }).n; }
-function teamCount() { const o = G.opts || {}; if (o.war && G.gameMode === 'expedition') return clamp(o.teams || 2, 2, 4); return G.gameMode === 'expedition' ? (o.teams | 0) : 0; }
+function teamCount() { const o = G.opts || {}; if (o.war && G.gameMode === 'expedition') return clamp(o.teams || 2, 2, 4); const n = o.teams | 0; return n >= 2 ? clamp(n, 2, 4) : 0; } // teams work in the classic arena too
 function teamsOn() { return teamCount() >= 2; }
 function warOn() { return !!(G.opts && G.opts.war) && G.gameMode === 'expedition'; }
 function fightElapsed() { return (G.roundLen || 150) - (G.phaseEnd - now()); }
@@ -294,11 +294,12 @@ const RULE_FIELDS = [
   { k: 'skill', l: 'Bot skill', o: [[0, 'Easy'], [1, 'Normal'], [2, 'Hard']] },
   { k: 'mapSize', l: 'Map size', w: 1, o: [[4, '4× classic'], [6, '6× classic'], [9, '9× classic']] },
   { k: 'crowd', l: 'Bot crowd', w: 1, o: [[0, 'Use bots setting'], [10, '10 bots'], [20, '20 bots'], [40, '40 bots'], [60, '60 bots'], [100, '100 bots']] },
-  { k: 'teams', l: 'Teams', w: 1, o: [[0, 'Free for all'], [2, '2 teams'], [3, '3 teams'], [4, '4 teams']] },
-  { k: 'ff', l: 'Friendly fire', w: 1, o: [[0, 'Off'], [1, 'On']] },
+  { k: 'teams', l: 'Teams', o: [[0, 'Free for all'], [2, '2 teams'], [3, '3 teams'], [4, '4 teams']] },
+  { k: 'ff', l: 'Friendly fire', o: [[0, 'Off'], [1, 'On']] },
   { k: 'war', l: 'War mode', w: 1, o: [[0, 'Off'], [1, 'On (teams + building)']] },
   { k: 'tickets', l: 'War lives', w: 1, o: [[5, 'Few'], [10, 'Some'], [20, 'Many'], [40, 'Loads']] },
   { k: 'buildT', l: 'Build phase', w: 1, o: [[0, 'None'], [20, '20 s'], [30, '30 s'], [60, '60 s']] },
+  { k: 'weather', l: 'Weather', o: [['biome', 'Biome default'], ['random', 'Random'], ['wild', 'Wild'], ['clear', 'Clear skies']] },
   { k: 'storm', l: 'Storm wall', w: 1, o: [[0, 'Off'], [1, 'On']] },
 ];
 function loadRules() { try { return Object.assign({}, RULE_DEFAULTS, JSON.parse(getCookie('ib_rules') || '{}')); } catch (e) { return Object.assign({}, RULE_DEFAULTS); } }
@@ -327,7 +328,7 @@ for (const id of ['#hostMode', '#practiceMode']) { const s = $(id); if (s) s.add
 const _startHostModes = startHost;
 startHost = function (opts) {
   const v = Object.assign({}, RULE_DEFAULTS, RulesPanel.vals); const big = opts.gameMode === 'expedition';
-  if (!big) Object.assign(v, { teams: 0, war: 0, storm: 0, crowd: 0, mapSize: 4 }); if (v.war && !v.teams) v.teams = 2;
+  if (!big) Object.assign(v, { war: 0, storm: 0, crowd: 0, mapSize: 4 }); // teams + friendly fire stay: they work in the arena if (v.war && !v.teams) v.teams = 2;
   G.opts = v; G.teamScore = {}; G.tickets = {};
   let bots = opts.bots | 0; if (big && v.crowd) bots = v.crowd; if (!big) bots = Math.min(bots, 7);
   G.botCap = big && bots > 7 ? bots + Math.max(opts.max | 0, 8) : (big ? 100 : null);
@@ -344,14 +345,14 @@ UI.renderPause = function () {
   const big = G.gameMode === 'expedition'; const cap = G.botCap != null ? G.botCap : 7;
   row.innerHTML = (cap > 7 ? `<button class="btn small" data-a="b-10">−10 bots</button><button class="btn small" data-a="b+10">+10 bots</button>` : '') +
     `<button class="btn small" data-a="teams">${teamsOn() ? 'Teams: ' + teamCount() : 'Teams: off'}</button>` +
-    `<button class="btn small${warOn() ? ' primary' : ''}" data-a="war">${warOn() ? 'End War mode' : 'Start War mode'}</button>` + (big ? '' : '<p class="hint2" style="width:100%;text-align:center;margin:4px 0 0;font-size:11px">Teams &amp; War switch the room to The Big Wilds.</p>');
+    `<button class="btn small${warOn() ? ' primary' : ''}" data-a="war">${warOn() ? 'End War mode' : 'Start War mode'}</button>` + (big ? '' : '<p class="hint2" style="width:100%;text-align:center;margin:4px 0 0;font-size:11px">War mode switches the room to The Big Wilds. Teams work right here.</p>');
 };
 function pauseAction(a) {
   const o = G.opts;
   if (a === 'b+10' || a === 'b-10') { G.botsWanted = clamp(G.botsWanted + (a === 'b+10' ? 10 : -10), 0, G.botCap ?? 7); syncBots(); return; }
   if (a === 'teams') { const order = [0, 2, 3, 4]; o.teams = order[(order.indexOf(o.teams | 0) + 1) % order.length]; if (o.war && o.teams < 2) o.teams = 2; }
   if (a === 'war') { o.war = o.war && G.gameMode === 'expedition' ? 0 : 1; if (o.war && !o.teams) o.teams = 2; }
-  const toBig = (o.war || o.teams) && G.gameMode !== 'expedition'; if (toBig) { G.gameMode = 'expedition'; if (G.botCap == null) G.botCap = 100; }
+  const toBig = o.war && G.gameMode !== 'expedition'; if (toBig) { G.gameMode = 'expedition'; if (G.botCap == null) G.botCap = 100; }
   G.teamScore = {}; for (const p of G.players.values()) p.kit = false;
   emit({ k: 'opts', o, mo: G.gameMode }); assignTeams(true);
   if (G.players.size >= 2) setPhase('over', 1.6, { win: null, wt: null, msg: a === 'war' ? (o.war ? 'War mode' : 'War mode over') : (teamsOn() ? teamCount() + ' teams' : 'Free for all') });

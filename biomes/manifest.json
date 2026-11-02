@@ -33,6 +33,14 @@
    ]
   },
   {
+   "id": "cocoa-hollow",
+   "js": "cocoa-hollow.js",
+   "png": null,
+   "files": [
+    "cocoa-hollow.js"
+   ]
+  },
+  {
    "id": "coral-shallows",
    "js": "coral-shallows.js",
    "png": null,
@@ -78,6 +86,14 @@
    "png": null,
    "files": [
     "glacier-peaks.js"
+   ]
+  },
+  {
+   "id": "glowworm-grotto",
+   "js": "glowworm-grotto.js",
+   "png": null,
+   "files": [
+    "glowworm-grotto.js"
    ]
   },
   {

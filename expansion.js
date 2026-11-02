@@ -30,6 +30,45 @@ THEMES.push(
 );
 const RARITY = { common: { c: '#7d756b', n: 'Common', w: 1 }, rare: { c: '#3f8a86', n: 'Rare', w: 1.15 }, epic: { c: '#7a5aa8', n: 'Epic', w: 1.3 }, legendary: { c: '#d08a25', n: 'Legendary', w: 1.5 } };
 const rarityOf = w => RARITY[(w && w.rarity) || 'common'] || RARITY.common;
+
+/* ---------- biome scripting ----------
+   A biome file (biomes/<id>/<id>.js) can hand the engine functions as well
+   as colours. The engine calls them at fixed moments with a small toolkit
+   ("ctx"), so a new biome never needs edits to the engine files. Hooks:
+     terrain(ctx)  draw the land shape        texture(ctx)    paint over the terrain texture
+     background(ctx) paint the far backdrop   treeLine(ctx)   your own silhouette row
+     onMap(ctx)    after a map is built       update(dt, t)   every frame
+     drawSky / drawBack / drawFront / drawGlow (c, view, t)  extra draw layers
+   Every hook is optional and errors are caught (logged once) so a broken
+   biome can never crash a match. Full guide in README.md. */
+const BiomeAPI = {
+  errs: new Set(),
+  ctx(extra) {
+    return Object.assign({ th: T.theme, W, H, big: G.gameMode === 'expedition', seed: T.seed, time: Env.time, env: Env,
+      surface: (x, fromY) => surfaceFromGrid(x, fromY), solid: (x, y) => solidAt(x, y), water: (x, y) => waterAt(x, y),
+      fx: o => FX.add(Object.assign({ t: 0, life: 1 }, o)), glow: col => softSprite(col), mix, shade, rgba, fbm, lerp, clamp, rng, hash, smoothPath, TAU, INK }, extra || {});
+  },
+  terrainCtx(R, mc, seed, big, basins) {
+    const th = T.theme; let dirty = true;
+    return this.ctx({ R, mc, seed, big, scale: W / 1600, base: H - 300,
+      fill: pts => { dirty = true; fillShape(mc, pts); },
+      cut: pts => { dirty = true; mc.globalCompositeOperation = 'destination-out'; fillShape(mc, pts); mc.globalCompositeOperation = 'source-over'; },
+      ground: (x0, x1, base, amp = 80, bottom = H + 140) => { dirty = true; fillShape(mc, groundPoly(x0, x1, base, amp, seed, bottom)); },
+      island: (x0, x1, top, depth = 120, flat = false) => { dirty = true; fillShape(mc, islandPoly(R, x0, x1, top, depth, seed + ((x0 | 0) % 97), flat)); },
+      seaIsland: (x0, x1, top, bottom = H + 120) => { dirty = true; fillShape(mc, seaIsland(x0, x1, top, seed + ((x0 | 0) % 53), bottom)); },
+      platforms: (floorY, topY = 240) => { dirty = true; return platformTiers(R, mc, seed, floorY, topY); },
+      rebuild: () => { rebuildGridFromMask(); dirty = false; },
+      surface: (x, fromY) => { if (dirty) { rebuildGridFromMask(); dirty = false; } return surfaceFromGrid(x, fromY); },
+      sea: level => { const b = makeSea(level, th); Env.water.push(b); return b; },
+      basin: (kind = 'pond', base = H - 330) => { if (dirty) { rebuildGridFromMask(); dirty = false; } const n = basins.length; carveBasin(R, kind, basins, base); return basins.length > n ? basins[basins.length - 1] : null; },
+    });
+  },
+};
+function biomeHook(name, ...args) {
+  const th = T.theme, f = th && th[name]; if (typeof f !== 'function') return undefined;
+  try { return f.apply(th, args); }
+  catch (e) { const k = (th.id || th.name) + '.' + name; if (!BiomeAPI.errs.has(k)) { BiomeAPI.errs.add(k); console.warn('Biome hook ' + k + ' failed:', e); } }
+}
 G.biome = 0; G.biomeChoice = -1; G.gameMode = 'arena';
 
 /* world resizing (arena 1600x1000, Big Wilds 3600x1600). Terrain buffers scale
@@ -81,135 +120,6 @@ function platformTiers(R, mc, seed, floorY, topY, avoid) {
     y -= 190 + R() * 35; tier++; }
   return plats;
 }
-/* The Simple Lands: a contour-map landscape built from stacked terraces.
-   Each mesa has one to three inset shelves, so its silhouette climbs in
-   broad hand-drawn steps. Gorges split the mesas, stone viaducts bridge
-   them, and ziggurat spires + floating stones add alternative routes.
-   Only biomes with style: 'stepped' use this generator. */
-function terraceTop(x0, x1, top, seed, idx) {
-  const n = Math.max(5, Math.round((x1 - x0) / 26)), pts = [];
-  for (let k = 0; k <= n; k++) {
-    const t = k / n, px = lerp(x0, x1, t);
-    const lip = (1 - Math.min(1, Math.min(t, 1 - t) * 8)) * 6;
-    pts.push([px, top + (fbm(px * .018, seed + idx * 19) - .5) * 9 + lip]);
-  }
-  return pts;
-}
-function terraceBlock(mc, x0, x1, top, seed, idx, bottom = H + 140) {
-  const pts = [[x0 - 5, bottom], [x0 + 1, top + 30], [x0 - 1, top + 12]];
-  for (const p of terraceTop(x0, x1, top, seed, idx)) pts.push(p);
-  pts.push([x1 + 1, top + 12], [x1 - 1, top + 30], [x1 + 5, bottom]);
-  fillShape(mc, pts);
-}
-function terraceLand(R, mc, seed, base) {
-  const scale = W / 1600, count = 5 + (R() * 4 | 0), slot = (W + 160) / count;
-  const gaps = []; const bigGap = R() < .72 ? (R() * Math.max(1, count - 1) | 0) : -1;
-  let gapTotal = 0;
-  for (let i = 0; i < count - 1; i++) { const g = (i === bigGap ? 235 + R() * 105 : 46 + R() * 92) * scale; gaps.push(g); gapTotal += g; }
-  const raw = []; let rawTotal = 0;
-  for (let i = 0; i < count; i++) { const w = slot * (.66 + R() * .38); raw.push(w); rawTotal += w; }
-  const fit = (W + 160 - gapTotal) / rawTotal;
-  let x = -80, top = base - 70 - R() * 60;
-  const parts = [];
-  for (let i = 0; i < count; i++) {
-    if (i) x += gaps[i - 1];
-    const w = i === count - 1 ? W + 80 - x : raw[i] * fit;
-    if (i) top = clamp(top + (R() - .5) * (R() < .18 ? 250 : 170), base - 225, base + 20);
-    const part = { x0: x, x1: x + w, top };
-    const layers = [{ x0: part.x0, x1: part.x1, top }];
-    terraceBlock(mc, part.x0, part.x1, top, seed, i * 7 + 1);
-    let cx0 = part.x0, cx1 = part.x1, cy = top;
-    const tiers = 1 + (R() < .72 ? 1 : 0) + (R() < .32 ? 1 : 0);
-    for (let k = 0; k < tiers; k++) {
-      const narrow = Math.min(96, (cx1 - cx0) * .22);
-      const li = 34 + R() * Math.max(8, narrow - 24), ri = 34 + R() * Math.max(8, narrow - 24);
-      if (cx1 - cx0 - li - ri < 118) break;
-      const rise = 58 + R() * 34, nt = Math.max(base - 382, cy - rise);
-      if (cy - nt < 30) break;
-      cx0 += li; cx1 -= ri; cy = nt;
-      terraceBlock(mc, cx0, cx1, cy, seed, i * 7 + k * 3 + 3);
-      layers.push({ x0: cx0, x1: cx1, top: cy });
-    }
-    part.layers = layers; parts.push(part);
-    x += w;
-  }
-  // buttress steps jutting into the gorges make the cliff walls read as terraces too
-  for (let i = 1; i < parts.length; i++) {
-    const a = parts[i - 1], b = parts[i];
-    if (b.x0 - a.x1 < 46 || R() > .55) continue;
-    const w = 28 + R() * 24;
-    if (R() < .5) terraceBlock(mc, b.x0 - w, b.x0 + 4, b.top + 55 + R() * 20, seed, 900 + i);
-    else terraceBlock(mc, a.x1 - 4, a.x1 + w, a.top + 55 + R() * 20, seed, 920 + i);
-  }
-  return parts;
-}
-function stoneBridge(R, mc, x0, x1, y0, y1) {
-  const gap = x1 - x0, l = x0 - 34, r = x1 + 34, n = Math.max(6, Math.round((r - l) / 22));
-  const hump = Math.min(17, gap * .07), top = [], bot = [];
-  for (let i = 0; i <= n; i++) {
-    const t = i / n, px = lerp(l, r, t), yy = lerp(y0, y1, t);
-    top.push([px, yy + 4 - Math.sin(t * Math.PI) * hump]);
-    bot.push([px, yy + 31 - Math.sin(t * Math.PI) * (hump + 4)]);
-  }
-  bot.reverse(); fillShape(mc, top.concat(bot));
-  const piers = gap > 210 ? [.32, .68] : [.5];
-  for (const t of piers) {
-    const px = lerp(x0, x1, t), py = lerp(y0, y1, t) + 27, w = 9 + R() * 4;
-    fillShape(mc, [[px - w, py - 4], [px - w * 1.65, H + 140], [px + w * 1.65, H + 140], [px + w, py - 4]]);
-  }
-  for (const [px, py, dir] of [[l + 4, y0, -1], [r - 4, y1, 1]]) {
-    fillShape(mc, [[px, py + 6], [px + dir * (18 + R() * 7), py + 15], [px + dir * (13 + R() * 6), py + 30], [px, py + 32]]);
-  }
-}
-function stoneSpire(R, mc, cx, baseY, h, w, seed) {
-  const tiers = 3 + (R() < .4 ? 1 : 0);
-  let y = baseY, ww = w, lean = (R() - .5) * 6;
-  for (let i = 0; i < tiers; i++) {
-    const bh = h / tiers * (.82 + R() * .3), top = Math.max(120, y - bh);
-    const cxx = cx + lean * (i / tiers), w2 = Math.max(16, ww * (.78 + R() * .12));
-    terraceBlock(mc, cxx - w2 / 2, cxx + w2 / 2, top, seed, 700 + i * 5);
-    y = top; ww = w2;
-  }
-}
-function steppingStone(R, mc, x, y, w, seed) {
-  const th = 30 + R() * 24, pts = [];
-  for (const p of terraceTop(x, x + w, y, seed, 600)) pts.push(p);
-  pts.push([x + w + 7, y + th * .38], [x + w - 12, y + th * .9], [x + w * .62, y + th], [x + w * .28, y + th * .9], [x + 10, y + th * .76], [x - 7, y + th * .34]);
-  fillShape(mc, pts);
-}
-function simpleLand(R, mc, seed, base, big) {
-  const parts = terraceLand(R, mc, seed, base);
-  for (let i = 1; i < parts.length; i++) {
-    const a = parts[i - 1], b = parts[i];
-    if (b.x0 - a.x1 > 32) stoneBridge(R, mc, a.x1, b.x0, a.top, b.top);
-  }
-  const ledges = [];
-  for (const p of parts) for (const l of p.layers) if (l.x1 - l.x0 > 120) ledges.push(l);
-  const used = [], nSpire = (big ? 3 : 2) + (R() < .5 ? 1 : 0) + (R() < .28 ? 1 : 0);
-  for (let i = 0; i < nSpire; i++) {
-    const L = ledges[(R() * ledges.length) | 0]; if (!L) break;
-    const w = 42 + R() * 28, h = 110 + R() * 85;
-    if (L.x1 - L.x0 < w * 2.8) continue;
-    const cx = L.x0 + w * 1.5 + R() * (L.x1 - L.x0 - w * 3);
-    if (used.some(u => Math.abs(u.x - cx) < 175 && Math.abs(u.y - L.top) < 90)) continue;
-    used.push({ x: cx, y: L.top });
-    stoneSpire(R, mc, cx, L.top, h, w, seed + i * 29);
-  }
-  const sets = (big ? 2 : 1) + (R() < .7 ? 1 : 0) + (R() < .35 ? 1 : 0);
-  for (let s = 0; s < sets; s++) {
-    const p = parts[1 + ((R() * Math.max(1, parts.length - 2)) | 0)] || parts[0];
-    const dir = p.x0 + (p.x1 - p.x0) * .5 < W * .5 ? 1 : -1, n = 3 + (R() * 3 | 0);
-    let x = clamp(p.x0 + (p.x1 - p.x0) * (.3 + R() * .4), 60, W - 180);
-    let y = p.top - 65 - R() * 60;
-    for (let i = 0; i < n; i++) {
-      const w = 54 + R() * 44;
-      x = clamp(x + dir * (88 + R() * 34) * (W / 1600), 30, W - 40 - w);
-      y = clamp(y - Math.sin((i + .5) / n * Math.PI) * 34 + (R() - .5) * 16, 170, base - 55);
-      steppingStone(R, mc, x, y, w, seed + s * 41 + i * 7);
-    }
-  }
-  return parts;
-}
 generateMap = function (seed) {
   const th = THEMES[(G.biome ?? (seed % THEMES.length)) % THEMES.length] || THEMES[0];
   const big = G.gameMode === 'expedition'; const [bw, bh] = big ? bigMapSize() : [1600, 1000];
@@ -220,6 +130,9 @@ generateMap = function (seed) {
   if (flat) {
     // Flat maps: one long, level field (a tiny hand-drawn wobble so it still looks inked)
     const base = H - 300; fillShape(mc, groundPoly(-60, W + 60, base, 3, seed, H + 140)); rebuildGridFromMask();
+  } else if (typeof th.terrain === 'function') {
+    // the biome file draws its own land (see README, "Biome scripting")
+    biomeHook('terrain', BiomeAPI.terrainCtx(R, mc, seed, big, basins));
   } else if (style === 'sea') {
     const sea = H - 235; const n = Math.round(3 * sx); const margin = 40 * sx; const span = (W - margin * 2) / n; let x = margin;
     for (let i = 0; i < n; i++) { const w = span * (.66 + R() * .2), xx = x + R() * (span - w); fillShape(mc, seaIsland(xx, xx + w, sea - 45 - R() * 90, seed + i * 13, H + 120)); x += span; }
@@ -236,9 +149,6 @@ generateMap = function (seed) {
     const kinds = []; for (let i = 0; i < Math.round(((th.puddles || 0)) * (big ? sx * .8 : 1)); i++) kinds.push(th.swamp ? 'swamp' : 'puddle'); for (let i = 0; i < Math.round((th.lavaPools || 0) * (big ? sx * .8 : 1)); i++) kinds.push('lava');
     if (th.pond || (big && !th.lava)) kinds.unshift('pond');
     for (const kind of kinds) carveBasin(R, kind, basins, base);
-  } else if (style === 'stepped') {
-    // The Simple Lands: terraces, gorges, bridges, spires and floating stones
-    simpleLand(R, mc, seed, H - 300, big);
   } else {
     const nIsl = big ? Math.round(2.6 * sx) : 2 + (R() < .55 ? 1 : 0); const margin = 70 + R() * 50; const gapTot = (nIsl - 1) * (100 + R() * 50); const span = (W - margin * 2 - gapTot) / nIsl; let x = margin; const floor = H - 340;
     for (let i = 0; i < nIsl; i++) { const w = span * (.9 + R() * .2); const top = floor + R() * 120; fillShape(mc, islandPoly(R, x, x + w, top, 170 + R() * 120, seed + i * 31)); x += w + gapTot / Math.max(1, nIsl - 1); }
@@ -247,10 +157,11 @@ generateMap = function (seed) {
   }
   // boulders (the original look)
   rebuildGridFromMask();
-  const nB = flat ? 0 : Math.round(4 * sx); for (let i = 0; i < nB; i++) { const bx = 120 + R() * (W - 240); const sy = surfaceFromGrid(bx); if (sy == null || basins.some(b => Math.abs(b.x - bx) < b.rx + 40)) continue; if (style === 'sea' && sy > Env.water[0].level - 20) continue; const r = 16 + R() * 22; const pts = []; for (let k = 0; k < 10; k++) { const a = k / 10 * TAU; const rr = r * (1 + (R() - .5) * .35); pts.push([bx + Math.cos(a) * rr * 1.25, sy + 6 + Math.sin(a) * rr]); } fillShape(mc, pts); }
+  const nB = flat ? 0 : Math.round((th.boulders ?? 4) * sx); for (let i = 0; i < nB; i++) { const bx = 120 + R() * (W - 240); const sy = surfaceFromGrid(bx); if (sy == null || basins.some(b => Math.abs(b.x - bx) < b.rx + 40)) continue; if (Env.water[0] && Env.water[0].sea && sy > Env.water[0].level - 20) continue; const r = 16 + R() * 22; const pts = []; for (let k = 0; k < 10; k++) { const a = k / 10 * TAU; const rr = r * (1 + (R() - .5) * .35); pts.push([bx + Math.cos(a) * rr * 1.25, sy + 6 + Math.sin(a) * rr]); } fillShape(mc, pts); }
   rebuildGridFromMask();
   for (const b of basins) Env.water.push(makeBasinWater(b, th));
   buildTexture(R); buildBackground(R); placeProps(rng(seed + 77), th); rebuildTerrainFull(); freeBuildBuffers(); buildMiniMap(); Weather.setup(th);
+  biomeHook('onMap', BiomeAPI.ctx({ R: rng(seed + 99), seed }));
   R8.overlayKey = ''; R8.skyKey = '';
   if (typeof onMapGenerated === 'function') onMapGenerated(seed);
 };
@@ -275,25 +186,7 @@ buildTexture = function (R) {
   if (th.icy) { c.fillStyle = 'rgba(210,235,255,.25)'; for (let i = 0; i < 260; i++) { c.beginPath(); c.arc(R() * W, R() * H, 2 + R() * 7, 0, TAU); c.fill(); } }
   if (th.lava) { c.strokeStyle = 'rgba(255,120,40,.22)'; c.lineWidth = 1.5; for (let i = 0; i < 70; i++) { let x = R() * W, y = H * .45 + R() * H * .55; c.beginPath(); c.moveTo(x, y); for (let k = 0; k < 5; k++) { x += (R() - .5) * 40; y += R() * 22; c.lineTo(x, y); } c.stroke(); } }
   if (th.style === 'sea') { c.fillStyle = 'rgba(255,248,225,.24)'; for (let i = 0; i < 900; i++) c.fillRect(R() * W, R() * H, 1.5, 1.5); }
-  if (th.style === 'stepped') {
-    c.lineWidth = 1.2;
-    for (let y = H * .38; y < H; y += 34 + R() * 24) {
-      c.strokeStyle = `rgba(31,28,36,${(.03 + R() * .035).toFixed(3)})`; c.beginPath(); c.moveTo(0, y);
-      for (let x = 0; x <= W; x += 48) c.lineTo(x, y + Math.sin(x * .007 + y) * 5 + (fbm(x * .005, y) - .5) * 8);
-      c.stroke();
-    }
-    const cols = ['#fff8df', '#f3b6c4', '#f2c230', '#c7dd8a'];
-    for (let x = 42; x < W - 42; x += 54 + R() * 64) {
-      const gx = clamp(x / CELL | 0, 0, GW - 1); let gy = 0;
-      while (gy < GH && !T.grid[gy * GW + gx]) gy++;
-      if (gy < 2 || gy > GH - 3) continue;
-      const sy = gy * CELL; if (sy < H * .24) continue;
-      c.strokeStyle = 'rgba(74,98,52,.5)'; c.lineWidth = .9;
-      c.beginPath(); c.moveTo(x - 2, sy + 8); c.lineTo(x - 3, sy + 2); c.moveTo(x + 2, sy + 8); c.lineTo(x + 4, sy + 3); c.stroke();
-      c.fillStyle = cols[(R() * cols.length) | 0];
-      for (let k = 0; k < 2 + (R() * 3 | 0); k++) { c.beginPath(); c.arc(x + (R() - .5) * 26, sy + 3 + R() * 9, .8 + R() * 1.5, 0, TAU); c.fill(); }
-    }
-  }
+  biomeHook('texture', BiomeAPI.ctx({ c, R }));
 
   c.setTransform(1, 0, 0, 1, 0, 0);
 };
@@ -316,6 +209,7 @@ buildBackground = function (R) {
   if (th.bgTrees === 'volcano') { const vx = W * .62, vy = H * .52 - 300; const lg = x.createRadialGradient(vx, vy, 0, vx, vy, 260); lg.addColorStop(0, 'rgba(255,140,60,.55)'); lg.addColorStop(1, 'rgba(255,140,60,0)'); x.fillStyle = lg; x.fillRect(vx - 260, vy - 260, 520, 520); }
   if (th.style === 'sea') { const sea = Env.water[0].level; x.fillStyle = rgba(th.water, .55); x.fillRect(-M, sea - 26, bw, H + M); x.fillStyle = 'rgba(255,250,235,.32)'; for (let i = 0; i < 80; i++) x.fillRect(-M + R() * bw, sea - 22 + R() * 30, 20 + R() * 60, 1.5); }
   const hz = x.createLinearGradient(0, H * .42, 0, H + M); hz.addColorStop(0, rgba(th.skyB, 0)); hz.addColorStop(1, rgba(th.skyB, .5 + (th.haze || 0))); x.fillStyle = hz; x.fillRect(-M, H * .42, bw, H + M);
+  biomeHook('background', BiomeAPI.ctx({ x, R, M, big }));
   T.bg = { c, M, s };
   const nC = (big ? 11 : 5) + (th.overcast ? 4 : 0); T.clouds = []; for (let i = 0; i < nC; i++) T.clouds.push({ x: R() * (W + 600) - 300, y: 50 + R() * H * .3, w: (140 + R() * 200) * (th.overcast ? 1.4 : 1), sp: (4 + R() * 8) * (1 + Math.abs(Env.wind) / 80) * Math.sign(Env.wind || 1), seed: R() * 1000 | 0 });
   for (const cl of T.clouds) { const cw = Math.ceil(cl.w * 1.3), ch = Math.ceil(cl.w * .5); const cc = mkCanvas(cw, ch), cx = cc.getContext('2d'); const pts = []; for (let i = 0; i < 14; i++) { const a = i / 14 * TAU; const r = 1 + (hash(cl.seed, i) - .5) * .35; pts.push([cw / 2 + Math.cos(a) * cl.w * .5 * r, ch / 2 + Math.sin(a) * cl.w * .16 * r * (Math.sin(a) > 0 ? .6 : 1.1)]); }
@@ -359,11 +253,21 @@ function makeBasinWater(b, th) {
   const lava = b.kind === 'lava'; const color = lava ? '#ff6a1f' : b.kind === 'swamp' ? '#4b6a42' : th.water;
   const x0 = b.x - b.rx - 10, x1 = b.x + b.rx + 10, n = Math.ceil((x1 - x0) / WSTEP) + 1; const level = b.top + 4;
   const body = { kind: b.kind, sea: false, x0, x1, n, level, target: level, disp: new Float32Array(n), vel: new Float32Array(n), bottom: new Float32Array(n), base: null, maxBottom: level, color, shallow: lava ? '#ffd27a' : shade(color, .28), lava, energy: 1, alive: true, leakX: null };
-  waterColumns(body); body.base = Float32Array.from(body.bottom); return body;
+  body.floorMax = H + 40; waterColumns(body); body.base = Float32Array.from(body.bottom); body.floorMax = body.maxBottom; body.leakFree = waterFlood(body, body.level) === null; return body;
 }
 function waterColumns(b) {
-  let mx = b.level;
-  for (let i = 0; i < b.n; i++) { const x = b.x0 + i * WSTEP; let y = b.level; if (solidAt(x, b.level + 1)) { b.bottom[i] = b.level; continue; } while (y < H + 40 && !solidAt(x, y)) y += CELL; b.bottom[i] = y; if (y > mx) mx = y; }
+  // floor of every column under the surface. Columns that open into a hole (the scan runs far
+  // below the original floor) are clamped to the old floor so the pool never draws a strip of
+  // water hanging down a shaft; the drain stream shows the water pouring out instead.
+  let mx = b.level; const deep = b.floorMax + 240;
+  if (!b.hole) b.hole = new Uint8Array(b.n);
+  for (let i = 0; i < b.n; i++) {
+    const x = b.x0 + i * WSTEP; b.hole[i] = 0;
+    if (solidAt(x, b.level + 1)) { b.bottom[i] = b.level; continue; }
+    let y = b.level; const lim = Math.min(H + 40, deep + 40); while (y < lim && !solidAt(x, y)) y += CELL;
+    if (y >= deep && b.base) { b.hole[i] = 1; y = Math.max(b.level, Math.min(y, b.base[i] + 2)); }
+    b.bottom[i] = y; if (y > mx) mx = y;
+  }
   b.maxBottom = mx;
 }
 function waterAt(x, y) {
@@ -382,7 +286,7 @@ function splash(x, y, power = 1, b = null) {
 function updateWater(dt) {
   for (const b of Env.water) {
     if (!b.alive) continue;
-    if (b.level < b.target - .5) { const old = b.level; b.level = Math.min(b.target, b.level + dt * 70); b.energy = 1; if (b.leakX != null && Math.random() < .9 && visibleWorld(b.leakX, b.leakY, 200)) FX.add({ k: 'drop', x: b.leakX + (Math.random() - .5) * 10, y: b.leakY, vx: (Math.random() - .5) * 60, vy: 60 + Math.random() * 90, r: 2 + Math.random() * 2.5, color: b.shallow, life: 1.6, t: 0 }); if ((old | 0) % 6 === 0) waterColumns(b); if (b.level >= b.maxBottom - 1) { b.alive = false; buildMiniMap(); } }
+    if (b.level < b.target - .5) updateWaterDrain(b, dt); else if (b.flow) b.flow = Math.max(0, b.flow - dt * 2);
     if (b.energy < .002) continue; let e = 0; const d = b.disp, v = b.vel, n = b.n, k = b.lava ? 50 : 90, damp = b.lava ? 6 : 3.4;
     for (let i = 0; i < n; i++) { v[i] += (-k * d[i] - damp * v[i]) * dt; }
     for (let pass = 0; pass < 2; pass++) for (let i = 1; i < n - 1; i++) { const l = (d[i] - d[i - 1]) * 18 * dt, r = (d[i] - d[i + 1]) * 18 * dt; v[i - 1] += l * 4; v[i + 1] += r * 4; }
@@ -391,46 +295,131 @@ function updateWater(dt) {
   }
   if (Env.time - (Env.ambT || 0) > .45) { Env.ambT = Env.time; for (const b of Env.water) if (b.alive && b.sea) waterPoke(b, b.x0 + Math.random() * (b.x1 - b.x0), (Math.random() - .5) * 60, 3); else if (b.alive && b.lava && Math.random() < .5) { const x = b.x0 + 20 + Math.random() * (b.x1 - b.x0 - 40); if (waterAt(x, b.level + 6)) { waterPoke(b, x, -50, 1); FX.add({ k: 'ember', x, y: b.level, vx: (Math.random() - .5) * 40, vy: -90 - Math.random() * 120, life: .9, t: 0, r: 2.2, color: '#ffb347' }); } } }
 }
-/* after a crater: refresh floors; detect leaks through the floor or walls */
+/* after a crater: refresh floors; find the height the pool can still hold */
+/* where does the water go? flood the pool cells below a candidate surface on the terrain grid;
+   if the flood leaves the basin (sideways or downwards) the pool still leaks at that height */
+let _wStamp = null, _wStampN = 1;
+function waterFlood(b, L) {
+  if (!_wStamp || _wStamp.length !== GW * GH) { _wStamp = new Uint32Array(GW * GH); _wStampN = 1; }
+  const st = ++_wStampN; const gy0 = Math.min(GH - 1, Math.ceil((L + 1) / CELL));
+  const gxa = Math.max(0, Math.floor((b.x0 - 14) / CELL)), gxb = Math.min(GW - 1, Math.ceil((b.x1 + 14) / CELL)), gyMax = Math.min(GH - 2, Math.ceil((b.floorMax + 250) / CELL));
+  const q = []; let seeds = 0;
+  for (let i = 0; i < b.n; i++) { if (!(b.base[i] > L + 1)) continue; const gx = clamp(Math.round((b.x0 + i * WSTEP) / CELL), 0, GW - 1); const k = gy0 * GW + gx; if (!T.grid[k] && _wStamp[k] !== st) { _wStamp[k] = st; q.push(k); seeds++; } }
+  if (!seeds) return 'dry';
+  for (let h = 0; h < q.length; h++) {
+    if (q.length > 26000) { const k = q[h]; return { x: (k % GW) * CELL, y: ((k / GW) | 0) * CELL }; }
+    const k = q[h], gx = k % GW, gy = (k / GW) | 0;
+    if (gx <= gxa || gx >= gxb || gy >= gyMax) return { x: gx * CELL, y: Math.min(gy * CELL, b.floorMax) };
+    const nb = [k - 1, k + 1, k + GW]; if (gy > gy0) nb.push(k - GW);
+    for (const n of nb) if (!T.grid[n] && _wStamp[n] !== st) { _wStamp[n] = st; q.push(n); }
+  }
+  return null;
+}
 function waterAfterCrater(cx, cy, r) {
   for (const b of Env.water) {
-    if (!b.alive || b.sea || cx < b.x0 - r - 40 || cx > b.x1 + r + 40 || cy < b.level - r - 30 || cy > b.maxBottom + r + 60) continue;
-    waterColumns(b); let leakY = null, leakX = null;
-    for (let i = 0; i < b.n; i++) { if (b.bottom[i] <= b.level) continue; if (b.bottom[i] > b.base[i] + 18) { if (leakY == null || b.bottom[i] > leakY) { leakY = b.maxBottom + 10; leakX = b.x0 + i * WSTEP; } } }
-    for (const side of [-1, 1]) { // walls: walk outwards along each row under the surface
-      for (let y = b.level + 4; y < b.maxBottom; y += CELL) { let x = side < 0 ? b.x0 : b.x1; let inside = null; for (let i = 0; i < b.n; i++) { const j = side < 0 ? i : b.n - 1 - i; if (b.bottom[j] > y) { inside = b.x0 + j * WSTEP; break; } } if (inside == null) continue; x = inside + side * WSTEP; let open = 0; while (open < 6 && !solidAt(x, y)) { x += side * CELL; open++; } if (open >= 6 && (leakY == null || y > leakY - 0)) { const drop = groundBelow(x, y, 80); if (drop == null || drop > y + 8) { leakY = Math.max(leakY || 0, y); leakX = x; } } }
+    if (!b.alive || b.sea || cx < b.x0 - r - 40 || cx > b.x1 + r + 40 || cy < b.level - r - 30 || cy > b.floorMax + r + 220) continue;
+    let L = b.level, leak = null, first = null, target = b.level;
+    for (let guard = 0; guard < 120; guard++) {
+      const f = waterFlood(b, L);
+      if (f === 'dry') { target = b.floorMax + 2; break; }
+      if (!f) { target = L; break; }
+      if (!b.leakFree && Math.abs(f.x - cx) > r + 70) { target = L; break; } // an old natural gap, not this crater
+      if (!first) first = f; leak = f; L += CELL; target = L;
+      if (L > b.floorMax + 2) { target = b.floorMax + 2; break; }
     }
-    if (leakY != null) { b.target = Math.min(b.maxBottom, leakY + 2); b.leakX = leakX; b.leakY = Math.max(b.level, Math.min(leakY, cy)); if (leakY >= b.maxBottom) b.target = b.maxBottom; }
+    if (first && target > b.level + 1) { b.target = target; b.leakX = clamp(first.x, b.x0, b.x1); b.leakY = clamp(first.y, b.level, b.floorMax); b.draining = true; }
+    waterColumns(b);
   }
 }
+function updateWaterDrain(b, dt) {
+  // the surface sinks to the lowest opening; floors are re-measured every frame while draining
+  const width = Math.max(60, b.x1 - b.x0), rate = clamp(60 * 260 / width, 34, 95);
+  const old = b.level; b.level = Math.min(b.target, b.level + dt * rate); b.energy = 1; waterColumns(b);
+  if ((old / 14 | 0) !== (b.level / 14 | 0)) waterPoke(b, b.leakX, 26, 2);
+  b.flow = Math.min(1, (b.flow || 0) + dt * 3);
+  if (b.leakX != null && visibleWorld(b.leakX, b.leakY, 220) && R8.fxScale > .35) {
+    if (Math.random() < .55) FX.add({ k: 'drop', x: b.leakX + (Math.random() - .5) * 8, y: Math.max(b.level, b.leakY) + 4, vx: (Math.random() - .5) * 50, vy: 90 + Math.random() * 120, r: 1.6 + Math.random() * 2.2, color: b.shallow, life: 1.4, t: 0 });
+  }
+  if (b.level >= b.target - .5) { b.draining = false; if (b.level >= b.maxBottom - 1 || b.level >= b.floorMax) { b.alive = false; } buildMiniMap(); }
+}
+const _waterGrad = new WeakMap();
+function waterGradient(c, b, view) {
+  const y0 = b.level - 10, y1 = b.sea ? Math.min(H + 300, view.y1 + 50) : b.maxBottom + 6;
+  const key = ((y0 / 4) | 0) + '|' + ((y1 / 8) | 0); let g = _waterGrad.get(b);
+  if (g && g.key === key) return g.g;
+  const gr = c.createLinearGradient(0, y0, 0, y1);
+  if (b.lava) { gr.addColorStop(0, '#ffd27a'); gr.addColorStop(.18, '#ff7a24'); gr.addColorStop(1, '#a3261c'); }
+  else { gr.addColorStop(0, rgba(b.shallow, .9)); gr.addColorStop(.18, rgba(b.color, .88)); gr.addColorStop(.6, rgba(shade(b.color, -.25), .92)); gr.addColorStop(1, rgba(shade(b.color, -.5), .96)); }
+  _waterGrad.set(b, { key, g: gr }); return gr;
+}
 function drawWaterBack(c, view) {
+  const t = Env.time;
   for (const b of Env.water) {
     if (!b.alive) continue; const x0 = Math.max(b.x0, view.x0 - 20), x1 = Math.min(b.x1, view.x1 + 20); if (x1 <= x0) continue; const i0 = Math.max(0, Math.floor((x0 - b.x0) / WSTEP)), i1 = Math.min(b.n - 1, Math.ceil((x1 - b.x0) / WSTEP));
-    const g = c.createLinearGradient(0, b.level - 10, 0, b.sea ? Math.min(H + 300, view.y1 + 50) : b.maxBottom + 6);
-    if (b.lava) { g.addColorStop(0, '#ffd27a'); g.addColorStop(.18, '#ff7a24'); g.addColorStop(1, '#a3261c'); } else { g.addColorStop(0, rgba(b.shallow, .92)); g.addColorStop(.25, rgba(b.color, .9)); g.addColorStop(1, rgba(shade(b.color, -.5), .96)); }
-    c.fillStyle = g; c.beginPath(); waterPath(c, b, i0, i1, view); c.fill();
+    c.fillStyle = waterGradient(c, b, view); c.beginPath(); waterPath(c, b, i0, i1, view); c.fill();
+    if (b.lava || R8.fxScale < .55) continue;
+    // under-water light: drifting caustic bands (and sun shafts in the open sea), clipped to the water
+    c.save(); c.clip(); c.globalCompositeOperation = 'lighter';
+    const deepY = b.sea ? Math.min(view.y1, b.level + 420) : b.maxBottom;
+    c.strokeStyle = rgba(b.shallow, .13); c.lineWidth = 2.2; c.beginPath();
+    for (let row = 0; row < 4; row++) { const y = b.level + 14 + row * 22 + Math.sin(t * .8 + row) * 3; if (y > deepY) break; for (let x = x0 - (x0 % 46); x < x1; x += 46) { const ph = x * .05 + t * (1.1 + row * .3) + row * 2; c.moveTo(x, y + Math.sin(ph) * 4); c.quadraticCurveTo(x + 12, y + Math.sin(ph + 1.4) * 6 - 3, x + 24, y + Math.sin(ph + 2.2) * 4); } }
+    c.stroke();
+    if (b.sea && !T.theme.night) {
+      c.fillStyle = 'rgba(255,252,230,.05)';
+      for (let k = 0; k < 6; k++) { const bx = x0 + ((k * 263 + t * 9) % Math.max(1, x1 - x0)), w = 26 + (k % 3) * 18, sk = 90 + (k % 2) * 60; c.beginPath(); c.moveTo(bx, b.level); c.lineTo(bx + w, b.level); c.lineTo(bx + w + sk, b.level + 380); c.lineTo(bx + sk - w * .6, b.level + 380); c.closePath(); c.fill(); }
+    }
+    c.restore();
   }
 }
 function waterPath(c, b, i0, i1, view) {
   if (b.sea) { c.moveTo(b.x0 + i0 * WSTEP, view.y1 + 60); for (let i = i0; i <= i1; i++) c.lineTo(b.x0 + i * WSTEP, b.level + b.disp[i]); c.lineTo(b.x0 + i1 * WSTEP, view.y1 + 60); c.closePath(); return; }
   let open = false;
   for (let i = i0; i <= i1 + 1; i++) { const wet = i <= i1 && b.bottom[i] > b.level + .5; const x = b.x0 + i * WSTEP;
-    if (wet && !open) { open = true; c.moveTo(x - WSTEP / 2, b.level + b.disp[i]); }
-    if (wet) c.lineTo(x, b.level + b.disp[i]);
-    if (!wet && open) { open = false; for (let j = i - 1; j >= i0 && b.bottom[j] > b.level + .5; j--) c.lineTo(b.x0 + j * WSTEP, b.bottom[j] + 2); c.closePath(); } }
+    if (wet && !open) { open = true; c.moveTo(x - WSTEP / 2, Math.min(b.level + b.disp[i], b.bottom[i])); }
+    if (wet) c.lineTo(x, Math.min(b.level + b.disp[i], b.bottom[i] - 1));
+    if (!wet && open) { open = false; c.lineTo(x - WSTEP / 2, b.level + 1); for (let j = i - 1; j >= i0 && b.bottom[j] > b.level + .5; j--) c.lineTo(b.x0 + j * WSTEP, b.bottom[j] + 2); c.closePath(); } }
 }
 function drawWaterFront(c, view, t) {
   for (const b of Env.water) {
     if (!b.alive) continue; const x0 = Math.max(b.x0, view.x0 - 20), x1 = Math.min(b.x1, view.x1 + 20); if (x1 <= x0) continue; const i0 = Math.max(0, Math.floor((x0 - b.x0) / WSTEP)), i1 = Math.min(b.n - 1, Math.ceil((x1 - b.x0) / WSTEP));
-    if (!b.lava) { c.globalAlpha = b.sea ? .34 : .26; c.fillStyle = b.color; c.beginPath(); waterPath(c, b, i0, i1, view); c.fill(); c.globalAlpha = 1; }
-    // surface: ink line + paper-bright highlight + moving glints
-    c.lineWidth = 2.6; c.strokeStyle = b.lava ? 'rgba(80,20,10,.75)' : 'rgba(31,28,36,.55)'; c.lineCap = 'round'; c.beginPath(); let pen = false;
-    for (let i = i0; i <= i1; i++) { const wet = b.sea || b.bottom[i] > b.level + .5; const x = b.x0 + i * WSTEP, y = b.level + b.disp[i]; if (!wet) { pen = false; continue; } pen ? c.lineTo(x, y) : c.moveTo(x, y); pen = true; } c.stroke();
+    if (!b.lava) { c.globalAlpha = b.sea ? .32 : .24; c.fillStyle = b.color; c.beginPath(); waterPath(c, b, i0, i1, view); c.fill(); c.globalAlpha = 1; }
+    // the surface line: one path reused for the soft band, the ink line and the paper highlight
+    c.beginPath(); let pen = false, segs = 0;
+    for (let i = i0; i <= i1; i++) { const wet = b.sea || b.bottom[i] > b.level + .5; const x = b.x0 + i * WSTEP, y = Math.min(b.level + b.disp[i], b.sea ? 1e9 : b.bottom[i] - 1); if (!wet) { pen = false; continue; } if (pen) c.lineTo(x, y); else { c.moveTo(x, y); segs++; } pen = true; }
+    if (!segs) continue;
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    if (!b.lava && R8.fxScale > .45) { c.lineWidth = 9; c.strokeStyle = rgba(b.shallow, .28); c.save(); c.translate(0, 5); c.stroke(); c.restore(); }
+    c.lineWidth = 2.6; c.strokeStyle = b.lava ? 'rgba(80,20,10,.75)' : 'rgba(31,28,36,.55)'; c.stroke();
     c.lineWidth = 1.4; c.strokeStyle = b.lava ? '#ffe8a8' : 'rgba(255,255,250,.85)'; c.save(); c.translate(0, 2.4); c.stroke(); c.restore();
-    if (R8.fxScale > .5) { c.strokeStyle = b.lava ? 'rgba(255,240,180,.65)' : 'rgba(255,255,250,.55)'; c.lineWidth = 1.5; c.beginPath(); for (let k = 0; k < (b.x1 - b.x0) / 70; k++) { const gx = b.x0 + ((k * 97 + t * (14 + (k % 3) * 9)) % (b.x1 - b.x0)); if (gx < x0 || gx > x1) continue; const i = Math.round((gx - b.x0) / WSTEP); if (!b.sea && b.bottom[i] < b.level + 12) continue; const gy = b.level + b.disp[i] + 7 + (k % 4) * 6; c.moveTo(gx, gy); c.lineTo(gx + 10 + (k % 3) * 6, gy); } c.stroke(); }
+    if (R8.fxScale > .5) {
+      // drifting glints + crest foam where the surface is moving
+      c.strokeStyle = b.lava ? 'rgba(255,240,180,.65)' : 'rgba(255,255,250,.55)'; c.lineWidth = 1.5; c.beginPath();
+      for (let k = 0; k < (b.x1 - b.x0) / 70; k++) { const gx = b.x0 + ((k * 97 + t * (14 + (k % 3) * 9)) % (b.x1 - b.x0)); if (gx < x0 || gx > x1) continue; const i = Math.round((gx - b.x0) / WSTEP); if (!b.sea && b.bottom[i] < b.level + 12) continue; const gy = b.level + b.disp[i] + 7 + (k % 4) * 6; c.moveTo(gx, gy); c.lineTo(gx + 10 + (k % 3) * 6, gy); }
+      c.stroke();
+      if (!b.lava && b.energy > .05) {
+        c.fillStyle = 'rgba(255,255,252,.8)'; c.beginPath();
+        for (let i = Math.max(1, i0); i < Math.min(b.n - 1, i1); i++) { const v = b.vel[i]; if (v > -26 || !(b.sea || b.bottom[i] > b.level + 3)) continue; const x = b.x0 + i * WSTEP, y = b.level + b.disp[i]; const r = Math.min(3.2, -v / 40); c.moveTo(x + r, y - 1); c.arc(x, y - 1, r, 0, TAU); }
+        c.fill();
+      }
+      if (!b.lava && !b.sea) {
+        // foam at the shore where the water meets the bank
+        c.fillStyle = 'rgba(255,255,250,.6)'; c.beginPath();
+        for (let i = Math.max(1, i0); i <= Math.min(b.n - 2, i1); i++) {
+          const wet = b.bottom[i] > b.level + .5; if (!wet) continue; const edgeL = !(b.bottom[i - 1] > b.level + .5), edgeR = !(b.bottom[i + 1] > b.level + .5); if (!edgeL && !edgeR) continue;
+          const x = b.x0 + i * WSTEP + (edgeL ? -3 : 3), y = b.level + b.disp[i]; for (let k = 0; k < 3; k++) { const ox = (edgeL ? 1 : -1) * k * 4, r = 1.6 + Math.sin(t * 3 + i + k) * .6; c.moveTo(x + ox + r, y); c.arc(x + ox, y, r, 0, TAU); }
+        }
+        c.fill();
+      }
+    }
+    // a pouring stream while the pool drains out of a hole or a broken wall
+    if (b.draining && b.leakX != null && !b.lava) {
+      const sx = b.leakX, sy = Math.max(b.level + 2, b.leakY - 2), gy = groundBelow(sx, sy + 6, 420), ey = gy == null ? sy + 420 : gy, w = 3 + 5 * (b.flow || 0);
+      const wob = Math.sin(t * 18) * 1.5; c.fillStyle = rgba(b.shallow, .8); c.beginPath(); c.moveTo(sx - w, sy); c.quadraticCurveTo(sx - w * .6 + wob, (sy + ey) / 2, sx - w * .45, ey); c.lineTo(sx + w * .45, ey); c.quadraticCurveTo(sx + w * .6 - wob, (sy + ey) / 2, sx + w, sy); c.closePath(); c.fill();
+      c.strokeStyle = 'rgba(255,255,250,.7)'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(sx - w * .2, sy + 4); c.lineTo(sx - w * .1 + wob, ey - 4); c.stroke();
+      if (gy != null) { c.fillStyle = 'rgba(255,255,250,.75)'; c.beginPath(); for (let k = 0; k < 5; k++) { const a = t * 9 + k * 1.3; const r = 2.2 + Math.sin(a) * 1.2; c.moveTo(sx + Math.cos(k * 1.7) * w * 1.6 + r, ey - 2 - Math.abs(Math.sin(a)) * 5); c.arc(sx + Math.cos(k * 1.7) * w * 1.6, ey - 2 - Math.abs(Math.sin(a)) * 5, r, 0, TAU); } c.fill(); }
+    }
   }
 }
-
 /* ---------- D. weather (pooled; one draw call per layer) ---------- */
 const Weather = {
   kind: 'none', parts: [], n: 0, flash: 0, fog: [], view: null,
@@ -774,11 +763,11 @@ hostRules = function () {
   Env.lavaT += STEP; if (Env.lavaT >= .3) { Env.lavaT = 0; for (const p of all) { if (!p.alive) continue; const wb = waterAt(p.x, p.y + HH - 4); if (wb && wb.lava) { hostDamage(p, 9, p.lastHitT && t - p.lastHitT < 5 ? p.lastHitBy : null, '_lava', 0, -980, p.x, p.y); if (p.alive) HookAPI.status(p.id, { burn: 2 }); } } }
   if (!live) { Env.nextCrate = Math.max(Env.nextCrate, t + 6); return; }
   if (!Env.nextCrate) Env.nextCrate = t + 8;
-  if (t > Env.nextCrate) { Env.nextCrate = t + (big ? 6 + Math.random() * 5 : 11 + Math.random() * 7); const alive = Env.crates.filter(c => !c.gone).length;
+  if (t > Env.nextCrate) { Env.nextCrate = t + (big ? 6 + Math.random() * 5 : 11 + Math.random() * 7) / Math.max(.2, +T.theme.crateRate || 1); const alive = Env.crates.filter(c => !c.gone).length;
     if (alive < (big ? 6 : 2)) for (let tries = 0; tries < 20; tries++) { let x = 80 + Math.random() * (W - 160); if (Env.zone) x = Env.zone.x0 + 60 + Math.random() * Math.max(10, Env.zone.x1 - Env.zone.x0 - 120); const y = surfaceFromGrid(x); if (y == null || y > H - 40 || waterAt(x, y - 6)) continue; const hp = Math.random() < .3; const w = hp ? null : rollCrateWeapon(); emit({ k: 'crate', id: Env.crateId++, x: Math.round(x), kind: hp || !w ? 'health' : 'weapon', wid: w ? w.id : null }); break; } }
   for (const c of Env.crates) { if (c.gone || !c.landed) continue; for (const p of all) { if (!p.alive || Math.abs(p.x - c.x) > 34 || Math.abs(p.y - (c.y - 18)) > 40) continue; if (c.kind === 'health' && p.hp >= maxHp()) continue; c.gone = true; emit({ k: 'cpick', id: c.id, pid: p.id });
       if (c.kind === 'health') HookAPI.heal(p.id, Math.round(45 * maxHp() / 100)); else { const w = Weapons.byId[c.wid]; if (w) { p.wid = w.id; p.ammo = w.ammo || 0; p.uses = 0; p.hostNext = 0; emit({ k: 'arm', id: p.id, wid: w.id, ammo: w.ammo || 0, cr: 1 }); } } break; } }
-  if (T.theme.weather === 'storm' && G.phase === 'fight') { if (!Env.nextBolt) Env.nextBolt = t + 6; if (t > Env.nextBolt) { Env.nextBolt = t + 5 + Math.random() * 8; const tgt = all.filter(p => p.alive); let x = tgt.length && Math.random() < .6 ? tgt[Math.random() * tgt.length | 0].x + (Math.random() - .5) * 260 : 60 + Math.random() * (W - 120); x = clamp(x, 40, W - 40); const y = surfaceFromGrid(x) ?? H; emit({ k: 'bolt', x: Math.round(x), y: Math.round(y), d: 1.1 }); } }
+  if ((Weather.kind === 'storm' || T.theme.lightning) && G.phase === 'fight') { if (!Env.nextBolt) Env.nextBolt = t + 6; if (t > Env.nextBolt) { Env.nextBolt = t + (5 + Math.random() * 8) / Math.max(.2, +T.theme.lightning || 1); const tgt = all.filter(p => p.alive); let x = tgt.length && Math.random() < .6 ? tgt[Math.random() * tgt.length | 0].x + (Math.random() - .5) * 260 : 60 + Math.random() * (W - 120); x = clamp(x, 40, W - 40); const y = surfaceFromGrid(x) ?? H; emit({ k: 'bolt', x: Math.round(x), y: Math.round(y), d: 1.1 }); } }
   for (const b of Env.bolts) if (!b.hosted && t >= b.at) { b.hosted = true; hostExplode(b.x, b.y - 10, { radius: 85, damage: 44, knockback: 950, crater: 26, selfDamage: 1 }, null, '_bolt'); igniteNear(b.x, b.y, 60); }
 };
 function updateCrates(dt) {
@@ -919,10 +908,13 @@ FX.update = function (dt) {
 const _drawParticles = drawParticles;
 drawParticles = function (c, layer) {
   _drawParticles(c, layer); if (layer !== 1) return; const P = FX.parts;
-  c.fillStyle = 'rgba(220,240,250,.85)'; let any = false;
-  for (const p of P) { if (p.k === 'drop' && visibleWorld(p.x, p.y, 10)) { c.fillStyle = p.color; c.beginPath(); c.arc(p.x, p.y, p.r * (p.bub ? 1 : 1 - p.t / p.life * .5), 0, TAU); c.fill(); if (p.bub) { c.strokeStyle = 'rgba(31,28,36,.3)'; c.lineWidth = .8; c.stroke(); } }
+  // drops are batched per colour (one fill per colour instead of one per drop) and stretched along their motion
+  const groups = _dropGroups; groups.clear();
+  for (const p of P) { if (p.k === 'drop' && visibleWorld(p.x, p.y, 10)) { if (p.bub) { c.fillStyle = p.color; c.beginPath(); c.arc(p.x, p.y, p.r, 0, TAU); c.fill(); c.strokeStyle = 'rgba(31,28,36,.3)'; c.lineWidth = .8; c.stroke(); continue; } let g = groups.get(p.color); if (!g) groups.set(p.color, g = []); g.push(p); }
     else if (p.k === 'leaf' && visibleWorld(p.x, p.y, 10)) { const k = p.t / p.life; c.globalAlpha = k > .8 ? (1 - k) / .2 : 1; c.fillStyle = p.color; c.beginPath(); c.ellipse(p.x, p.y, p.r, p.r * .45 * Math.abs(Math.cos(p.rot)) + .8, p.rot, 0, TAU); c.fill(); c.globalAlpha = 1; } }
+  for (const [col, g] of groups) { c.fillStyle = col; c.beginPath(); for (const p of g) { const r = p.r * (1 - p.t / p.life * .5), sp = Math.hypot(p.vx || 0, p.vy || 0), st = 1 + Math.min(1.1, sp / 700), a = Math.atan2(p.vy || 0, p.vx || 0); c.moveTo(p.x + Math.cos(a) * r * st, p.y + Math.sin(a) * r * st); c.ellipse(p.x, p.y, r * st, r / Math.sqrt(st), a, 0, TAU); } c.fill(); }
 };
+const _dropGroups = new Map();
 function drawEmbers(c) { const spr = softSprite('rgba(255,150,60,1)'); for (const p of FX.parts) { if (p.k !== 'ember' || !visibleWorld(p.x, p.y, 20)) continue; const k = p.t / p.life; c.globalAlpha = (1 - k) * .9; const r = p.r * (1.6 - k); c.drawImage(spr, p.x - r * 2, p.y - r * 2, r * 4, r * 4); } c.globalAlpha = 1; }
 function drawRipples(c) { if (!Env.ripples.length) return; c.strokeStyle = 'rgba(255,255,250,.55)'; c.lineWidth = 1; c.beginPath(); let k = 0; for (const r of Env.ripples) { r.t += R8.rdt || 1 / 60; if (r.t > .5) continue; Env.ripples[k++] = r; if (!visibleWorld(r.x, r.y, 10)) continue; const s = 2 + r.t * 22; c.moveTo(r.x + s, r.y); c.ellipse(r.x, r.y, s, s * .25, 0, 0, TAU); } Env.ripples.length = Math.min(k, 80); c.stroke(); }
 function drawLavaGlow(c, t) { for (const b of Env.water) { if (!b.alive || !b.lava) continue; const w = b.x1 - b.x0, cx = (b.x0 + b.x1) / 2; c.globalAlpha = .45 + .1 * Math.sin(t * 2); c.drawImage(softSprite('rgba(255,120,40,1)'), cx - w * .8, b.level - w * .45, w * 1.6, w * .9); } c.globalAlpha = 1; }
@@ -942,8 +934,8 @@ render = function (t) {
   c.save(); c.translate(R8.ox + W * R8.scale / 2 + shx, R8.oy + H * R8.scale / 2 + shy); c.rotate(rot); c.scale(R8.scale, R8.scale); c.translate(-W / 2, -H / 2);
   if (T.bg) { const b = T.bg; let px = 0, py = 0; if (big) { px = clamp((Cam.x - W / 2) * .42, -b.M + 30, b.M - 30); py = clamp((Cam.y - H / 2) * .3, -b.M + 30, b.M - 30); } c.drawImage(b.c, -b.M + px, -b.M + py, W + b.M * 2, H + b.M * 2); }
   if (Weather.flash > 0) { c.fillStyle = `rgba(240,240,255,${Weather.flash * .35})`; c.fillRect(V.x0, V.y0, V.x1 - V.x0, V.y1 - V.y0); }
-  drawClouds(c, t);
-  drawWaterBack(c, V);
+  drawClouds(c, t); Weather.drawBack(c, V, t); biomeHook('drawSky', c, V, t);
+  drawWaterBack(c, V); biomeHook('drawBack', c, V, t);
   if (T.out) { const Q = T.Q; const x0 = clamp(Math.floor(V.x0) - 2, 0, W), y0 = clamp(Math.floor(V.y0) - 2, 0, H), x1 = clamp(Math.ceil(V.x1) + 2, 0, W), y1 = clamp(Math.ceil(V.y1) + 2, 0, H); if (x1 > x0 && y1 > y0) c.drawImage(T.out, x0 * Q, y0 * Q, (x1 - x0) * Q, (y1 - y0) * Q, x0, y0, x1 - x0, y1 - y0); }
   drawProps(c, V, t); drawCrates(c, t);
   drawParticles(c, 0);
@@ -951,10 +943,10 @@ render = function (t) {
   const ps = [...G.players.values()]; for (const p of ps) if (p.alive && visibleWorld(p.x, p.y, 140)) drawPlayer(c, p, t);
   drawBullets(c);
   drawWaterFront(c, V, t); drawRipples(c);
-  drawParticles(c, 1);
+  drawParticles(c, 1); biomeHook('drawFront', c, V, t);
   Weather.draw(c, t); drawZone(c, V, t); drawBolts(c, t);
   if (th.dark) { c.globalCompositeOperation = 'multiply'; c.fillStyle = th.night ? `rgba(70,80,130,${th.dark})` : `rgba(90,90,110,${th.dark})`; c.fillRect(V.x0 - 20, V.y0 - 20, V.x1 - V.x0 + 40, V.y1 - V.y0 + 40); c.globalCompositeOperation = 'source-over'; }
-  c.save(); c.globalCompositeOperation = 'lighter'; drawPropLights(c, t); drawLavaGlow(c, t); drawEmbers(c); Weather.drawGlow(c, t);
+  c.save(); c.globalCompositeOperation = 'lighter'; drawPropLights(c, t); drawLavaGlow(c, t); drawEmbers(c); Weather.drawGlow(c, t); biomeHook('drawGlow', c, V, t);
   if (th.dark) for (const p of ps) { if (!p.alive || !visibleWorld(p.x, p.y, 120)) continue; c.globalAlpha = .28; c.drawImage(softSprite(rgba(p.color, 1)), p.x - 90, p.y - 90, 180, 180); } c.globalAlpha = 1; c.restore();
   drawAdditive(c);
   Weather.drawFog(c, t, V);
@@ -972,7 +964,7 @@ render = function (t) {
 };
 function updateEnvironment(dt) {
   Env.time += dt; if (G.mode !== 'play') return;
-  updateWater(dt); updateZone(); updateProps(dt); updateCrates(dt); updateBolts(dt); Weather.update(dt, currentView());
+  updateWater(dt); updateZone(); updateProps(dt); updateCrates(dt); updateBolts(dt); Weather.update(dt, currentView()); biomeHook('update', dt, Env.time);
 }
 
 /* ---------- I. UI ---------- */
