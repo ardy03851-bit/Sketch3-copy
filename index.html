@@ -1038,13 +1038,58 @@ function physicsStep(p, dt) {
   p.runT += Math.abs(p.vx) * dt * (p.grounded ? .028 : .008);
   if (Math.abs(inp.mx) > .1 && !p.aiming) p.face = Math.sign(inp.mx);
 }
+/* Remote players used to chase a dead-reckoned target and hard-teleport
+   whenever it landed > 220 px away — which happened on every late or bursty
+   batch of snapshots (the relay path is especially jittery). Instead, every
+   incoming snapshot is buffered and the player is rendered slightly behind
+   the newest snapshot, gliding between the two samples around that point in
+   time. The delay adapts to how fast snapshots actually arrive. */
+function pushSnap(p, x, y, vx, vy, rg) {
+  const t = now(), first = !(p.snapBuf && p.snapBuf.length), b = p.snapBuf || (p.snapBuf = []);
+  if (b.length) p.pgap = clamp(t - b[b.length - 1].t, .008, 1);
+  b.push({ t, x, y, vx, vy, rg: !!rg });
+  if (b.length > 34) b.splice(0, b.length - 34);
+  p.tsnap = t; p.tx = x; p.ty = y; p.tvx = vx; p.tvy = vy; p.rg = !!rg;
+  if (first) { p.x = x; p.y = y; } // first time we see this player: start on their spot
+}
 function smoothRemote(p, dt) {
-  const age = Math.min(.25, now() - p.tsnap);
-  const tx = p.tx + p.tvx * age, ty = p.ty + p.tvy * age;
-  if (Math.hypot(tx - p.x, ty - p.y) > 220) { p.x = tx; p.y = ty; }
-  const k = 1 - Math.pow(.00002, dt);
-  const ox = p.x, oy = p.y; p.x = lerp(p.x, tx, k); p.y = lerp(p.y, ty, k);
-  p.vx = p.tvx; p.vy = p.tvy;
+  const b = p.snapBuf, tNow = now();
+  let x = p.x, y = p.y, vx = p.tvx || 0, vy = p.tvy || 0;
+  if (b && b.length) {
+    while (b.length > 2 && tNow - b[0].t > 3) b.shift(); // forget ancient samples
+    const gap = p.pgap || .05;
+    const delay = clamp(gap * 1.75 + .02, .06, .26);      // render a bit behind the newest snapshot
+    const rt = tNow - delay, newest = b[b.length - 1];
+    if (b.length >= 2 && rt <= newest.t && rt >= b[0].t) {
+      // entity interpolation: glide between the two samples around rt
+      let i = b.length - 1;
+      while (i > 1 && b[i - 1].t > rt) i--;
+      const a = b[i - 1], c = b[i];
+      const f = clamp((rt - a.t) / Math.max(1e-4, c.t - a.t), 0, 1);
+      x = lerp(a.x, c.x, f); y = lerp(a.y, c.y, f);
+      vx = lerp(a.vx, c.vx, f); vy = lerp(a.vy, c.vy, f);
+    } else {
+      // newest snapshot is our best guess; extrapolate briefly, then hold
+      // (holding still during a network stall beats teleporting around)
+      const age = tNow - newest.t;
+      const ext = age < .35 ? age : 0;
+      x = newest.x + newest.vx * ext; y = newest.y + newest.vy * ext;
+      vx = newest.vx; vy = newest.vy;
+    }
+  }
+  // converge on the target smoothly: fast enough to stay tight, never an instant snap
+  const dx = x - p.x, dy = y - p.y, d = Math.hypot(dx, dy);
+  if (d > .01) {
+    const step = Math.min(d, Math.max(d * 6, 300) * dt); // catch up in ~1/6 s, min 300 px/s
+    p.x += dx / d * step; p.y += dy / d * step;
+  }
+  p.vx = vx; p.vy = vy;
+  // glide the aim/weapon angle too: it only arrives with snapshots (20 Hz) and would otherwise jitter
+  if (p.tAim != null) {
+    let da = p.tAim - p.aim;
+    da = ((da + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+    p.aim += da * (1 - Math.pow(.002, dt));
+  }
   const landed = !p.grounded && p.rg; if (landed && p.lastVy > 600) { p.sq = .72; p.sqv = 0; FX.dustPuff(p.x, p.y + HH, 8, 1); }
   if (p.grounded && !p.rg && p.tvy < -400) { p.sq = 1.25; p.sqv = 0; }
   p.lastVy = p.tvy; p.grounded = !!p.rg;
@@ -1717,7 +1762,7 @@ function hostRecv(conn, m) {
       if (G.phase !== 'over' && G.phase !== 'champion') hostSpawn(np); else np.respawnAt = 0;
       Lobby.publish(); UI.rosterChanged(); break;
     }
-    case 'u': if (p) { p.tx = +m.x || 0; p.ty = +m.y || 0; p.tvx = +m.vx || 0; p.tvy = +m.vy || 0; p.aim = +m.a || 0; p.face = m.f > 0 ? 1 : -1; p.rg = !!m.g; p.aiming = !!m.am; p.tsnap = now(); } break;
+    case 'u': if (p) { pushSnap(p, +m.x || 0, +m.y || 0, +m.vx || 0, +m.vy || 0, !!m.g); p.tAim = +m.a || 0; p.face = m.f > 0 ? 1 : -1; p.aiming = !!m.am; } break;
     case 'reload': if(p) beginReload(p); break;
     case 'atk': if (p) hostAttack(p.id, +m.a, +m.x, +m.y, m.s | 0, true); break;
     case 'ping': netSend(conn, { t: 'pong', ts: m.ts }); break;
@@ -1771,8 +1816,9 @@ function clientRecv(m) {
         const [id, x, y, vx, vy, aim, face, hp, alive, wid, ammo, score, g, aiming, st, mag, reload] = a; const p = G.players.get(id); if (!p) continue;
         p.hp = hp; p.wid = wid; p.score = score; if (id !== G.myId || now() - (p.predT || 0) > .6) { p.mag = mag; p.reloadEnd = reload ? now() + reload : 0; } if (st) p.status = st; if (id !== G.myId) p.aiming = !!aiming;
         if (id === G.myId) { if (now() - (p.predT || 0) > .5) p.ammo = ammo; if (!!alive && !p.alive && now() - (p.diedT || 0) > 1) { p.alive = true; p.x = x; p.y = y; } continue; }
-        p.tx = x; p.ty = y; p.tvx = vx; p.tvy = vy; p.aim = aim / 1000; p.face = face; p.ammo = ammo; p.rg = !!g; p.tsnap = now();
-        if (!!alive !== p.alive && now() - (p.evT || 0) > .6) { p.alive = !!alive; if (p.alive) { p.x = x; p.y = y; } }
+        p.tx = x; p.ty = y; p.tvx = vx; p.tvy = vy; p.tAim = aim / 1000; p.face = face; p.ammo = ammo; p.tsnap = now();
+        pushSnap(p, x, y, vx, vy, g);
+        if (!!alive !== p.alive && now() - (p.evT || 0) > .6) { p.alive = !!alive; p.snapBuf = null; if (p.alive) { p.x = x; p.y = y; } }
       } break;
     }
     case 'e': for (const e of m.e) applyEvent(e); break;
@@ -1840,13 +1886,13 @@ function applyEvent(e) {
       if (p.id === G.myId) UI.hurt(); break;
     }
     case 'die': {
-      if (!p) break; p.alive = false; p.hp = 0; p.evT = now(); p.swing = null; if (p.id === G.myId) p.diedT = now();
+      if (!p) break; p.alive = false; p.hp = 0; p.evT = now(); p.swing = null; p.snapBuf = null; if (p.id === G.myId) p.diedT = now();
       FX.ink(e.x, e.y, 16, p.color, 1.5); FX.debris(e.x, e.y, 5, [p.color, shade(p.color, -.25), shade(p.color, .2)], 1.2); FX.smoke(e.x, e.y, 4, 22, 'rgba(60,50,56,.4)'); FX.ring(e.x, e.y, 90, 'rgba(255,250,240,.9)', 4, .4); FX.light(e.x, e.y, 260, '#fff0d8', .25, 1.2);
       Audio2.play('die', e.x); const near = (p.id === G.myId || e.by === G.myId); if (near) { G.flash = .18; G.trauma = Math.min(1, G.trauma + .6); }
       UI.killfeed(e); UI.rosterChanged(); break;
     }
     case 'spawn': {
-      if (!p) break; p.x = p.tx = e.x; p.y = p.ty = e.y; p.vx = p.vy = p.tvx = p.tvy = 0; p.tsnap = now(); p.alive = true; p.hp = maxHp(); p.wid = e.wid; p.ammo = e.ammo; p.uses = 0; p.spawnT = .45; p.swing = null; p.nextAtk = 0; p.evT = now(); p.lastHitBy = null; p.sq = 1; p.sqv = 0;
+      if (!p) break; p.x = p.tx = e.x; p.y = p.ty = e.y; p.vx = p.vy = p.tvx = p.tvy = 0; p.tsnap = now(); p.alive = true; p.hp = maxHp(); p.wid = e.wid; p.ammo = e.ammo; p.uses = 0; p.spawnT = .45; p.swing = null; p.nextAtk = 0; p.evT = now(); p.lastHitBy = null; p.sq = 1; p.sqv = 0; p.snapBuf = null;
       FX.ring(e.x, e.y, 60, rgba(p.color, .9), 3, .4); FX.ink(e.x, e.y + 10, 8, p.color, .5); FX.dustPuff(e.x, e.y + HH, 8, 1);
       if (p.id === G.myId) { UI.hudWeapon(true); if (G.phase === 'countdown') UI.reveal(weaponOf(p)); } UI.rosterChanged(); break;
     }
