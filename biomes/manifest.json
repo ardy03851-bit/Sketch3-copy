@@ -169,6 +169,14 @@
    ]
   },
   {
+   "id": "simple-lands",
+   "js": "simple-lands.js",
+   "png": null,
+   "files": [
+    "simple-lands.js"
+   ]
+  },
+  {
    "id": "slate-cliffs",
    "js": "slate-cliffs.js",
    "png": null,

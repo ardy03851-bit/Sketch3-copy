@@ -463,11 +463,11 @@ Everything in this section lives in `expansion.js`, loaded after the core script
 
 Pick the mode and atmosphere in *Practice vs bots* or when hosting a room. Online rooms send the mode and biome to every player.
 
-### Atmospheres (16)
+### Atmospheres (17)
 
-Dust Bowl, Slate Cliffs, Moss Garden, Ember Hollow, Rainy Meadow, Thunderstorm Ridge, Tropical Islands, Sunset Lagoon, Pine Forest, Autumn Woods, Snowfield, Night Swamp, Volcano, Sandstorm Canyon, Cherry Blossom, Midnight Harbor.
+Dust Bowl, Slate Cliffs, Moss Garden, Ember Hollow, Rainy Meadow, Thunderstorm Ridge, Tropical Islands, Sunset Lagoon, Pine Forest, Autumn Woods, Snowfield, Night Swamp, Volcano, Sandstorm Canyon, Cherry Blossom, Midnight Harbor, The Simple Lands.
 
-Each has its own terrain layout (floating islands, rolling ground, or islands in the sea), parallax backdrop, props and weather:
+Each has its own terrain layout (floating islands, rolling ground, islands in the sea, or stepped terraces), parallax backdrop, props and weather:
 
 - **Water** — puddles, ponds, swamp pools and open sea. The surface is a spring simulation: bullets, explosions, players and rain all make waves and splashes. Craters under a pool drain it. Players swim (buoyancy, slow fall, bubbles).
 - **Lava** — volcano pools hurt and set you on fire.
@@ -672,7 +672,7 @@ Event biomes go in `biomes2/` instead and only appear on the event page.
 Biome({
   order: 450,              // position in the world list (lower first)
   name: "Frosty Pier",
-  style: "sea",            // 'float' islands, 'ground' one big field, 'sea' islands in water
+  style: "sea",            // 'float' islands, 'ground' one big field, 'sea' islands in water, 'stepped' terraces and gorges
   weather: "snow",
   wind: 20,
   skyT: "#bcd6ea", skyB: "#eef4f8", sun: "#ffffff",
@@ -693,7 +693,7 @@ Biome({
 | `order` | sort order in menus (built-ins use 100–3300; event ones 100–300) |
 | `name` | shown in menus (max 28 characters) |
 | `id` | optional; defaults to the folder name |
-| `style` | `float`, `ground` or `sea` |
+| `style` | `float`, `ground`, `sea` or `stepped` |
 | `weather` | `none`, `dust`, `leaves`, `embers`, `rain`, `drizzle`, `storm`, `sparkle`, `fog`, `snow`, `fireflies`, `ash`, `sand`, `petals` |
 | `wind` | sideways push on particles and bullets |
 | `skyT`, `skyB` | sky colour at the top and at the horizon |
@@ -737,6 +737,19 @@ newProps: {
 Prop fields: `w`, `h`, `mat` (`wood`, `plank`, `stone`, `crystal`, `metal`, `leaf`), `hp`, `tree: 1` (counts as a tree for the tree settings and chopping), `solid` (you can stand on it), `small: 1`, `leafy: 1`. Once a prop is registered, any biome can use it.
 
 One file can call `Biome({...})` more than once; the extra biomes get ids like `frosty-pier-2`.
+
+### Stepped terrain (The Simple Lands)
+
+`style: "stepped"` draws a contour-map skyline instead of one field: flat terraces at different heights, deep little gorges between them, stone bridges across the gorges, tall ink spires to fight around, and chains of floating stepping stones. It scales with The Big Wilds and is destructible like every other surface. Use it when a biome should feel built out of big, simple shapes.
+
+```js
+Biome({
+  name: "The Simple Lands",
+  style: "stepped",
+  weather: "petals",
+  // the rest of the usual colours, props and newProps
+});
+```
 
 ---
 

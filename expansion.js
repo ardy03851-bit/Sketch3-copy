@@ -81,6 +81,67 @@ function platformTiers(R, mc, seed, floorY, topY, avoid) {
     y -= 190 + R() * 35; tier++; }
   return plats;
 }
+/* The Simple Lands: a hand-drawn stepped skyline with gorge gaps, stone
+   bridges, little stone spires and floating stepping stones. Any biome can
+   opt into it with style: 'stepped'. Everything is drawn into the terrain
+   mask before the grid is rebuilt, so it collides and breaks like normal land. */
+function terraceLand(R, mc, seed, base) {
+  const scale = W / 1600, parts = []; let x = -80;
+  while (x < W + 80) {
+    const w = Math.min(W + 100 - x, (190 + R() * 150) * scale);
+    const prev = parts[parts.length - 1];
+    const top = prev ? clamp(prev.top + (R() - .5) * 220, base - 235, base + 35) : base - 55 - R() * 80;
+    parts.push({ x0: x, x1: x + w, top });
+    x += w + (prev && R() < .34 ? (80 + R() * 70) * scale : 0);
+  }
+  const pts = [[-120, H + 140]];
+  for (let i = 0; i < parts.length; i++) {
+    const p = parts[i], prev = parts[i - 1];
+    if (prev && p.x0 - prev.x1 > 2) { pts.push([prev.x1 - 6, H + 140], [p.x0 + 6, H + 140], [p.x0, p.top + 8]); }
+    else if (prev) pts.push([p.x0 + 2, p.top + 8]);
+    const n = Math.max(4, Math.round((p.x1 - p.x0) / 22));
+    for (let k = 0; k <= n; k++) {
+      const t = k / n, px = p.x0 + (p.x1 - p.x0) * t;
+      pts.push([px, p.top + (fbm(px * .019, seed + i * 13) - .5) * 11 + (1 - Math.min(1, Math.min(t, 1 - t) * 10)) * 7]);
+    }
+    pts.push([p.x1 - 2, p.top + 8]);
+  }
+  pts.push([parts[parts.length - 1].x1 + 120, H + 140]);
+  fillShape(mc, pts);
+  return parts;
+}
+function stoneBridge(R, mc, x0, x1, y0, y1) {
+  const l = x0 - 24, r = x1 + 24, n = Math.max(4, Math.round((r - l) / 26)), top = [], bot = [];
+  for (let i = 0; i <= n; i++) { const t = i / n, px = lerp(l, r, t); top.push([px, lerp(y0, y1, t) + 6 + Math.sin(t * Math.PI) * (8 + R() * 5)]); bot.push([px, lerp(y0, y1, t) + 30 + Math.sin(t * Math.PI) * (6 + R() * 4)]); }
+  bot.reverse(); fillShape(mc, top.concat(bot));
+  if (x1 - x0 > 92) { const px = (x0 + x1) / 2, py = lerp(y0, y1, .5) + 30; fillShape(mc, [[px - 5, py], [px - 3, H + 140], [px + 4, H + 140], [px + 6, py]]); }
+}
+function stoneSpire(R, mc, cx, baseY, h, w) {
+  const lean = (R() - .5) * w * .5, tip = baseY - h;
+  fillShape(mc, [[cx - w * .6, baseY + 60], [cx - w * .52, baseY - h * .12], [cx - w * .38, baseY - h * .5], [cx - w * .3 + lean, tip + 4], [cx - w * .08 + lean, tip - 2], [cx + w * .16 + lean, tip + 1], [cx + w * .28 + lean, tip + 5], [cx + w * .4, baseY - h * .46], [cx + w * .53, baseY - h * .12], [cx + w * .62, baseY + 60]]);
+  fillShape(mc, [[cx - w * .12 + lean, tip + 2], [cx + w * .13 + lean, tip + 3], [cx + w * .16 + lean, tip + 9], [cx - w * .14 + lean, tip + 8]]);
+}
+function simpleLand(R, mc, seed, base, big) {
+  const parts = terraceLand(R, mc, seed, base);
+  for (let i = 1; i < parts.length; i++) { const a = parts[i - 1], b = parts[i]; if (b.x0 - a.x1 > 44) stoneBridge(R, mc, a.x1, b.x0, a.top, b.top); }
+  const nSpire = 2 + (R() < .55 ? 1 : 0) + (big ? 2 : 0), used = [];
+  for (let i = 0; i < nSpire; i++) {
+    const p = parts[(R() * parts.length) | 0], w = 44 + R() * 34, h = 105 + R() * 100;
+    if (p.x1 - p.x0 < w * 2.6) continue;
+    const cx = p.x0 + w + R() * (p.x1 - p.x0 - w * 2);
+    if (used.some(u => Math.abs(u - cx) < 170)) continue; used.push(cx);
+    stoneSpire(R, mc, cx, p.top, h, w);
+  }
+  const sets = (big ? 2 : 1) + (R() < .65 ? 1 : 0) + (R() < .35 ? 1 : 0);
+  for (let s = 0; s < sets; s++) {
+    const n = 3 + (R() * 3 | 0), dir = R() < .5 ? -1 : 1, x0 = 120 + R() * (W - 260), y0 = base - 130 - R() * 130;
+    for (let i = 0; i < n; i++) {
+      const w = 52 + R() * 52, px = clamp(x0 + dir * i * (95 + R() * 38), 60, W - 60 - w), py = clamp(y0 - i * (34 + R() * 22), 180, base - 50);
+      fillShape(mc, islandPoly(R, px, px + w, py, 36 + R() * 32, seed + s * 37 + i, true));
+    }
+  }
+  return parts;
+}
 generateMap = function (seed) {
   const th = THEMES[(G.biome ?? (seed % THEMES.length)) % THEMES.length] || THEMES[0];
   const big = G.gameMode === 'expedition'; const [bw, bh] = big ? bigMapSize() : [1600, 1000];
@@ -107,6 +168,9 @@ generateMap = function (seed) {
     const kinds = []; for (let i = 0; i < Math.round(((th.puddles || 0)) * (big ? sx * .8 : 1)); i++) kinds.push(th.swamp ? 'swamp' : 'puddle'); for (let i = 0; i < Math.round((th.lavaPools || 0) * (big ? sx * .8 : 1)); i++) kinds.push('lava');
     if (th.pond || (big && !th.lava)) kinds.unshift('pond');
     for (const kind of kinds) carveBasin(R, kind, basins, base);
+  } else if (style === 'stepped') {
+    // The Simple Lands: terraces, gorges, bridges, spires and floating stones
+    simpleLand(R, mc, seed, H - 300, big);
   } else {
     const nIsl = big ? Math.round(2.6 * sx) : 2 + (R() < .55 ? 1 : 0); const margin = 70 + R() * 50; const gapTot = (nIsl - 1) * (100 + R() * 50); const span = (W - margin * 2 - gapTot) / nIsl; let x = margin; const floor = H - 340;
     for (let i = 0; i < nIsl; i++) { const w = span * (.9 + R() * .2); const top = floor + R() * 120; fillShape(mc, islandPoly(R, x, x + w, top, 170 + R() * 120, seed + i * 31)); x += w + gapTot / Math.max(1, nIsl - 1); }
