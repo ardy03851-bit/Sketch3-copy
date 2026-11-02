@@ -1590,7 +1590,7 @@ function hostRules() {
     if (typeof fightRules === 'function' && fightRules(all, alive, t)) return;
     if (!G.sd && t >= G.phaseEnd && G.phaseEnd > 0) { G.sd = true; G.sdTick = t + 1; emit({ k: 'sd' }); }
     if (G.sd && t >= G.sdTick) { G.sdTick = t + .5; for (const p of alive) hostDamage(p, Math.ceil(4 * maxHp() / 100), p.lastHitT && t - p.lastHitT < 5 ? p.lastHitBy : null, '_sd', 0, 0, p.x, p.y - 20); }
-    if (alive.length <= 1) { const win = alive[0] || null; if (win) win.score++; const champ = win && win.score >= G.target; setPhase(champ ? 'champion' : 'over', champ ? 5.5 : 2.8, { win: win ? win.id : null }); }
+    if (alive.length <= 1) { const win = alive[0] || null; if (win) win.score++; const champ = win && win.score >= G.target; setPhase(champ ? 'champion' : 'over', champ ? 7 : 2.8, { win: win ? win.id : null }); }
   } else if (G.phase === 'over' || G.phase === 'champion') {
     if (t >= G.phaseEnd) { if (G.phase === 'champion') { for (const p of all) { p.score = 0; p.kills = 0; } broadcastRoster(); } if (all.length >= 2) startRound(); else { setPhase('warmup', 0); for (const p of all) if (!p.alive) p.respawnAt = 0; } }
   }
@@ -2099,6 +2099,7 @@ window.render_game_to_text = () => JSON.stringify({
 <script src="content.js"></script>
 <script src="menu.js"></script>
 <script src="net.js"></script>
+<script src="ui3d.js"></script>
 <script>
 /* ---------- boot ---------- */
 (async function boot() {

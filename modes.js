@@ -90,9 +90,9 @@ const _setPhaseModes = setPhase;
 setPhase = function (ph, left, extra = {}) { if (teamsOn()) extra = Object.assign({ ts: G.teamScore, tx: G.tickets }, extra); return _setPhaseModes(ph, left, extra); };
 function endTeamRound(wt, msg) {
   if (wt) { G.teamScore[wt] = (G.teamScore[wt] || 0) + 1; for (const p of G.players.values()) if (p.team === wt) p.score++; }
-  const champ = wt && G.teamScore[wt] >= G.target; setPhase(champ ? 'champion' : 'over', champ ? 5.5 : 3.2, { win: null, wt: wt || 0, msg: msg || '' });
+  const champ = wt && G.teamScore[wt] >= G.target; setPhase(champ ? 'champion' : 'over', champ ? 7 : 3.2, { win: null, wt: wt || 0, msg: msg || '' });
 }
-function endSoloRound(win) { if (win) win.score++; const champ = win && win.score >= G.target; setPhase(champ ? 'champion' : 'over', champ ? 5.5 : 2.8, { win: win ? win.id : null }); }
+function endSoloRound(win) { if (win) win.score++; const champ = win && win.score >= G.target; setPhase(champ ? 'champion' : 'over', champ ? 7 : 2.8, { win: win ? win.id : null }); }
 /* called by the core fight-phase rules; returns true when it handled this frame */
 function fightRules(all, alive, t) {
   const o = G.opts; const timeUp = G.phaseEnd > 0 && t >= G.phaseEnd;

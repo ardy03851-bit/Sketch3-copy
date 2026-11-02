@@ -131,7 +131,16 @@ There is **no game server to run**. Your iPad is the server.
 - **Host-authoritative.** Hits, damage, kills, crater carving and weapon rolls are decided by the host and broadcast as events, so everyone sees the same holes in the same places. Your own movement is predicted locally so controls feel instant even with lag.
 - **Bots** fill empty seats if you asked for them, and step aside automatically when real players join.
 - **Keep the host awake.** The game requests a screen Wake Lock while hosting. If the host app is closed or the iPad sleeps, the room closes. If the internet blips, the host reconnects to the broker automatically and existing players stay connected.
-- **Limits.** Up to 8 players. WebRTC works across almost all home and mobile networks; a few very strict corporate/school networks block it, in which case the joiner sees "could not reach host".
+- **Limits.** Up to 8 players in the arena.
+
+### Joining from another device (relay fallback)
+
+Joining tries two routes at once, so it works on nearly every network with no server of your own (`net.js`):
+
+1. **Direct (WebRTC).** Uses Google, Cloudflare and Twilio STUN servers plus a public TURN relay, which gets through most home, mobile and school networks.
+2. **Relay.** If no direct link opens within about 3.5 seconds, the game switches to a relay over the same public MQTT brokers that carry the server list (`inkbrawl/v2/relay/<CODE>/…`). Snapshots are split into chunks and reassembled in order, so the game plays the same way, just with a little more lag.
+
+The HUD shows your ping and route (`direct` or `relay`). The host keeps its room open even if the PeerJS broker drops, because the relay still reaches it. The Join screen remembers the last room and offers a **Rejoin** button, and clicking the room code in the HUD copies an invite link. To test the relay on purpose, open the page with `?relay=1`.
 
 ---
 
@@ -421,7 +430,7 @@ The rule: **effects are drawn, short, and heavy** — like ink, chalk and paper,
 
 For automated testing the page exposes `window.render_game_to_text()` (a JSON summary of the game state) and `window.advanceTime(ms)`.
 
-External scripts loaded at runtime from a CDN (unpkg, with jsDelivr as backup): PeerJS 1.5.4 and MQTT.js 5.10.1. The game itself is entirely in `index.html`.
+External scripts loaded at runtime from a CDN (unpkg, with jsDelivr as backup): PeerJS 1.5.4 and MQTT.js 5.10.1. Besides `index.html`, the engine is split into `expansion.js` (maps, water, biome API), `weather.js` (weather registry), `world.js` (props, art), `build.js`, `modes.js` (rules, teams, War), `content.js` (folder loading), `menu.js`, `net.js` (connections and relay) and `ui3d.js` (3D HUD, scoreboard, victory scene).
 
 ---
 
@@ -548,7 +557,7 @@ This is the classic map style, just much bigger (4× the area by default). There
 
 ### Teams
 
-Teams are balanced automatically: real players are spread out first, then bots fill in. Each team spawns on its own side. Team colours show as a ring under each player, the colour of their name tag, and the score chips at the top. The last team standing wins the round, and the first team to the target wins the match. You can switch teams on or off from the pause menu.
+Teams are balanced automatically: real players are spread out first, then bots fill in. Each team spawns on its own side. Team colours show as a ring under each player, the colour of their name tag, and the score chips at the top. The last team standing wins the round, and the first team to the target wins the match. You can switch teams on or off from the pause menu. **Teams also work in the normal Arena**: pick 2–4 teams in Setup → Players (friendly fire is in Rules). Only War still needs The Big Wilds.
 
 ### War mode
 
@@ -750,6 +759,65 @@ Biome({
   // the rest of the usual colours, props and newProps
 });
 ```
+
+---
+
+## Biome scripting (no engine edits)
+
+A biome file can add its own behaviour as well as colours. You never need to edit `expansion.js` or any other engine file: drop a folder into `biomes/`, run `python3 tools/make-manifest.py` (only needed for hosts without folder listings) and it shows up in the menus. Every hook is optional, and errors are caught and logged once, so a broken biome cannot crash a match.
+
+| Hook / field | When it runs | What you get |
+| --- | --- | --- |
+| `terrain(ctx)` | builds the land instead of `style` | `ctx.ground(x0,x1,base,amp)`, `island(x0,x1,top,depth,flat)`, `seaIsland`, `platforms(floorY,topY)`, `fill(pts)`, `cut(pts)`, `basin('pond'\|'puddle'\|'lava'\|'swamp', base)`, `sea(level)`, `rebuild()`, `surface(x)`, plus `R` (seeded random), `W`, `H`, `big`, `scale`, `base` |
+| `texture(ctx)` | after the ground texture is painted | `ctx.c` (2D context in world units), `ctx.R` |
+| `background(ctx)` | painting the far backdrop | `ctx.x` (2D context), `ctx.M` (margin), `ctx.R` |
+| `treeLine(ctx)` | your own silhouette row (set `bgTrees` to a custom name) | `ctx.x`, `base`, `col`, `edge`, `gyAt(px)` |
+| `onMap(ctx)` | once the map is ready | `ctx.env` (props, water…), `ctx.R`, `ctx.glow(colour)` |
+| `update(dt, t)` | every frame | |
+| `drawSky / drawBack / drawFront / drawGlow (c, view, t)` | extra draw layers: behind the land, behind players, in front, additive light | |
+| `boulders` | number of boulders (default 4) | |
+| `crateRate` | weapon-crate rate multiplier | |
+| `lightning` | lightning rate multiplier (lightning also strikes in `storm` weather) | |
+| `gravity` | gravity multiplier for players | |
+| `newProps` | props this biome brings (see above) | |
+| `newWeather` | weather kinds this biome brings (see below) | |
+
+Every `ctx` also has `surface(x)`, `solid(x,y)`, `water(x,y)`, `fx(o)`, `mix`, `shade`, `rgba`, `fbm`, `lerp`, `clamp`, `rng`, `hash`, `smoothPath`, `TAU` and `INK`. The ink-art helpers (`inkPiece`, `lobed`, `marks`, `dots`, `lit`, `rgbaC`) are globals. `biomes/simple-lands/` (its stepped terrain now lives entirely in its own file), `biomes/cocoa-hollow/` and `biomes/glowworm-grotto/` are complete examples.
+
+### Weather
+
+`weather` can be one kind or a list (one is picked per map). Built in: `none dust leaves embers rain drizzle storm sparkle fog snow fireflies ash sand petals`, plus the new `blizzard flurries hail aurora meteors seeds sunshower bubbles mist gale spores stardust`. The **Weather** rule in Setup → Mode & map picks the biome's own weather, a random one, a wild mix or clear skies. A biome can register its own:
+
+```js
+newWeather: {
+  confetti: {
+    label: "Confetti", density: 120,
+    update(p, dt, view) { p.y += 60 * dt; return p.y > view.y1; }, // return true to respawn
+    draw(c, parts, t) { for (const p of parts) c.fillRect(p.x, p.y, 4, 4); },
+  }
+}
+```
+
+The full shape (`setup`, `spawn`, `update`, `tick`, `drawBack`, `draw`, `glow`) is described at the top of `weather.js`.
+
+### The two newest biomes
+
+- **Cocoa Hollow** (cozy): a snowed-in village at dusk with cottages and warm windows, chimney smoke, fairy-light posts, snowmen, firewood stacks, a frozen pond and a sleepy village on the far hills.
+- **Glowworm Grotto**: a deep cavern with a rock ceiling hung with glowworm threads, glowing fungi, stalagmites, crystals, an underground lake and drifting spores.
+
+---
+
+## Water
+
+Ponds and puddles are real bodies of water. When a crater opens a hole in a pond's wall or floor, the game floods the cave grid to find where the water would spill and drains the pond down to that level, with a pouring stream, splashes and foam. A crater inside a sealed bowl never drains it. The surface has soft depth bands, foam crests, shore foam, caustics and light shafts, and players who join late get the current water levels.
+
+---
+
+## HUD, victory scene and shortcuts
+
+- The HUD sits on stacked paper layers in 3D and tilts slightly with the mouse. Score chips use each player's colour as a gradient, and the leader wears a crown. The weapon card flips and shines when you change weapon, and the health bar pulses when you are low.
+- **Hold Tab** for a scoreboard (splats, wins, teams). The **fullscreen** button is next to the room code.
+- **Victory:** when someone wins the match, the screen fades into a small 3D scene in the biome's colours: a podium rises, the winner (or the winning team) drops onto it wearing a crown with their weapon, confetti falls, the camera moves in, and the name appears in raised ink lettering. Press Esc to skip it. The code is in `ui3d.js`.
 
 ---
 
