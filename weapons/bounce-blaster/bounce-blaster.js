@@ -26,7 +26,7 @@ Weapon({
   bounciness: 1.0,
   bulletTrail: true,
 
-  sprite: { length: 66, gripX: 0.41, gripY: 0.84, muzzleX: 0.86, muzzleY: 0.5, holdDistance: 18 },
+  sprite: { length: 66, gripX: 0.4, gripY: 0.84, muzzleX: 0.93, muzzleY: 0.5, holdDistance: 18 },
   projectile: { color: "#ffd98c", glow: "#fff3d6", size: 7, spin: 4 },
 
   destruction: { crater: 0 },

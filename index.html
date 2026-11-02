@@ -176,6 +176,7 @@ input.code{text-transform:uppercase;letter-spacing:.35em;font-weight:800;text-al
 .banner.show .small{animation:cardIn .5s .15s both}
 @keyframes bannerIn{0%{opacity:0;transform:scale(2.2) rotate(-8deg)}60%{opacity:1;transform:scale(.94) rotate(2deg)}100%{transform:none}}
 .banner.out{animation:fadeOut .35s ease forwards}@keyframes fadeOut{to{opacity:0;transform:translateY(-14px)}}
+.banner.hide{display:none}
 .reveal{position:absolute;left:50%;top:56%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none}
 .reveal .rc{width:220px;height:130px;border:2.5px solid var(--ink);border-radius:var(--r-wob);background:var(--paper);box-shadow:5px 6px 0 rgba(31,28,36,.85);
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;animation:flipIn .8s cubic-bezier(.2,1.3,.3,1) both}
@@ -2080,7 +2081,7 @@ const UI = {
     $('#wcHp').style.width = (me.alive ? clamp(me.hp / maxHp() * 100, 0, 100) : 0) + '%';
   },
   hurt() { const el = $('#wcard'); el.animate([{ transform: 'translateX(-50%) rotate(-2deg)' }, { transform: 'translateX(-50%) rotate(2deg)' }, { transform: 'translateX(-50%)' }], { duration: 220 }); },
-  banner(big, small, dur = 1.6) { if (G.demo) return; const b = $('#banner'); b.className = 'banner'; void b.offsetWidth; b.innerHTML = `<span class="big">${esc(big)}</span>${small ? `<span class="small">${small}</span>` : ''}`; b.className = 'banner show'; clearTimeout(this._bt); this._bt = setTimeout(() => { b.className = 'banner out'; }, dur * 1000); },
+  banner(big, small, dur = 1.6) { if (G.demo) return; const b = $('#banner'); b.className = 'banner'; void b.offsetWidth; b.innerHTML = `<span class="big">${esc(big)}</span>${small ? `<span class="small">${small}</span>` : ''}`; b.className = 'banner show'; clearTimeout(this._bt); clearTimeout(this._bt2); this._bt = setTimeout(() => { b.className = 'banner out'; this._bt2 = setTimeout(() => { b.className = 'banner hide'; }, 500); }, Math.max(.4, dur) * 1000); },
   reveal(w) { if (G.demo) return; const r = $('#reveal'); r.classList.remove('hidden'); r.innerHTML = `<div class="rc">${imgTag(w)}<b>${esc(w.name)}</b></div>`; clearTimeout(this._rt); this._rt = setTimeout(() => r.classList.add('hidden'), 2300); },
   phase(e) {
     if (G.demo || G.mode !== 'play') return;

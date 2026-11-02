@@ -460,7 +460,7 @@ function drawInkholdRing(c, V, t) {
     if (!inkholdOn()) return _phaseInk.call(this, e);
     if (e.ph === 'countdown') {
       _phaseInk.call(this, e);
-      UI.banner([{ b: '#e055d8', t: 'Inkhold', sub: `Hold the ring to score — first to ${Math.max(1, G.target | 0 || 5)} wins` }], 2.4);
+      UI.banner('Inkhold', `Hold the ring to score — first to ${Math.max(1, G.target | 0 || 5)} wins`, 2.4);
       return;
     }
     if ((e.ph === 'over' || e.ph === 'champion') && e.winner == null) {
