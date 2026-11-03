@@ -7,11 +7,14 @@ The whole game is three things:
 
 ```
 inkbrawl/
-├── README.md        ← this file
-├── index.html       ← the core game (engine, UI, netcode, art, sound)
-├── expansion.js     ← biomes, water, weather, props, new weapon mechanics, big-map mode, quality scaling
-├── tools/           ← make-manifest.py (for hosts without folder listings)
-└── weapons/         ← one folder per weapon, picked up automatically
+├── README.md          ← this file
+├── index.html         ← the core game (engine, UI, netcode, art, sound)
+├── expansion.js       ← biomes, water, weather, props, new weapon mechanics, big-map mode, quality scaling
+├── manifest.webmanifest ← home-screen app name, icon, standalone window
+├── sw.js              ← the service worker (offline home-screen app)
+├── icon-*.png, apple-touch-icon.png ← the app icon (regenerate with tools/make-icon.py)
+├── tools/             ← make-manifest.py (for hosts without folder listings), make-icon.py
+└── weapons/           ← one folder per weapon, picked up automatically
     ├── gun/
     │   ├── gun.png
     │   └── gun.js
@@ -28,28 +31,29 @@ You never edit `index.html` to add a weapon. Drop a new folder into `weapons/` a
 
 1. [Running it](#running-it)
 2. [Playing](#playing)
-3. [Multiplayer and rooms](#multiplayer-and-rooms)
-4. [Controls](#controls)
-5. [Round rules](#round-rules)
-6. [Adding a weapon](#adding-a-weapon)
-7. [Weapon script reference](#weapon-script-reference)
-8. [Scripting hooks](#scripting-hooks)
-9. [PNG rules and the no-texture fallback](#png-rules-and-the-no-texture-fallback)
-10. [Map destruction](#map-destruction)
-11. [Art style guide](#art-style-guide)
-12. [VFX and lighting](#vfx-and-lighting)
-13. [UI and icons](#ui-and-icons)
-14. [How the code is laid out](#how-the-code-is-laid-out)
-15. [Troubleshooting](#troubleshooting)
-16. [Expansion: worlds, modes and weapon mechanics](#expansion-worlds-modes-and-weapon-mechanics)
-17. [Content folders at a glance](#content-folders-at-a-glance)
-18. [Adding weapons (the full guide)](#adding-weapons-the-full-guide)
-19. [Adding biomes](#adding-biomes)
-20. [The main menu folder](#the-main-menu-folder)
-21. [The event page (weapons2 and biomes2)](#the-event-page-weapons2-and-biomes2)
-22. [Setting up a game: flat or normal maps](#setting-up-a-game-flat-or-normal-maps)
-23. [Building in War mode](#building-in-war-mode)
-24. [The Halloween update](#the-halloween-update)
+3. [Add it to your home screen](#add-it-to-your-home-screen)
+4. [Multiplayer and rooms](#multiplayer-and-rooms)
+5. [Controls](#controls)
+6. [Round rules](#round-rules)
+7. [Adding a weapon](#adding-a-weapon)
+8. [Weapon script reference](#weapon-script-reference)
+9. [Scripting hooks](#scripting-hooks)
+10. [PNG rules and the no-texture fallback](#png-rules-and-the-no-texture-fallback)
+11. [Map destruction](#map-destruction)
+12. [Art style guide](#art-style-guide)
+13. [VFX and lighting](#vfx-and-lighting)
+14. [UI and icons](#ui-and-icons)
+15. [How the code is laid out](#how-the-code-is-laid-out)
+16. [Troubleshooting](#troubleshooting)
+17. [Expansion: worlds, modes and weapon mechanics](#expansion-worlds-modes-and-weapon-mechanics)
+18. [Content folders at a glance](#content-folders-at-a-glance)
+19. [Adding weapons (the full guide)](#adding-weapons-the-full-guide)
+20. [Adding biomes](#adding-biomes)
+21. [The main menu folder](#the-main-menu-folder)
+22. [The event page (weapons2 and biomes2)](#the-event-page-weapons2-and-biomes2)
+23. [Setting up a game: flat or normal maps](#setting-up-a-game-flat-or-normal-maps)
+24. [Building in War mode](#building-in-war-mode)
+25. [The Halloween update](#the-halloween-update)
 
 ---
 
@@ -96,13 +100,25 @@ Any iPad web-server app that serves a folder **with directory listings turned on
 
 Title screen:
 
-- **Your name / colour** — remembered with a small cookie.
-- **Start a game** — opens the room setup (name, max players, first-to score, bots to fill empty seats, public or private). Press *Create room* and you are the host.
+- **Your name / character** — remembered with a small cookie.
+- **Play (offline, vs bots)** — opens the game setup (mode, world, bots, rules). Press *Start* and you are in.
+- **Host online** — the same setup screen with the room options (name, max players, first-to score, bots, public or private).
 - **Servers** — the live list of public rooms. Tap *Join* on any of them, or type a 5-letter room code.
-- **Practice vs bots (offline)** — no internet needed.
 - Badges at the bottom show how many weapons were found and whether the server list is online.
 
 In-game, the **pause button** (top left) shows the room code, a *Copy invite link* button, and *Leave*.
+
+---
+
+## Add it to your home screen
+
+Inkbrawl is a proper installable web app, not just a page:
+
+- **iPad / iPhone (Safari)** — open the site, tap *Share*, then *Add to Home Screen*. It opens full-screen with its own icon (the little ink splat) and keeps working with no network at all.
+- **Android (Chrome)** — tap the *Install app* prompt (or *Add to Home screen* from the menu).
+- No store, no account. The files that make this work are `manifest.webmanifest` (name, icon, standalone window), the `icon-*.png` / `apple-touch-icon.png` icons and `sw.js` (the service worker that keeps a copy of the game for offline play).
+
+If you update the game, bump the `CACHE` version at the top of `sw.js` so returning players get the new build.
 
 ---
 

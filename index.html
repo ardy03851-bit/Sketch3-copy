@@ -7,6 +7,11 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#e9dfcc">
+<meta name="application-name" content="Inkbrawl">
+<meta name="apple-mobile-web-app-title" content="Inkbrawl">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <title>Inkbrawl</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2027,8 +2032,11 @@ const UI = {
   },
   show(id) {
     for (const s of document.querySelectorAll('.screen')) s.classList.toggle('hidden', s.id !== id); this.cur = id;
-    $('#hud').classList.toggle('hidden', !(G.mode === 'play')); touchEl.classList.toggle('hidden', G.mode !== 'play');
-    Input.enabled = G.mode === 'play' && !id;
+    // while a screen is open during a match (pause, settings…) the HUD layers would
+    // sit on top of it — the weapon card literally covered the pause buttons.
+    const inGame = G.mode === 'play' && !id;
+    $('#hud').classList.toggle('hidden', !inGame); touchEl.classList.toggle('hidden', !inGame);
+    Input.enabled = inGame;
   },
   togglePause(force) { if (G.mode !== 'play') return; const open = force ?? this.cur !== 'pause'; if (open) { this.renderPause(); this.show('pause'); } else this.show(null); },
   copy(text, btn) { const done = ok => { const b = $(btn); const o = b.innerHTML; b.innerHTML = ok ? '<svg class="ico"><use href="#i-copy"/></svg>Copied' : esc(text); setTimeout(() => b.innerHTML = o, 1800); }; try { navigator.clipboard.writeText(text).then(() => done(true), () => done(false)); } catch (e) { done(false); } },
@@ -2189,6 +2197,8 @@ window.render_game_to_text = () => JSON.stringify({
   await Promise.race([Promise.all([wp, cp, bp]), new Promise(r => setTimeout(r, 4500))]);
   const L = $('#loading'); L.style.opacity = 0; setTimeout(() => L.remove(), 600);
   const join = new URLSearchParams(location.search).get('join'); if (join) { await Promise.all([wp, cp, bp]); startClient(join); }
+  /* installable app: add the service worker so the home-screen icon works offline */
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { });
 })();
 </script>
 </body>
