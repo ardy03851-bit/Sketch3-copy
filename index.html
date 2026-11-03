@@ -49,6 +49,7 @@ svg.ico .f{fill:currentColor;stroke:none}
 @keyframes screenIn{from{opacity:0;transform:scale(1.02)}to{opacity:1;transform:none}}
 .card{position:relative;background:var(--paper);border:2.5px solid var(--ink);border-radius:var(--r-wob);
   padding:26px 28px;max-width:560px;width:100%;box-shadow:5px 6px 0 rgba(31,28,36,.85);
+  max-height:calc(100dvh - 44px);overflow-y:auto;overscroll-behavior:contain;
   animation:cardIn .55s cubic-bezier(.2,1.2,.3,1) both}
 .card::before{content:"";position:absolute;inset:6px -7px -6px 7px;border-radius:var(--r-wob2);
   background:linear-gradient(160deg,rgba(233,162,59,.18),rgba(217,87,59,.10));z-index:-1;filter:blur(.5px)}
