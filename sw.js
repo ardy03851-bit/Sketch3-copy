@@ -20,7 +20,7 @@
    ===================================================================== */
 'use strict';
 
-const CACHE = 'inkbrawl-v1';
+const CACHE = 'inkbrawl-v2';
 const CORE = [
   './',
   './index.html',
@@ -55,7 +55,6 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== location.origin) return; // GitHub's API etc.: network only
-  if (url.search) return;                     // cache-busted fetches (cache: no-store): network only
 
   if (req.mode === 'navigate' || req.destination === 'document') {
     // the page: fresh when online, the cached copy when not
