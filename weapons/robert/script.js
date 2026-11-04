@@ -23,7 +23,7 @@ Weapon({
 
   // Draw the weapon PNG itself as a small spinning/flying projectile.
   projectileSprite: true,
-  projectileSize: 20, // projectile width/height in world pixels
+  projectileSize: 64, // projectile width/height in world pixels (BIG)
 
   sprite: {
     length: 58,
