@@ -29,7 +29,7 @@ const CORE = [
   './icon-192.png',
   './icon-512.png',
   './content.js', './expansion.js', './weather.js', './world.js',
-  './build.js', './modes.js', './menu.js', './net.js', './ui3d.js',
+  './build.js', './modes.js', './menu.js', './ui3d.js',
   './mainmenu/bg.png', './mainmenu/maintitle.png',
   './mainmenu/event/bg.png', './mainmenu/event/maintitle.png', './mainmenu/event/event.json',
   './weapons/manifest.json', './biomes/manifest.json', './biomes2/manifest.json',

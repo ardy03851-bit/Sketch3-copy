@@ -296,7 +296,7 @@ doAttack = function (p, aim) {
     p.nextAtk = t + .9 + Math.random() * .6; }
   else { slot = clamp(Build.sel, 0, list.length - 1); rot = ((Build.rot % 360) + 360) % 360; [tx, ty] = buildTarget(p, aim); p.nextAtk = t + (list[slot] === 'dig' ? .26 : list[slot] === 'fill' ? .2 : .15); }
   p.aim = Math.atan2(ty - p.y, tx - p.x); p.face = Math.cos(p.aim) >= 0 ? 1 : -1;
-  if (G.isHost) hostTool(p, tx, ty, slot, rot); else netSendHost({ t: 'atk', a: p.aim, x: Math.round(tx), y: Math.round(ty), s: -(1 + slot * 1000 + rot) });
+  hostTool(p, tx, ty, slot, rot);
 };
 const _hostAttackBuild = hostAttack;
 hostAttack = function (pid, a, x, y, s, remote = false) {
@@ -371,13 +371,8 @@ hostRules = function () { _hostRulesBuild(); hostSupportPass(); if (!Build.piece
   if (Build.spec.heal.size && t > Build.healT) { Build.healT = t + 1; const tOn = typeof teamsOn === 'function' && teamsOn(); const mx = typeof maxHp === 'function' ? maxHp() : 100;
     for (const pc of Build.spec.heal) for (const q of G.players.values()) { if (!q.alive || q.hp >= mx || Math.abs(q.x - pc.x) > 90 || Math.abs(q.y - pc.y) > 70) continue; if (tOn && pc.team && q.team !== pc.team) continue; HookAPI.heal(q.id, 5); } }
 };
-const _hostRecvBuild = hostRecv;
-hostRecv = function (conn, m) {
-  if (m && m.t === 'kit') { const c = Net.conns.get(conn.peer); const p = c && G.players.get(c.pid); if (p) hostSetKit(p, !!m.on); return; }
-  return _hostRecvBuild(conn, m);
-};
 function hostSetKit(p, on) { if (on && !Build.kitAllowed(p)) return; if (p.kitMats == null) p.kitMats = typeof warKitMats === 'function' ? warKitMats() : 120; emit({ k: 'kit', id: p.id, on: on ? 1 : 0, m: p.kitMats }); }
-function toggleKit() { const me = G.players.get(G.myId); if (!me || !me.alive || !Build.kitAllowed(me)) { if (me && G.mode === 'play') UI.hint(G.gameMode === 'expedition' ? 'The build kit is part of War mode' : 'Building lives in the Big Wilds', 1.8); return; } if (G.isHost) hostSetKit(me, !me.kit); else netSendHost({ t: 'kit', on: me.kit ? 0 : 1 }); }
+function toggleKit() { const me = G.players.get(G.myId); if (!me || !me.alive || !Build.kitAllowed(me)) { if (me && G.mode === 'play') UI.hint(G.gameMode === 'expedition' ? 'The build kit is part of War mode' : 'Building lives in the Big Wilds', 1.8); return; } hostSetKit(me, !me.kit); }
 NetExt.add({ key: 'b', pack: () => ({ n: Build.nextId, l: [...Build.pieces.values()].filter(pc => !pc.dead).map(pc => [pc.id, pc.kind, Math.round(pc.x), Math.round(pc.y), Math.round(pc.a * 1000), Math.round(pc.hp), pc.team || 0, pc.by || '']) }),
   post: v => { if (!v) return; for (const r of v.l || []) addPiece(r[0], r[1], r[2], r[3], r[4] / 1000, r[5], r[6], r[7] || null); Build.nextId = Math.max(Build.nextId, v.n || 1); } });
 

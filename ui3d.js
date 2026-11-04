@@ -139,11 +139,8 @@
   const _tickHud = UI.tickHud;
   UI.tickHud = function () {
     _tickHud.call(this); if (G.mode !== 'play') return;
-    const ni = document.getElementById('netInfo'); if (!ni) return; let txt, q = '';
-    if (G.offline) txt = 'offline practice';
-    else if (G.isHost) txt = `hosting · ${Net.conns.size} connected`;
-    else { const pg = Net.ping | 0; txt = `${pg} ms · ${Net.via === 'relay' ? 'relay' : 'direct'}`; q = pg < 90 ? 'good' : pg < 180 ? 'ok' : 'bad'; }
-    const key = txt + q; if (ni.dataset.k === key) return; ni.dataset.k = key; ni.innerHTML = (q ? `<span class="q ${q}"></span>` : '') + esc(txt);
+    const ni = document.getElementById('netInfo'); if (!ni) return;
+    if (ni.dataset.k !== 'off') { ni.dataset.k = 'off'; ni.innerHTML = 'offline practice'; }
   };
 
   /* ---------- hold Tab: scoreboard ---------- */
@@ -163,16 +160,6 @@
   addEventListener('blur', () => showBoard(false));
   setInterval(() => { if (sb) showBoard(true); }, 500);
 
-  /* ---------- Join screen: rejoin the last room ---------- */
-  function addRejoin() {
-    const inp = document.getElementById('codeIn'); if (!inp || document.getElementById('rejoinRow')) return;
-    let last = ''; try { last = localStorage.getItem('inkbrawl.lastCode') || ''; } catch (e) { }
-    if (!/^[A-Z0-9]{5}$/.test(last)) return;
-    const row = document.createElement('div'); row.id = 'rejoinRow'; row.className = 'row';
-    row.innerHTML = `<button class="btn" id="bRejoin" style="width:100%">Rejoin last room · <b>${esc(last)}</b></button>`;
-    inp.closest('.row').after(row); row.querySelector('button').addEventListener('click', () => startClient(last));
-  }
-  addRejoin(); setInterval(addRejoin, 2500);
 
   /* =====================================================================
      Victory scene. A tiny 3D projector (camera + perspective divide) draws

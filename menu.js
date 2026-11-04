@@ -147,7 +147,7 @@ const MainMenu = {
   build() {
     if (this.built) return; this.built = true; const home = $('#title'); if (!home) return;
     const wrap = home.querySelector('.wrap'); const logo = home.querySelector('.logo'); const tag = home.querySelector('.tagline');
-    const keep = {}; for (const id of ['bPractice', 'bHost', 'bBrowse', 'bSettings', 'chipWeapons', 'chipLobby']) keep[id] = $('#' + id);
+    const keep = {}; for (const id of ['bPractice', 'bSettings', 'chipWeapons']) keep[id] = $('#' + id);
     const fields = ['#nameIn', '#swatches'].map(id => $(id) && $(id).closest('.field')).filter(Boolean);
     home.classList.add('home'); for (const n of [...Object.values(keep), ...fields, logo, tag]) if (n) n.remove(); home.innerHTML = '';
     const bg = document.createElement('div'); bg.className = 'mm-bg fallback'; home.append(bg, Object.assign(document.createElement('div'), { className: 'mm-shade' }), Object.assign(document.createElement('div'), { className: 'mm-grain' }));
@@ -159,19 +159,17 @@ const MainMenu = {
     const who = document.createElement('div'); who.className = 'mm-who'; left.append(who);
     for (const f of fields) who.append(f);
     const btns = document.createElement('div'); btns.className = 'mm-btns'; left.append(btns);
-    const bP = keep.bPractice, bH = keep.bHost, bB = keep.bBrowse, bS = keep.bSettings;
-    if (bP) { bP.className = 'btn primary'; bP.innerHTML = '<svg class="ico"><use href="#i-play"/></svg>Play<small>offline, vs bots</small>'; btns.append(bP); }
-    if (bH) { bH.className = 'btn gold'; bH.innerHTML = '<svg class="ico"><use href="#i-host"/></svg>Host online<small>friends join by code</small>'; btns.append(bH); }
-    if (bB) { bB.className = 'btn teal'; bB.innerHTML = '<svg class="ico"><use href="#i-browse"/></svg>Servers<small>join a room</small>'; btns.append(bB); }
+    const bP = keep.bPractice, bS = keep.bSettings;
+    if (bP) { bP.className = 'btn primary'; bP.innerHTML = '<svg class="ico"><use href="#i-play"/></svg>Play<small>vs bots</small>'; btns.append(bP); }
     if (bS) { bS.className = 'btn'; bS.innerHTML = '<svg class="ico"><use href="#i-gear"/></svg>Settings'; btns.append(bS); }
     const chips = document.createElement('div'); chips.className = 'mm-chips'; left.append(chips);
-    for (const c of [keep.chipWeapons, keep.chipLobby]) if (c) chips.append(c);
+    if (keep.chipWeapons) chips.append(keep.chipWeapons);
     const flip = document.createElement('button'); flip.className = 'mm-flip'; flip.id = 'bEventPage'; flip.innerHTML = `<span class="ar"><svg viewBox="0 0 24 24"><path d="M5 12h13"/><path d="M12.5 5.5 19 12l-6.5 6.5"/></svg></span><span class="lb">${esc(EventInfo.name)} event</span>`;
     home.append(flip); flip.addEventListener('click', () => { Audio2.init(); Audio2.play('ui'); this.flip('event'); });
     // Play / Host open the setup screen instead of the old cards
     document.addEventListener('click', e => {
-      const b = e.target.closest && e.target.closest('#bPractice,#bHost'); if (!b) return; e.stopPropagation(); e.preventDefault(); Audio2.init(); Audio2.play('ui');
-      Setup.open({ online: b.id === 'bHost', set: 'main', from: 'title' });
+      const b = e.target.closest && e.target.closest('#bPractice'); if (!b) return; e.stopPropagation(); e.preventDefault(); Audio2.init(); Audio2.play('ui');
+      Setup.open({ set: 'main', from: 'title' });
     }, true);
   },
   buildEvent() {
@@ -184,17 +182,13 @@ const MainMenu = {
     mmImage(MMENU + 'event/' + (E.bg || 'bg.png')).then(i => { if (i) { bg.classList.remove('fallback'); bg.style.background = ''; bg.style.backgroundImage = `url("${i.src}")`; bg.style.backgroundSize = 'cover'; bg.style.backgroundPosition = 'center'; } });
     const left = document.createElement('div'); left.className = 'mm-left'; s.append(left);
     left.innerHTML = `<div class="ev-badge">${esc(E.icon || '\u{1F383}')} ${esc(E.name)} event</div><div class="mm-title" id="evTitle"></div><div class="mm-tag">${esc(E.tagline || '')}</div>
-      <div class="mm-btns"><button class="btn primary" id="bEvPlay"><svg class="ico"><use href="#i-play"/></svg>Play the event<small>offline, vs bots</small></button>
-      <button class="btn gold" id="bEvHost"><svg class="ico"><use href="#i-host"/></svg>Host online<small>friends join by code</small></button>
-      <button class="btn teal" id="bEvBrowse"><svg class="ico"><use href="#i-browse"/></svg>Servers</button></div>
+      <div class="mm-btns"><button class="btn primary" id="bEvPlay"><svg class="ico"><use href="#i-play"/></svg>Play the event<small>vs bots</small></button></div>
       <div class="ev-info" id="evInfo"></div>`;
     const tt = left.querySelector('#evTitle');
     mmImage(MMENU + 'event/' + (E.title || 'maintitle.png')).then(i => { if (i) { i.alt = 'Inkbrawl ' + E.name; tt.append(i); } else { tt.innerHTML = `<div class="logo" data-t="INKBRAWL">${'INKBRAWL'.split('').map(c => `<span>${c}</span>`).join('')}</div>`; } });
     const back = document.createElement('button'); back.className = 'mm-flip back'; back.innerHTML = `<span class="ar"><svg viewBox="0 0 24 24"><path d="M19 12H6"/><path d="M11.5 5.5 5 12l6.5 6.5"/></svg></span><span class="lb">Main menu</span>`;
     s.append(back); back.addEventListener('click', () => { Audio2.play('ui'); this.flip('title'); });
-    $('#bEvPlay').addEventListener('click', () => { Audio2.init(); Audio2.play('ui'); Setup.open({ online: false, set: 'event', from: 'event' }); });
-    $('#bEvHost').addEventListener('click', () => { Audio2.init(); Audio2.play('ui'); Setup.open({ online: true, set: 'event', from: 'event' }); });
-    $('#bEvBrowse').addEventListener('click', () => { Audio2.init(); Audio2.play('ui'); Lobby.ensure(); UI.show('browse'); UI.roomsChanged(); });
+    $('#bEvPlay').addEventListener('click', () => { Audio2.init(); Audio2.play('ui'); Setup.open({ set: 'event', from: 'event' }); });
     this.evInfo();
   },
   evInfo() { const el = $('#evInfo'); if (!el) return; const nw = Weapons.list.filter(w => w.set === 'event' || (Array.isArray(w.sets) && w.sets.includes('event') && !w.sets.includes('main'))).length; const nb = THEMES.filter(t => t.set === 'event').length; el.textContent = `${nw} event weapon${nw === 1 ? '' : 's'} · ${nb} event biome${nb === 1 ? '' : 's'} · from weapons2/ and biomes2/`; },
@@ -235,10 +229,10 @@ const MainMenu = {
 /* ---------- smooth screen changes (and the event page remembers itself) ---------- */
 {
   const _show = UI.show.bind(UI);
-  const MENU_SCREENS = new Set(['title', 'event', 'setup', 'browse', 'weapons', 'settings', 'connecting', 'host', 'practice']);
+  const MENU_SCREENS = new Set(['title', 'event', 'setup', 'weapons', 'settings', 'practice']);
   UI.show = function (id, ...rest) {
     if (id === 'title' && MainMenu.page === 'event' && !MainMenu.flipping && G.mode !== 'play' && $('#event')) id = 'event';
-    if (id === 'host' || id === 'practice') { Setup.open({ online: id === 'host', set: MainMenu.page === 'event' ? 'event' : 'main', from: MainMenu.page }); return; }
+    if (id === 'practice') { Setup.open({ set: MainMenu.page === 'event' ? 'event' : 'main', from: MainMenu.page }); return; }
     const prev = this.cur && $('#' + this.cur); const r = _show(id, ...rest);
     if (!this._noFade && prev && prev.id !== id && MENU_SCREENS.has(prev.id) && id && MENU_SCREENS.has(id)) {
       prev.classList.add('leaving'); clearTimeout(prev._lv); prev._lv = setTimeout(() => prev.classList.remove('leaving'), 270);
@@ -265,7 +259,7 @@ const Setup = {
   ensure() {
     if (this.el) return this.el; const s = document.createElement('section'); s.className = 'screen hidden'; s.id = 'setup'; $('#ui').insertBefore(s, $('#hud'));
     s.innerHTML = `<div class="card"><div class="su-head"><div><div class="eyebrow" id="suEye">New game</div><h2 id="suTitle">Set up a game</h2></div>
-      <div class="seg su-where" id="suWhere"><button data-where="0">Offline</button><button data-where="1">Online room</button></div></div>
+</div>
       <div class="su-tabs" id="suTabs"><button data-tab="0">Mode &amp; map</button><button data-tab="1">Players</button><button data-tab="2">Rules</button></div>
       <div class="su-body" id="suBody"></div>
       <div class="su-foot"><button class="btn ghost small" id="suBack"><svg class="ico"><use href="#i-back"/></svg>Back</button><div class="su-sum" id="suSum"></div><button class="btn primary" id="suStart"><svg class="ico"><use href="#i-play"/></svg>Start</button></div></div>`;
@@ -275,7 +269,7 @@ const Setup = {
     return s;
   },
   open(o) {
-    this.ensure(); const prevSet = this.s && this.s.set; this.s = Object.assign(this.load(), { online: !!o.online, set: o.set || 'main', from: o.from || 'title' });
+    this.ensure(); const prevSet = this.s && this.s.set; this.s = Object.assign(this.load(), { online: false, set: o.set || 'main', from: o.from || 'title' });
     if (prevSet && prevSet !== this.s.set) this.s.biome = -1;
     if (this.s.biome >= 0 && (!THEMES[this.s.biome] || (THEMES[this.s.biome].set || 'main') !== this.s.set)) this.s.biome = -1;
     if (!this.s.room) this.s.room = `${UI.name}'s room`;
@@ -290,9 +284,8 @@ const Setup = {
   render() {
     const s = this.s, el = this.el, v = this.rules(), big = this.isBig(), war = s.mode === 'war', ev = s.set === 'event';
     el.classList.toggle('event-set', ev); if (ev) el.style.setProperty('--ev-accent', EventInfo.accent || '#ff8a2a');
-    $('#suEye').textContent = ev ? `${EventInfo.name} event · biomes2 + weapons2` : (s.online ? 'Online room' : 'Offline practice');
-    $('#suTitle').textContent = ev ? `${EventInfo.name} game` : s.online ? 'Host a room' : 'Set up a game';
-    el.querySelectorAll('#suWhere button').forEach(b => b.classList.toggle('on', +b.dataset.where === (s.online ? 1 : 0)));
+    $('#suEye').textContent = ev ? `${EventInfo.name} event · biomes2 + weapons2` : 'Offline · vs bots';
+    $('#suTitle').textContent = ev ? `${EventInfo.name} game` : 'Set up a game';
     el.querySelectorAll('#suTabs button').forEach(b => b.classList.toggle('on', +b.dataset.tab === this.tab));
     let bi = biomeIndexes(s.set);
     if (s.mode === 'inkhold') { bi = THEMES.reduce((a, t, i) => { if (t.inkhold) a.push(i); return a; }, []); if (s.biome >= 0 && !THEMES[s.biome]?.inkhold) s.biome = -1; }
@@ -309,9 +302,7 @@ const Setup = {
       <div class="su-sec"><span class="lbl">First to</span>${this.chips('target', [[3, '3'], [5, '5'], [10, '10'], [20, '20']], s.target)}</div>
       ${ruleChips('skill')}
       <div class="su-sec"><span class="lbl">Teams</span>${this.chips('r:teams', tOpts, war ? Math.max(2, v.teams || 2) : v.teams)}</div>
-      <div class="su-sec${s.online ? '' : ' su-off'}"><span class="lbl">Max real players</span>${this.chips('max', [[2, '2'], [4, '4'], [6, '6'], [8, '8'], [12, '12']], s.max)}</div>
-      <div class="su-sec${s.online ? '' : ' su-off'}"><span class="lbl">Visibility</span>${this.chips('pub', [[1, 'Public (in Servers)'], [0, 'Private (code only)']], s.pub ? 1 : 0)}</div></div>
-      <div class="su-sec${s.online ? '' : ' su-off'}"><label class="lbl" for="suRoom">Room name</label><input class="txt" id="suRoom" maxlength="24" autocomplete="off" spellcheck="false" value="${esc(s.room)}"></div>`;
+      </div>`;
     const pane2 = `<div class="su-grid2">${ruleChips('hp')}${ruleChips('time')}${ruleChips('sd')}${ruleChips('drops')}${ruleChips('weapons')}${ruleChips('ff', (war || v.teams) ? '' : 'su-off')}${ruleChips('storm', big ? '' : 'su-off')}${ruleChips('tickets', war ? '' : 'su-off')}${ruleChips('buildT', war ? '' : 'su-off')}</div>
       <p class="su-note">Rules are saved for next time. The host can change bots, teams and War mode from the pause menu too.</p>`;
     $('#suBody').innerHTML = `<div class="su-pane${this.tab === 0 ? ' on' : ''}">${pane0}</div><div class="su-pane${this.tab === 1 ? ' on' : ''}">${pane1}</div><div class="su-pane${this.tab === 2 ? ' on' : ''}">${pane2}</div>`;
@@ -319,13 +310,12 @@ const Setup = {
   },
   summary() {
     const s = this.s, v = this.rules(); const m = SETUP_MODES.find(x => x.id === s.mode); const b = s.biome >= 0 && THEMES[s.biome] ? THEMES[s.biome].name : 'random world';
-    const parts = [s.online ? 'Online' : 'Offline', m.n, s.terrain === 'flat' ? 'flat' : 'hills', b, s.bots + ' bot' + (s.bots === 1 ? '' : 's'), 'first to ' + s.target];
+    const parts = ['Offline', m.n, s.terrain === 'flat' ? 'flat' : 'hills', b, s.bots + ' bot' + (s.bots === 1 ? '' : 's'), 'first to ' + s.target];
     if (s.mode === 'war') parts.splice(2, 0, Math.max(2, v.teams || 2) + ' teams'); else if (v.teams) parts.splice(2, 0, v.teams + ' teams');
     if (s.set === 'event') parts.unshift(EventInfo.name); $('#suSum').textContent = parts.join(' · ');
   },
   click(e) {
     const s = this.s, v = this.rules(); let b;
-    if ((b = e.target.closest('[data-where]'))) { s.online = b.dataset.where === '1'; Audio2.play('ui'); this.render(); return; }
     if ((b = e.target.closest('[data-tab]'))) { this.tab = +b.dataset.tab; Audio2.play('ui'); this.render(); $('#suBody').scrollTop = 0; return; }
     if ((b = e.target.closest('[data-step]'))) { const st = this.botSteps(); let i = st.indexOf(s.bots); i = clamp(i + +b.dataset.step, 0, st.length - 1); s.bots = st[i]; Audio2.play('ui'); $('#suBots').textContent = s.bots; this.save(); this.summary(); return; }
     if ((b = e.target.closest('[data-pick]'))) { const k = b.dataset.pick, raw = b.dataset.v; Audio2.play('ui');
@@ -340,8 +330,8 @@ const Setup = {
     const s = this.s, v = this.rules(); const big = this.isBig(), war = s.mode === 'war'; this.save();
     v.war = war ? 1 : 0; if (war && !(v.teams >= 2)) v.teams = 2; v.crowd = big && s.bots > 7 ? s.bots : 0; v.terrain = s.terrain; v.set = s.set;
     setCookie('ib_rules', JSON.stringify(Object.assign({}, v, { set: 'main' })));
-    const name = s.online ? (cleanName(s.room || `${UI.name}'s room`).slice(0, 24) || 'Room') : (s.set === 'event' ? EventInfo.name : 'Practice');
-    startHost({ offline: !s.online, name, max: s.online ? s.max : 8, target: s.target, bots: big ? s.bots : Math.min(7, s.bots), gameMode: s.mode === 'inkhold' ? 'inkhold' : (big ? 'expedition' : 'arena'), biome: s.biome, public: s.pub, set: s.set, terrain: s.terrain });
+    const name = s.set === 'event' ? EventInfo.name : 'Practice';
+    startHost({ offline: true, name, max: 8, target: s.target, bots: big ? s.bots : Math.min(7, s.bots), gameMode: s.mode === 'inkhold' ? 'inkhold' : (big ? 'expedition' : 'arena'), biome: s.biome, public: false, set: s.set, terrain: s.terrain });
   },
 };
 

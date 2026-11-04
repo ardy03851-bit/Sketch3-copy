@@ -316,54 +316,11 @@ button,.btn,input,select,.screen{touch-action:manipulation}html{-webkit-text-siz
           <div class="swatches" id="swatches"></div>
         </div>
         <div class="menu-btns">
-          <button class="btn primary" id="bHost"><svg class="ico"><use href="#i-host"/></svg>Start a game</button>
-          <button class="btn gold" id="bBrowse"><svg class="ico"><use href="#i-browse"/></svg>Servers</button>
-          <button class="btn full" id="bPractice"><svg class="ico"><use href="#i-bot"/></svg>Practice vs bots (offline)</button>
+          <button class="btn primary" id="bPractice"><svg class="ico"><use href="#i-bot"/></svg>Play vs bots</button>
         </div>
       </div>
       <div class="chips">
         <button class="chip" id="bSettings">Settings</button><span class="chip" id="chipWeapons" role="button" tabindex="0"><svg class="ico"><use href="#i-cross"/></svg><span id="wCount">loading weapons…</span></span>
-        <span class="chip" id="chipLobby"><span class="dot" id="lobbyDot"></span><span id="lobbyTxt">connecting to server list…</span></span>
-      </div>
-    </div>
-  </section>
-
-  <!-- HOST -->
-  <section class="screen hidden" id="host">
-    <div class="card">
-      <h2><svg class="ico" style="width:30px;height:30px"><use href="#i-host"/></svg>Start a game</h2>
-      <p class="sub">Your device hosts the room. Keep this tab open and the screen awake while people play.</p>
-      <div class="field"><label class="lbl" for="roomIn">Room name</label><input class="txt" id="roomIn" maxlength="24" autocomplete="off" spellcheck="false"></div>
-      <div class="row" style="gap:18px;align-items:flex-start">
-        <div class="field" style="flex:1;min-width:200px"><span class="lbl">Max players</span><div class="seg" id="segMax"><button>2</button><button>4</button><button class="on">6</button><button>8</button></div></div>
-        <div class="field" style="flex:1;min-width:170px"><span class="lbl">First to</span><div class="seg" id="segWin"><button>3</button><button class="on">5</button><button>10</button></div></div>
-      </div>
-      <div class="row" style="gap:18px;align-items:flex-start">
-        <div class="field" style="flex:1;min-width:200px"><span class="lbl">Bots (fill empty seats)</span><div class="seg" id="segBots"><button class="on">0</button><button>1</button><button>2</button><button>3</button></div></div>
-        <div class="field" style="flex:1;min-width:170px"><span class="lbl">Visibility</span><div class="seg" id="segVis"><button class="on">Public</button><button>Private</button></div></div>
-      </div>
-      <div class="setup-grid"><div class="field"><label class="lbl" for="hostMode">Mode</label><select id="hostMode"><option value="arena">Classic arena</option><option value="expedition">The Big Wilds</option></select></div><div class="field"><label class="lbl" for="hostBiome">Atmosphere</label><select id="hostBiome"></select></div></div>
-      <div class="err" id="hostErr"></div>
-      <div class="row" style="justify-content:space-between;margin-top:6px">
-        <button class="btn ghost" data-back><svg class="ico"><use href="#i-back"/></svg>Back</button>
-        <button class="btn primary" id="bCreate"><svg class="ico"><use href="#i-play"/></svg>Create room</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- BROWSE -->
-  <section class="screen hidden" id="browse">
-    <div class="card" style="max-width:620px">
-      <h2><svg class="ico" style="width:30px;height:30px"><use href="#i-browse"/></svg>Servers</h2>
-      <p class="sub status" id="browseStatus"><span class="spinner"></span>Listening for rooms…</p>
-      <div class="rooms" id="rooms"></div>
-      <div class="field" style="margin-bottom:10px"><label class="lbl" for="codeIn">Or join with a room code</label>
-        <div class="row" style="flex-wrap:nowrap"><input class="txt code" id="codeIn" maxlength="5" placeholder="ABCDE" autocomplete="off" spellcheck="false"><button class="btn teal" id="bJoinCode"><svg class="ico"><use href="#i-join"/></svg>Join</button></div>
-      </div>
-      <div class="err" id="joinErr"></div>
-      <div class="row" style="justify-content:space-between">
-        <button class="btn ghost" data-back><svg class="ico"><use href="#i-back"/></svg>Back</button>
-        <button class="btn small" id="bRefresh"><svg class="ico"><use href="#i-refresh"/></svg>Refresh</button>
       </div>
     </div>
   </section>
@@ -382,17 +339,6 @@ button,.btn,input,select,.screen{touch-action:manipulation}html{-webkit-text-siz
           <input type="file" id="pickFolder" webkitdirectory directory multiple class="hidden">
         </div>
       </div>
-    </div>
-  </section>
-
-  <!-- CONNECTING -->
-  <section class="screen hidden" id="connecting">
-    <div class="card" style="max-width:420px;text-align:center">
-      <div style="display:flex;justify-content:center;margin-bottom:12px"><div class="loading-ink" style="width:54px;height:54px;border-radius:46% 54% 50% 50%/55% 45% 55% 45%;background:var(--ink);animation:morph 1.2s ease-in-out infinite"></div></div>
-      <h2 style="justify-content:center" id="connTitle">Joining…</h2>
-      <p class="sub" id="connSub">Shaking hands with the host</p>
-      <div class="err" id="connErr"></div>
-      <button class="btn ghost" data-back><svg class="ico"><use href="#i-back"/></svg>Cancel</button>
     </div>
   </section>
 
@@ -484,10 +430,8 @@ const PW = 30, PH = 40, HW = PW / 2, HH = PH / 2;
 const GRAV = 2300, RUN = 370, JUMP = 840, JUMP2 = 740, MAXFALL = 1500;
 const INK = '#1f1c24';
 const PLAYER_COLORS = ['#d9573b', '#3f8a86', '#e9a23b', '#6c5aa8', '#4c6fa8', '#c95b8a', '#6f9a4f', '#8a6a4f'];
-const PEER_PREFIX = 'inkbrawl-v1-';
 const LOBBY_TOPIC = 'inkbrawl/v1/rooms/';
 const LOBBY_BROKERS = ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://test.mosquitto.org:8081/mqtt'];
-const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const THEMES = [
   { name: 'Dust', skyT: '#f2dcb9', skyB: '#e7b48b', sun: '#fff3d6', far: ['#dcae86', '#c98f6f'], top: '#c98a55', mid: '#a4643f', deep: '#6a3c2e', cap: '#e8bb72' },
   { name: 'Slate', skyT: '#d3d9de', skyB: '#e9c9b4', sun: '#fff1e2', far: ['#aeb6c2', '#9099a9'], top: '#8d93a2', mid: '#61677a', deep: '#393b4b', cap: '#c3cda6' },
@@ -529,7 +473,6 @@ function normalizeWeapon(def, id) {
   w.weight = Math.max(0, +w.weight || 0) || (def.weight === 0 ? 0 : 1);
   return w;
 }
-function netSafe(w) { const o = {}; for (const k in w) { if (k === 'img' || typeof w[k] === 'function') continue; o[k] = w[k]; } return JSON.parse(JSON.stringify(o)); }
 function loadImg(src) {
   return new Promise(res => { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => res(i.naturalWidth ? i : null); i.onerror = () => res(null); i.src = src; });
 }
@@ -665,10 +608,6 @@ function weaponOf(p) { return Weapons.byId[p.wid] || FISTS; }
 function rollWeapon(R = Math.random) {
   const pool = Weapons.list.filter(w => w.weight > 0); if (!pool.length) return FISTS;
   let tot = pool.reduce((s, w) => s + w.weight, 0), r = R() * tot; for (const w of pool) { r -= w.weight; if (r <= 0) return w; } return pool[0];
-}
-function weaponImageData(w) {
-  try { const img = w.img || NOTEX; const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height; const s = Math.min(1, 360 / iw);
-    const c = mkCanvas(iw * s, ih * s); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); return w.img ? c.toDataURL('image/png') : null; } catch (e) { return null; }
 }
 
 /* ---------- 3b. characters: auto discovery from the char/ folder ----------
@@ -1672,7 +1611,7 @@ function hostRules() {
     if (G.sd && t >= G.sdTick) { G.sdTick = t + .5; for (const p of alive) hostDamage(p, Math.ceil(4 * maxHp() / 100), p.lastHitT && t - p.lastHitT < 5 ? p.lastHitBy : null, '_sd', 0, 0, p.x, p.y - 20); }
     if (alive.length <= 1) { const win = alive[0] || null; if (win) win.score++; const champ = win && win.score >= G.target; setPhase(champ ? 'champion' : 'over', champ ? 7 : 2.8, { win: win ? win.id : null }); }
   } else if (G.phase === 'over' || G.phase === 'champion') {
-    if (t >= G.phaseEnd) { if (G.phase === 'champion') { for (const p of all) { p.score = 0; p.kills = 0; } broadcastRoster(); } if (all.length >= 2) startRound(); else { setPhase('warmup', 0); for (const p of all) if (!p.alive) p.respawnAt = 0; } }
+    if (t >= G.phaseEnd) { if (G.phase === 'champion') { for (const p of all) { p.score = 0; p.kills = 0; } } if (all.length >= 2) startRound(); else { setPhase('warmup', 0); for (const p of all) if (!p.alive) p.respawnAt = 0; } }
   }
 }
 const ROUND_TIME = 60;
@@ -1692,7 +1631,7 @@ function syncBots() {
     G.players.set(b.id, b); bots.push(b);
     if (G.phase === 'warmup' || G.phase === 'fight' || G.phase === 'countdown') hostSpawn(b);
   }
-  broadcastRoster(); Lobby.publish(); UI.rosterChanged();
+  UI.rosterChanged();
 }
 
 /* ---------- 12. bots ---------- */
@@ -1733,178 +1672,13 @@ function botThink(p, dt) {
   }
 }
 
-/* ---------- 10. network ---------- */
+/* ---------- 10. session helpers (single-player: bots only) ---------- */
 function loadScript(urls) { return new Promise(res => { let i = 0; const next = () => { if (i >= urls.length) return res(false); const s = document.createElement('script'); s.src = urls[i++]; s.async = true; s.onload = () => res(true); s.onerror = () => { s.remove(); next(); }; document.head.appendChild(s); }; next(); }); }
-const libPeer = () => window.Peer ? Promise.resolve(true) : loadScript(['https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js', 'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js']);
-const libMqtt = () => window.mqtt ? Promise.resolve(true) : loadScript(['https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js', 'https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js']);
-const Net = { peer: null, conns: new Map(), hostConn: null, lastRecv: 0, ping: 0, sendT: 0, snapT: 0, pingT: 0, imgParts: {}, reconnecting: false };
-// PeerJS refuses JSON messages over ~16 KB (and then closes the connection), so big messages
-// (welcome, maps, huge snapshots) are split into ordered parts and put back together on arrival.
-const NET_ENC = new TextEncoder(); let netPartId = 1;
-function netSend(conn, m) {
-  try {
-    if (!conn || !conn.open) return;
-    const s = JSON.stringify(m);
-    if (s.length < 5000 || NET_ENC.encode(s).length < 15500) { conn.send(m); return; }
-    const k = netPartId++, N = 4000, n = Math.ceil(s.length / N);
-    for (let i = 0; i < n; i++) conn.send({ t: '_pt', k, i, n, d: s.slice(i * N, (i + 1) * N) });
-  } catch (e) { }
-}
-function netUnpart(conn, m) {
-  if (!m || m.t !== '_pt') return m;
-  const P = conn._parts || (conn._parts = {}); const b = P[m.k] || (P[m.k] = []);
-  b[m.i] = m.d; if (m.i < m.n - 1) return null;
-  delete P[m.k]; try { return JSON.parse(b.join('')); } catch (e) { return null; }
-}
-function netSendHost(m) { if (!G.isHost && Net.hostConn) netSend(Net.hostConn, m); }
-function broadcast(m) { for (const c of Net.conns.values()) netSend(c.conn, m); }
-function rosterMsg() { return { t: 'roster', l: [...G.players.values()].map(p => [p.id, p.name, p.color, p.isBot ? 1 : 0, p.score, p.kills, p.char || '']) }; }
-function broadcastRoster() { if (G.isHost && !G.offline) broadcast(rosterMsg()); }
-function genCode() { let s = ''; for (let i = 0; i < 5; i++) s += CODE_CHARS[(Math.random() * CODE_CHARS.length) | 0]; return s; }
-function openHostPeer() {
-  return new Promise(async (res, rej) => {
-    if (!(await libPeer())) return rej('Could not load the networking library (no internet?)');
-    let tries = 0; const attempt = () => {
-      const code = genCode(); const peer = new Peer(PEER_PREFIX + code, { debug: 1 }); let opened = false;
-      const to = setTimeout(() => { if (!opened) { try { peer.destroy(); } catch (e) { } rej('The matchmaking server did not answer. Check the internet connection.'); } }, 12000);
-      peer.on('open', () => { opened = true; clearTimeout(to); res({ peer, code }); });
-      peer.on('error', err => { if (!opened) { clearTimeout(to); try { peer.destroy(); } catch (e) { } if (err.type === 'unavailable-id' && ++tries < 5) attempt(); else rej('Could not open the room (' + err.type + ')'); } else console.warn('peer', err.type); });
-    }; attempt();
-  });
-}
-function hostWire(peer) {
-  peer.on('connection', conn => {
-    conn.on('data', m => { m = netUnpart(conn, m); if (m) hostRecv(conn, m); }); conn.on('close', () => hostDrop(conn)); conn.on('error', () => hostDrop(conn));
-  });
-  peer.on('disconnected', () => { if (Net.peer !== peer || peer.destroyed) return; Net.reconnecting = true; setTimeout(() => { try { if (!peer.destroyed) peer.reconnect(); } catch (e) { } }, 1500); });
-  peer.on('open', () => { Net.reconnecting = false; });
-}
-function cleanName(n) { return String(n || '').replace(/[<>]/g, '').trim().slice(0, 14) || 'Scribbler'; }
-function hostRecv(conn, m) {
-  if (!m || typeof m !== 'object') return; const c = Net.conns.get(conn.peer); const p = c && G.players.get(c.pid); if (p) p.lastSeen = now();
-  switch (m.t) {
-    case 'hello': {
-      if (c) return; const humans = [...G.players.values()].filter(q => !q.isBot).length;
-      if (humans >= G.maxPlayers) { netSend(conn, { t: 'full' }); setTimeout(() => conn.close(), 400); return; }
-      const ch = m.char && Chars.byId[m.char];
-      const used = new Set([...G.players.values()].filter(q => !q.isBot).map(q => q.color));
-      let color = ch ? ch.color : (PLAYER_COLORS.includes(m.color) && !used.has(m.color) ? m.color : (PLAYER_COLORS.find(x => !used.has(x)) || PLAYER_COLORS[0]));
-      const pid = 'p' + (++G.pidCounter); const np = makePlayer(pid, cleanName(m.name), color, false, ch ? ch.id : null); np.conn = conn; Net.conns.set(conn.peer, { conn, pid }); G.players.set(pid, np);
-      const bots = [...G.players.values()].filter(q => q.isBot); for (const b of bots) b.color === color && (b.color = PLAYER_COLORS.find(x => ![...G.players.values()].some(q => q.color === x)) || b.color);
-      netSend(conn, { t: 'welcome', id: pid, room: { code: G.code, name: G.roomName, max: G.maxPlayers, target: G.target }, ph: G.phase, left: Math.max(0, G.phaseEnd - now()), n: G.round, seed: T.seed, craters: T.craters, bi: G.biome, bid: THEMES[G.biome]?.id, mo: G.gameMode, crates: Env.crates, props: propsNetState(), ext: NetExt.pack(), weapons: Weapons.list.map(netSafe) });
-      sendWeaponImages(conn, new Set(Array.isArray(m.have) ? m.have.slice(0, 400) : []));
-      syncBots(); broadcastRoster(); emit({ k: 'join', id: pid, name: np.name });
-      if (G.phase !== 'over' && G.phase !== 'champion') hostSpawn(np); else np.respawnAt = 0;
-      Lobby.publish(); UI.rosterChanged(); break;
-    }
-    case 'u': if (p) { pushSnap(p, +m.x || 0, +m.y || 0, +m.vx || 0, +m.vy || 0, !!m.g); p.tAim = +m.a || 0; p.face = m.f > 0 ? 1 : -1; p.aiming = !!m.am; } break;
-    case 'reload': if(p) beginReload(p); break;
-    case 'atk': if (p) hostAttack(p.id, +m.a, +m.x, +m.y, m.s | 0, true); break;
-    case 'ping': netSend(conn, { t: 'pong', ts: m.ts }); break;
-    case 'bye': hostDrop(conn); break;
-  }
-}
-function sendWeaponImages(conn, have) {
-  for (const w of Weapons.list) { if (have && have.has(w.id + '|' + w.path)) continue; /* the player already has this picture from the same site */ const data = weaponImageData(w); if (!data) continue; const size = 14000, n = Math.ceil(data.length / size); for (let i = 0; i < n; i++) netSend(conn, { t: 'wimg', id: w.id, i, n, d: data.slice(i * size, (i + 1) * size) }); }
-}
-function hostDrop(conn) {
-  const c = Net.conns.get(conn.peer); if (!c) return; Net.conns.delete(conn.peer); const p = G.players.get(c.pid);
-  if (p) { G.players.delete(p.id); emit({ k: 'leave', id: p.id, name: p.name }); }
-  try { conn.close(); } catch (e) { } syncBots(); broadcastRoster(); Lobby.publish(); UI.rosterChanged();
-}
-function startClient(code) {
-  code = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5); if (code.length !== 5) { UI.joinError('Room codes are 5 letters.'); return; }
-  stopSession(); UI.show('connecting'); $('#connTitle').textContent = 'Joining ' + code; $('#connSub').textContent = 'Shaking hands with the host…'; $('#connErr').textContent = '';
-  const fail = msg => { if (G.mode === 'play') return; $('#connErr').textContent = msg; $('#connSub').textContent = 'Could not join'; stopSession(true); };
-  libPeer().then(ok => {
-    if (!ok) return fail('Could not load the networking library. Check your internet connection.');
-    const peer = new Peer({ debug: 1 }); Net.peer = peer; let joined = false; const token = Net.token = Math.random();
-    const to = setTimeout(() => { if (!joined && Net.token === token) fail('The room did not answer. It may have closed, or the network is blocking peer-to-peer.'); }, 16000);
-    peer.on('open', () => {
-      const conn = peer.connect(PEER_PREFIX + code, { reliable: true, serialization: 'json' }); Net.hostConn = conn;
-      conn.on('open', () => { netSend(conn, { t: 'hello', name: UI.name, color: UI.color, char: UI.char, v: 1, have: Weapons.list.filter(w => w.img && w.path && !/^picked/.test(w.path)).map(w => w.id + '|' + w.path) }); });
-      conn.on('data', m => { m = netUnpart(conn, m); if (!m) return; if (m.t === 'welcome') { joined = true; clearTimeout(to); } clientRecv(m); });
-      conn.on('close', () => { if (Net.token === token) { if (joined) lostConnection('The host closed the room.'); else fail('Connection closed by the host.'); } });
-      conn.on('error', () => { });
-    });
-    peer.on('error', err => { if (Net.token !== token) return; if (err.type === 'peer-unavailable') fail('No room with code ' + code + ' is online.'); else if (!joined) fail('Network error: ' + err.type); });
-    peer.on('disconnected', () => { try { if (!peer.destroyed) peer.reconnect(); } catch (e) { } });
-  });
-}
-function clientRecv(m) {
-  if (!m || typeof m !== 'object') return; Net.lastRecv = now();
-  switch (m.t) {
-    case 'welcome': {
-      Weapons.backup = Weapons.backup || { list: Weapons.list, byId: Weapons.byId, source: Weapons.source };
-      const mine = Weapons.backup.byId || {}; const list = (m.weapons || []).map(d => { const w = normalizeWeapon(d, d.id); const L = mine[d.id]; w.img = L && L.img && L.path === d.path ? L.img : null; w._tag = null; return w; }); Weapons.list = list; Weapons.byId = { _fists: FISTS }; for (const w of list) Weapons.byId[w.id] = w; Weapons.source = 'from host';
-      G.isHost = false; G.offline = false; G.demo = false; G.myId = m.id; G.code = m.room.code; G.roomName = m.room.name; G.maxPlayers = m.room.max; G.target = m.room.target;
-      G.players.clear(); G.bullets = []; FX.parts = []; G.gameMode = m.mo || 'arena'; G.biome = biomeFromNet(m.bid, m.bi ?? 0); NetExt.pre(m.ext); generateMap(m.seed); Env.crates = m.crates || []; for (const c of m.craters || []) carveCrater(c); T.craters = (m.craters || []).slice(); applyPropsNetState(m.props); propsSupportPass(); NetExt.post(m.ext); rebuildTerrain(null); T.dirty = null;
-      G.phase = m.ph; G.phaseEnd = now() + (m.left || 0); G.round = m.n; enterPlay(); break;
-    }
-    case 'wimg': { const k = m.id; const st = Net.imgParts[k] || (Net.imgParts[k] = []); st[m.i] = m.d; if (st.filter(Boolean).length === m.n) { const data = st.join(''); delete Net.imgParts[k]; loadImg(data).then(img => { const w = Weapons.byId[k]; if (w && img) { w.img = img; w._tag = null; UI.weaponsChanged(); UI.hudWeapon(true); } }); } break; }
-    case 'roster': {
-      const ids = new Set(); for (const [id, name, color, bot, score, kills, char] of m.l) { ids.add(id); let p = G.players.get(id); if (!p) { p = makePlayer(id, name, color, !!bot, char || null); G.players.set(id, p); } p.name = name; p.color = color; p.isBot = !!bot; p.score = score; p.kills = kills; p.char = char || null; }
-      for (const id of [...G.players.keys()]) if (!ids.has(id)) G.players.delete(id); UI.rosterChanged(); break;
-    }
-    case 's': {
-      for (const a of m.p) {
-        const [id, x, y, vx, vy, aim, face, hp, alive, wid, ammo, score, g, aiming, st, mag, reload] = a; const p = G.players.get(id); if (!p) continue;
-        p.hp = hp; p.wid = wid; p.score = score; if (id !== G.myId || now() - (p.predT || 0) > .6) { p.mag = mag; p.reloadEnd = reload ? now() + reload : 0; } if (st) p.status = st; if (id !== G.myId) p.aiming = !!aiming;
-        if (id === G.myId) { if (now() - (p.predT || 0) > .5) p.ammo = ammo; if (!!alive && !p.alive && now() - (p.diedT || 0) > 1) { p.alive = true; p.x = x; p.y = y; } continue; }
-        p.tx = x; p.ty = y; p.tvx = vx; p.tvy = vy; p.tAim = aim / 1000; p.face = face; p.ammo = ammo; p.tsnap = now();
-        pushSnap(p, x, y, vx, vy, g);
-        if (!!alive !== p.alive && now() - (p.evT || 0) > .6) { p.alive = !!alive; p.snapBuf = null; if (p.alive) { p.x = x; p.y = y; } }
-      } break;
-    }
-    case 'e': for (const e of m.e) applyEvent(e); break;
-    case 'full': $('#connErr').textContent = 'That room is full.'; $('#connSub').textContent = 'Could not join'; stopSession(true); break;
-    case 'pong': Net.ping = Math.round((performance.now() - m.ts)); break;
-  }
-}
-function lostConnection(msg) { if (G.mode !== 'play') return; stopSession(); UI.show('browse'); UI.joinError(msg); Lobby.ensure(); }
-function stopSession(keepScreen) {
-  Lobby.stopHosting();
-  try { if (Net.hostConn) { netSend(Net.hostConn, { t: 'bye' }); Net.hostConn.close(); } } catch (e) { }
-  for (const c of Net.conns.values()) try { netSend(c.conn, { t: 'closed' }); c.conn.close(); } catch (e) { }
-  try { if (Net.peer) Net.peer.destroy(); } catch (e) { }
-  Net.peer = null; Net.hostConn = null; Net.conns.clear(); Net.token = null; Net.imgParts = {};
-  if (Weapons.backup) { Weapons.list = Weapons.backup.list; Weapons.byId = Weapons.backup.byId; Weapons.source = Weapons.backup.source; Weapons.backup = null; UI.weaponsChanged(); }
-  G.mode = 'menu'; G.outbox = []; Input.enabled = false; WakeLock.release();
-}
-
-/* ---------- server list (public MQTT relays, retained messages) ---------- */
-const Lobby = {
-  clients: [], rooms: new Map(), hosting: null, started: false,
-  async ensure() {
-    if (this.started) return; this.started = true; UI.lobbyStatus('connecting');
-    if (!(await libMqtt()) || !window.mqtt) { UI.lobbyStatus('offline'); return; }
-    for (const url of LOBBY_BROKERS) {
-      try { const c = mqtt.connect(url, { clientId: 'ib_' + Math.random().toString(36).slice(2, 10), clean: true, connectTimeout: 8000, reconnectPeriod: 6000, keepalive: 30, protocolVersion: 4 });
-        c.on('connect', () => { c.subscribe(LOBBY_TOPIC + '+'); this.status(); }); c.on('close', () => this.status()); c.on('offline', () => this.status()); c.on('error', () => { });
-        c.on('message', (topic, msg) => this.onMsg(topic, msg)); this.clients.push(c); } catch (e) { }
-    }
-    setTimeout(() => this.status(), 9000); setInterval(() => UI.roomsChanged(), 2500);
-  },
-  status() { const n = this.clients.filter(c => c.connected).length; UI.lobbyStatus(n ? 'online' : (this.clients.length ? 'connecting' : 'offline'), n); },
-  onMsg(topic, msg) {
-    const code = topic.split('/').pop(); const s = msg ? msg.toString() : '';
-    if (!s) { this.rooms.delete(code); UI.roomsChanged(); return; }
-    try { const j = JSON.parse(s); if (j.v !== 1 || j.code !== code || !/^[A-Z0-9]{5}$/.test(code)) return; j.name = cleanName(j.name).slice(0, 24); j.host = cleanName(j.host); j.seen = now(); this.rooms.set(code, j); UI.roomsChanged(); } catch (e) { }
-  },
-  list() { const t = Date.now(); return [...this.rooms.values()].filter(r => (t - r.ts < 30000) || (now() - r.seen < 12 && t - r.ts < 300000)).filter(r => !(this.hosting && r.code === this.hosting.code)).sort((a, b) => b.ts - a.ts); },
-  info() { const ps = [...G.players.values()]; const me = G.players.get(G.myId); return { v: 1, code: G.code, name: G.roomName, host: me ? me.name : '', n: ps.filter(p => !p.isBot).length, b: ps.filter(p => p.isBot).length, max: G.maxPlayers, ph: G.phase, r: G.round, ts: Date.now() }; },
-  startHosting(code) {
-    if (!window.mqtt) return; this.hosting = { code, clients: [] };
-    for (const url of LOBBY_BROKERS) { try { const c = mqtt.connect(url, { clientId: 'ibh_' + Math.random().toString(36).slice(2, 10), clean: true, connectTimeout: 8000, reconnectPeriod: 5000, keepalive: 20, protocolVersion: 4, will: { topic: LOBBY_TOPIC + code, payload: '', retain: true, qos: 0 } }); c.on('connect', () => this.publish()); c.on('error', () => { }); this.hosting.clients.push(c); } catch (e) { } }
-    this.timer = setInterval(() => this.publish(), 4000);
-  },
-  publish() { const h = this.hosting; if (!h || !G.public) return; const s = JSON.stringify(this.info()); for (const c of h.clients) if (c.connected) c.publish(LOBBY_TOPIC + h.code, s, { retain: true, qos: 0 }); },
-  stopHosting() { const h = this.hosting; if (!h) return; this.hosting = null; clearInterval(this.timer); for (const c of h.clients) { try { if (c.connected) c.publish(LOBBY_TOPIC + h.code, '', { retain: true, qos: 0 }); setTimeout(() => c.end(true), 600); } catch (e) { } } },
-};
 const WakeLock = { lock: null, async get() { try { if ('wakeLock' in navigator && !this.lock) { this.lock = await navigator.wakeLock.request('screen'); this.lock.addEventListener('release', () => this.lock = null); } } catch (e) { } }, release() { try { this.lock && this.lock.release(); } catch (e) { } this.lock = null; } };
-document.addEventListener('visibilitychange', () => { if (!document.hidden && G.mode === 'play') { WakeLock.get(); if (G.isHost && Net.peer && Net.peer.disconnected) try { Net.peer.reconnect(); } catch (e) { } } });
+function cleanName(n) { return String(n || '').replace(/[<>]/g, '').trim().slice(0, 14) || 'Scribbler'; }
+document.addEventListener('visibilitychange', () => { if (!document.hidden && G.mode === 'play') WakeLock.get(); });
 
-/* ---------- 11. events (applied identically on every peer) ---------- */
+/* ---------- 11. events (applied locally) ---------- */
 function controlledHere(p) { return p && (p.id === G.myId || (G.isHost && p.isBot)); }
 function applyEvent(e) {
   const p = e.id ? G.players.get(e.id) : null;
@@ -1954,21 +1728,16 @@ function startMenu() {
   G.isHost = false; G.offline = true; G.demo = false; G.myId = null; G.mode = 'menu'; Input.enabled = false;
 }
 async function startHost(opts) {
-  stopSession(); resetWorld();
-  G.isHost = true; G.offline = !!opts.offline; G.demo = false; G.roomName = opts.name; G.maxPlayers = opts.max; G.target = opts.target; G.gameMode = opts.gameMode || 'arena'; G.biomeChoice = opts.biome ?? -1; G.biome = G.biomeChoice < 0 ? randomBiome() : G.biomeChoice; G.botsWanted = opts.bots; G.public = opts.public !== false;
-  if (!G.offline) {
-    UI.show('connecting'); $('#connTitle').textContent = 'Opening your room'; $('#connSub').textContent = 'Registering with the matchmaking server…'; $('#connErr').textContent = '';
-    try { const { peer, code } = await openHostPeer(); Net.peer = peer; G.code = code; hostWire(peer); }
-    catch (err) { $('#connErr').textContent = String(err) + ' You can still practise offline.'; $('#connSub').textContent = 'Room not created'; return; }
-  } else G.code = 'LOCAL';
+  resetWorld();
+  G.isHost = true; G.offline = true; G.demo = false; G.roomName = opts.name; G.maxPlayers = opts.max; G.target = opts.target; G.gameMode = opts.gameMode || 'arena'; G.biomeChoice = opts.biome ?? -1; G.biome = G.biomeChoice < 0 ? randomBiome() : G.biomeChoice; G.botsWanted = opts.bots; G.code = 'LOCAL';
   const chosen = UI.char && Chars.byId[UI.char];
   const me = makePlayer('p1', UI.name, chosen ? chosen.color : UI.color, false, chosen ? chosen.id : null);
   G.myId = 'p1'; G.players.set('p1', me);
   generateMap(randSeed() & 0x7fffffff); syncBots(); hostSpawn(me);
-  if (!G.offline) { Lobby.ensure().then(() => { }); const go = () => { if (window.mqtt) Lobby.startHosting(G.code); else setTimeout(go, 800); }; go(); }
   enterPlay();
 }
 function enterPlay() { G.mode = 'play'; Input.enabled = true; UI.show(null); UI.enterHud(); WakeLock.get(); layoutTouch(); }
+function stopSession() { G.mode = 'menu'; G.outbox = []; Input.enabled = false; WakeLock.release(); }
 function leaveGame() { stopSession(); startMenu(); UI.show('title'); }
 
 /* ---------- 13. ui ---------- */
@@ -1992,20 +1761,12 @@ const UI = {
       this.color = el.dataset.c; setCookie('ib_color', this.color); this.renderPicker(); Audio2.play('ui');
     });
     this.renderPicker();
-    for (const id of ['segMax', 'segWin', 'segBots', 'segVis']) $('#' + id).addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; $('#' + id).querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); Audio2.play('ui'); });
     const tap = (sel, fn) => $(sel).addEventListener('click', e => { Audio2.init(); Audio2.play('ui'); fn(e); });
-    tap('#bHost', () => { $('#roomIn').value = `${this.name}'s room`; $('#hostErr').textContent = ''; this.show('host'); });
-    tap('#bBrowse', () => { Lobby.ensure(); this.show('browse'); this.roomsChanged(); });
-    tap('#bPractice', () => this.show('practice')); 
-    tap('#bCreate', () => { const seg = id => $('#' + id + ' .on').textContent; startHost({ offline: false, name: cleanName($('#roomIn').value || `${this.name}'s room`).slice(0, 24) || 'Room', max: +seg('segMax'), target: +seg('segWin'), bots: +seg('segBots'), gameMode: $('#hostMode').value, biome: +$('#hostBiome').value, public: seg('segVis') === 'Public' }); });
-    tap('#bJoinCode', () => startClient($('#codeIn').value));
-    $('#codeIn').addEventListener('keydown', e => { if (e.key === 'Enter') startClient($('#codeIn').value); });
-    tap('#bRefresh', () => { this.roomsChanged(); if (!Lobby.clients.some(c => c.connected)) { Lobby.started = false; Lobby.clients.forEach(c => { try { c.end(true); } catch (er) { } }); Lobby.clients = []; Lobby.ensure(); } });
-    $('#rooms').addEventListener('click', e => { const b = e.target.closest('[data-join]'); if (b) { Audio2.init(); Audio2.play('ui'); startClient(b.dataset.join); } });
+    tap('#bPractice', () => this.show('practice'));
     tap('#chipWeapons', () => { this.renderWeapons(); this.show('weapons'); });
     tap('#bRescan', async () => { $('#wSource').textContent = 'Scanning the weapons and character folders…'; await Promise.all([discoverWeapons(), discoverChars()]); this.renderWeapons(); });
     $('#pickFolder').addEventListener('change', async e => { if (e.target.files && e.target.files.length) { await weaponsFromFiles(e.target.files); this.renderWeapons(); } e.target.value = ''; });
-    document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', () => { Audio2.play('ui'); if (this.cur === 'connecting') { stopSession(); startMenu(); } this.show('title'); }));
+    document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', () => { Audio2.play('ui'); this.show('title'); }));
     tap('#bPause', () => this.togglePause()); tap('#codeChip', () => this.togglePause());
     tap('#bResume', () => this.togglePause(false));
     tap('#bLeave', () => leaveGame());
@@ -2048,16 +1809,6 @@ const UI = {
     $('#botRow').classList.toggle('hidden', !G.isHost); $('#botN').textContent = G.botsWanted;
     $('#plist').innerHTML = [...G.players.values()].map(p => `<div class="pl"><span class="blob" style="--c:${p.color}"></span>${esc(p.name)}${p.id === G.myId ? ' (you)' : ''}${p.isBot ? ' <span class="tag">bot</span>' : ''}<span class="r">${p.score} wins · ${p.kills} KOs</span></div>`).join('');
   },
-  lobbyStatus(s, n = 0) { const dot = $('#lobbyDot'), t = $('#lobbyTxt'); dot.className = 'dot ' + (s === 'online' ? 'ok' : s === 'offline' ? 'bad' : 'warn'); t.textContent = s === 'online' ? `server list online (${n} relay${n > 1 ? 's' : ''})` : s === 'offline' ? 'server list offline — join by code' : 'connecting to server list…'; this.lobbyState = s; this.roomsChanged(); },
-  roomsChanged() {
-    if (this.cur !== 'browse') return; const list = Lobby.list(); const st = $('#browseStatus');
-    st.innerHTML = this.lobbyState === 'online' ? `<span class="spinner"></span>Live — ${list.length} room${list.length === 1 ? '' : 's'} open` : this.lobbyState === 'offline' ? 'Server list unavailable on this network. You can still join with a code.' : '<span class="spinner"></span>Connecting to the server list…';
-    const el = $('#rooms');
-    if (!list.length) { el.innerHTML = `<div class="empty"><svg class="ico" viewBox="0 0 64 64"><use href="#i-blank"/></svg>No open rooms right now.<br>Start a game and it will show up here for everyone.</div>`; return; }
-    const html = list.map(r => `<div class="room"><div class="meta"><div class="nm">${esc(r.name)}</div><div class="info"><span><svg class="ico"><use href="#i-crown"/></svg>${esc(r.host)}</span><span><svg class="ico"><use href="#i-people"/></svg>${r.n}/${r.max}${r.b ? ` +${r.b} bots` : ''}</span><span>${r.ph === 'fight' ? 'round ' + r.r + ' in progress' : r.ph === 'warmup' ? 'waiting for players' : 'between rounds'}</span><span style="letter-spacing:.14em;font-weight:800">${r.code}</span></div></div><button class="btn small teal" data-join="${r.code}" ${r.n >= r.max ? 'disabled' : ''}><svg class="ico"><use href="#i-join"/></svg>${r.n >= r.max ? 'Full' : 'Join'}</button></div>`).join('');
-    if (el.dataset.h !== html) { el.innerHTML = html; el.dataset.h = html; }
-  },
-  joinError(m) { $('#joinErr').textContent = m || ''; },
   weaponsChanged() {
     const n = Weapons.list.length; $('#wCount').textContent = !Weapons.ready ? 'loading weapons…' : n ? `${n} weapon${n > 1 ? 's' : ''} loaded` : 'no weapons found (fists only)';
     if (this.cur === 'weapons') this.renderWeapons();
@@ -2114,7 +1865,7 @@ const UI = {
     if (G.mode !== 'play') return; if (this._roster) { this._roster = false; this.renderScores(); if (this.cur === 'pause') this.renderPause(); }
     this.hudWeapon(false);
     if (G.phase === 'countdown') { const left = Math.ceil(G.phaseEnd - now()); if (left > 0 && left !== this._count && left <= 2) { this._count = left; Audio2.play('tick'); } }
-    const ni = $('#netInfo'); const txt = G.offline ? 'offline practice' : G.isHost ? `hosting · ${Net.conns.size} connected${Net.reconnecting ? ' · reconnecting to matchmaker…' : ''}` : `ping ${Net.ping} ms`; if (ni.textContent !== txt) ni.textContent = txt;
+    const ni = $('#netInfo'); if (ni.textContent !== 'offline practice') ni.textContent = 'offline practice';
   }
 };
 
@@ -2133,28 +1884,7 @@ function tick(dt) {
   for (const p of FX.parts) if (p.k === 'num') { p.y += p.vy * dt; p.vy *= Math.exp(-3 * dt); }
   if (G.hitStop > 0) G.hitStop -= dt; else FX.update(dt);
   G.trauma = Math.max(0, G.trauma - dt * 1.7); G.flash = Math.max(0, G.flash - dt * 2.2);
-  if (G.isHost) {
-    hostRules();
-    if (!G.offline) {
-      if (G.outbox.length) { broadcast({ t: 'e', e: G.outbox }); G.outbox = []; }
-      Net.snapT += dt; if (Net.snapT >= .05) { Net.snapT = 0; sendSnapshots(); }
-      for (const [k, c] of Net.conns) { const p = G.players.get(c.pid); if (p && now() - p.lastSeen > 15) hostDrop(c.conn); }
-    } else G.outbox = [];
-  } else if (G.mode === 'play' && Net.hostConn) {
-    Net.sendT += dt; if (Net.sendT >= 1 / 30 && me) { Net.sendT = 0; netSendHost({ t: 'u', x: Math.round(me.x * 10) / 10, y: Math.round(me.y * 10) / 10, vx: Math.round(me.vx), vy: Math.round(me.vy), a: Math.round(me.aim * 1000) / 1000, f: me.face, g: me.grounded ? 1 : 0, am: me.aiming ? 1 : 0 }); }
-    Net.pingT += dt; if (Net.pingT > 2) { Net.pingT = 0; netSendHost({ t: 'ping', ts: performance.now() }); }
-    if (now() - Net.lastRecv > 9) lostConnection('Lost connection to the host.');
-  }
-}
-function snapRow(p) { return [p.id, Math.round(p.x), Math.round(p.y), Math.round(p.vx), Math.round(p.vy), Math.round(p.aim * 1000), p.face, p.hp, p.alive ? 1 : 0, p.wid, p.ammo, p.score, p.grounded ? 1 : 0, p.aiming ? 1 : 0, p.status || {}, p.mag ?? null, Math.max(0, (p.reloadEnd || 0) - now())]; }
-/* Interest management: small rooms get everyone every snapshot; crowded rooms send far-away
-   players to each client at a quarter of the rate (staggered so the load is even). */
-function sendSnapshots() {
-  const all = [...G.players.values()]; if (all.length <= 14) { broadcast({ t: 's', p: all.map(snapRow) }); return; }
-  Net.snapN = (Net.snapN || 0) + 1; const rows = all.map(snapRow);
-  for (const c of Net.conns.values()) { const me = G.players.get(c.pid); const out = [];
-    for (let i = 0; i < all.length; i++) { const p = all[i]; const near = !me || p === me || (Math.abs(p.x - me.x) < 1500 && Math.abs(p.y - me.y) < 1000); if (near || (Net.snapN + i) % 4 === 0) out.push(rows[i]); }
-    netSend(c.conn, { t: 's', p: out }); }
+  if (G.isHost) { hostRules(); G.outbox = []; }
 }
 function frame(ts) {
   const dt = Math.min(.1, (ts - lastFrame) / 1000); lastFrame = ts;
@@ -2171,7 +1901,7 @@ window.render_game_to_text = () => JSON.stringify({
   me: (() => { const p = G.players.get(G.myId); return p ? { x: Math.round(p.x), y: Math.round(p.y), vx: Math.round(p.vx), vy: Math.round(p.vy), hp: p.hp, alive: p.alive, weapon: p.wid, ammo: p.ammo, grounded: p.grounded, score: p.score, char: p.char } : null; })(),
   players: [...G.players.values()].map(p => ({ id: p.id, name: p.name, bot: p.isBot, char: p.char, x: Math.round(p.x), y: Math.round(p.y), hp: p.hp, alive: p.alive, weapon: p.wid, score: p.score })),
   bullets: G.bullets.filter(b => !b.dead).length, particles: FX.parts.length, craters: T.craters.length, weapons: Weapons.list.map(w => w.id), weaponSource: Weapons.source,
-  characters: Chars.list.map(c => c.id), charSource: Chars.source, lobby: UI.lobbyState, rooms: Lobby.list().map(r => r.code), conns: Net.conns.size, ping: Net.ping
+  characters: Chars.list.map(c => c.id), charSource: Chars.source
 });
 
 </script>
@@ -2182,7 +1912,6 @@ window.render_game_to_text = () => JSON.stringify({
 <script src="modes.js"></script>
 <script src="content.js"></script>
 <script src="menu.js"></script>
-<script src="net.js"></script>
 <script src="ui3d.js"></script>
 <script>
 /* ---------- boot ---------- */
@@ -2193,11 +1922,9 @@ window.render_game_to_text = () => JSON.stringify({
   const wp = discoverWeapons();
   const cp = discoverChars();
   const bp = discoverBiomes().catch(e => console.warn('biomes', e)); loadEventInfo().then(() => MainMenu.eventReady());
-  Lobby.ensure(); libPeer();
   try { await Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 2500))]); } catch (e) { }
   await Promise.race([Promise.all([wp, cp, bp]), new Promise(r => setTimeout(r, 4500))]);
   const L = $('#loading'); L.style.opacity = 0; setTimeout(() => L.remove(), 600);
-  const join = new URLSearchParams(location.search).get('join'); if (join) { await Promise.all([wp, cp, bp]); startClient(join); }
   /* installable app: add the service worker so the home-screen icon works offline */
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { });
 })();

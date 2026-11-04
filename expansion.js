@@ -630,7 +630,7 @@ hostSwingStep = function (p) {
 };
 /* attacks: magazines, reloads, bursts, charge, spin-up, boomerang limit */
 function magOf(w) { return w.magazine | 0; }
-function beginReload(p) { const w = weaponOf(p); if (!magOf(w) || p.reloadEnd > now() || (p.mag | 0) >= magOf(w) || (w.ammo > 0 && p.ammo <= (p.mag | 0))) return; p.reloadEnd = now() + (w.reloadTime || 1.2); p.reloadDur = w.reloadTime || 1.2; if (p.id === G.myId) Audio2.play('reload', p.x); if (!G.isHost && p.id === G.myId) netSendHost({ t: 'reload' }); }
+function beginReload(p) { const w = weaponOf(p); if (!magOf(w) || p.reloadEnd > now() || (p.mag | 0) >= magOf(w) || (w.ammo > 0 && p.ammo <= (p.mag | 0))) return; p.reloadEnd = now() + (w.reloadTime || 1.2); p.reloadDur = w.reloadTime || 1.2; if (p.id === G.myId) Audio2.play('reload', p.x); }
 function refillMag(p) { const w = weaponOf(p); if (magOf(w)) p.mag = w.ammo > 0 ? Math.min(magOf(w), p.ammo) : magOf(w); else p.mag = null; p.reloadEnd = 0; }
 function canFire(p, w) {
   const st = p.status || {}; if (st.freeze > 0 || st.bubble > 0) return false;
