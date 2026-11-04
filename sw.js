@@ -20,7 +20,7 @@
    ===================================================================== */
 'use strict';
 
-const CACHE = 'inkbrawl-v5';
+const CACHE = 'inkbrawl-v6';
 const CORE = [
   './',
   './index.html',
@@ -29,7 +29,7 @@ const CORE = [
   './icon-192.png',
   './icon-512.png',
   './content.js', './expansion.js', './weather.js', './world.js',
-  './build.js', './modes.js', './menu.js', './ui3d.js',
+  './build.js', './modes.js', './menu.js', './ui3d.js', './admin.js',
   './mainmenu/bg.png', './mainmenu/maintitle.png',
   './mainmenu/event/bg.png', './mainmenu/event/maintitle.png', './mainmenu/event/event.json',
   './weapons/manifest.json', './biomes/manifest.json', './biomes2/manifest.json',
