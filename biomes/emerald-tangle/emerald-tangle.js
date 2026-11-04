@@ -220,7 +220,13 @@ Biome({
       inkPiece(sp, { layer: 'leaf', fill: '#4e7c34', light: '#8ab455', rim: 2.6, line: 1.6, shape: x => {
         const leaf = (a, L, w) => { x.save(); x.translate(cx, h - 6); x.rotate(a);
           x.beginPath(); x.moveTo(0, 4); x.quadraticCurveTo(-w, -L * .5, 0, -L); x.quadraticCurveTo(w, -L * .5, 0, 4); x.closePath(); x.fill(); x.restore(); };
-        for (const a of [-2.6, -2.1, -1.35, -.7, -.15, .5, 1.2, 1.9, 2.5]) leaf(a, 34 + R() * 12, 7);
+        // leaves that point downwards must stay short enough to fit the sprite
+        // margin below the base (8px), or the tips get cut off
+        for (const a of [-2.6, -2.1, -1.35, -.7, -.15, .5, 1.2, 1.9, 2.5]) {
+          let L = 34 + R() * 12;
+          if (Math.cos(a) < 0) L = Math.min(L, 14 / -Math.cos(a));
+          leaf(a, L, 7);
+        }
       }, detail: x => {
         x.strokeStyle = rgbaC(INK, .28); x.lineWidth = .9;
         for (const a of [-1.8, -.4, .9]) { x.beginPath(); x.moveTo(cx, h - 6); x.lineTo(cx + Math.sin(a) * 36, h - 6 - Math.cos(a) * 38); x.stroke(); }

@@ -52,7 +52,11 @@ function inkPiece(sp, spec) {
   const mr = spec.misreg ?? .7;
   px.drawImage(b, -mr * S, -mr * .7 * S);
   const tgt = (spec.layer === 'leaf' && sp.leafX) ? sp.leafX : (sp.baseX || sp.x);
-  if (tgt) tgt.drawImage(pc, 0, 0);
+  // pc is already at layer pixel resolution (cw × ch): blit it 1:1. The layer
+  // context still carries the sprite-unit transform (S scale + margin), and
+  // drawing through it would scale every piece up by S again and push most of
+  // the art outside the canvas (giant leaves, cut-off trees, stretched plants).
+  if (tgt) { tgt.save(); tgt.setTransform(1, 0, 0, 1, 0, 0); tgt.drawImage(pc, 0, 0); tgt.restore(); }
 }
 /* scalloped outline: alternating outer/inner points through smoothPath */
 function lobed(x, cx, cy, rx, ry, n, R, depth = .16, rot = 0) {

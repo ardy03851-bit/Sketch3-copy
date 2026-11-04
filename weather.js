@@ -73,6 +73,12 @@
   Weather.drawGlow = function (c, t) { const d = this.def; if (!d) return base.drawGlow.call(this, c, t); if (d.glow && this.parts.length) d.glow(c, this.parts, t, this); };
   Weather.drawBack = function (c, V, t) { const d = this.def; if (d && d.drawBack && Settings.weather) d.drawBack(c, V, t, this); };
 
+  /* biome files run through `new Function` (content.js) and cannot see this
+     closure, but their newWeather hooks legitimately use these helpers —
+     expose them on the global object so biome weather never throws. */
+  window.wind = () => Env.wind || 0;
+  window.hitGround = p => solidAt(p.x, p.y) || waterAt(p.x, p.y);
+
   /* ---------- helpers ---------- */
   const wind = () => Env.wind || 0;
   const hitGround = p => solidAt(p.x, p.y) || waterAt(p.x, p.y);
