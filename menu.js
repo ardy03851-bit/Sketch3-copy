@@ -253,9 +253,9 @@ const SETUP_MODES = [
 const SETUP_BOTS_ARENA = [0, 1, 2, 3, 4, 5, 6, 7], SETUP_BOTS_WILDS = [0, 1, 3, 5, 7, 10, 15, 20, 30, 40, 60, 80, 100];
 const Setup = {
   el: null, tab: 0, s: null,
-  defaults() { return { online: false, set: 'main', mode: 'arena', terrain: 'normal', biome: -1, bots: 3, max: 6, target: 5, pub: true, room: '' }; },
+  defaults() { return { set: 'main', mode: 'arena', terrain: 'normal', biome: -1, bots: 3, max: 6, target: 5 }; },
   load() { try { return Object.assign(this.defaults(), JSON.parse(getCookie('ib_setup') || '{}')); } catch (e) { return this.defaults(); } },
-  save() { const { online, set, from, ...keep } = this.s; setCookie('ib_setup', JSON.stringify(keep)); },
+  save() { const { set, from, ...keep } = this.s; setCookie('ib_setup', JSON.stringify(keep)); },
   ensure() {
     if (this.el) return this.el; const s = document.createElement('section'); s.className = 'screen hidden'; s.id = 'setup'; $('#ui').insertBefore(s, $('#hud'));
     s.innerHTML = `<div class="card"><div class="su-head"><div><div class="eyebrow" id="suEye">New game</div><h2 id="suTitle">Set up a game</h2></div>
@@ -265,14 +265,12 @@ const Setup = {
       <div class="su-foot"><button class="btn ghost small" id="suBack"><svg class="ico"><use href="#i-back"/></svg>Back</button><div class="su-sum" id="suSum"></div><button class="btn primary" id="suStart"><svg class="ico"><use href="#i-play"/></svg>Start</button></div></div>`;
     this.el = s;
     s.addEventListener('click', e => this.click(e));
-    s.addEventListener('input', e => { if (e.target.id === 'suRoom') { this.s.room = e.target.value; this.summary(); } });
     return s;
   },
   open(o) {
-    this.ensure(); const prevSet = this.s && this.s.set; this.s = Object.assign(this.load(), { online: false, set: o.set || 'main', from: o.from || 'title' });
+    this.ensure(); const prevSet = this.s && this.s.set; this.s = Object.assign(this.load(), { set: o.set || 'main', from: o.from || 'title' });
     if (prevSet && prevSet !== this.s.set) this.s.biome = -1;
     if (this.s.biome >= 0 && (!THEMES[this.s.biome] || (THEMES[this.s.biome].set || 'main') !== this.s.set)) this.s.biome = -1;
-    if (!this.s.room) this.s.room = `${UI.name}'s room`;
     this.tab = 0; this.render(); UI.show('setup');
   },
   refresh() { MainMenu.evInfo(); if (this.el && UI.cur === 'setup') this.render(); },
@@ -320,7 +318,7 @@ const Setup = {
     if ((b = e.target.closest('[data-step]'))) { const st = this.botSteps(); let i = st.indexOf(s.bots); i = clamp(i + +b.dataset.step, 0, st.length - 1); s.bots = st[i]; Audio2.play('ui'); $('#suBots').textContent = s.bots; this.save(); this.summary(); return; }
     if ((b = e.target.closest('[data-pick]'))) { const k = b.dataset.pick, raw = b.dataset.v; Audio2.play('ui');
       if (k.startsWith('r:')) { const f = this.rf(k.slice(2)); v[f.k] = typeof f.o[0][0] === 'number' ? +raw : raw; setCookie('ib_rules', JSON.stringify(v)); }
-      else if (k === 'mode' || k === 'terrain') s[k] = raw; else if (k === 'pub') s.pub = raw === '1'; else s[k] = +raw;
+      else if (k === 'mode' || k === 'terrain') s[k] = raw; else s[k] = +raw;
       if (k === 'mode' && raw === 'war' && !(v.teams >= 2)) v.teams = 2;
       this.save(); const sc = $('#suBody').scrollTop; this.render(); $('#suBody').scrollTop = sc; return; }
     if (e.target.closest('#suBack')) { Audio2.play('ui'); UI._noFade = false; MainMenu.page = s.from === 'event' ? 'event' : 'title'; UI.show(MainMenu.page); return; }
@@ -331,8 +329,57 @@ const Setup = {
     v.war = war ? 1 : 0; if (war && !(v.teams >= 2)) v.teams = 2; v.crowd = big && s.bots > 7 ? s.bots : 0; v.terrain = s.terrain; v.set = s.set;
     setCookie('ib_rules', JSON.stringify(Object.assign({}, v, { set: 'main' })));
     const name = s.set === 'event' ? EventInfo.name : 'Practice';
-    startHost({ offline: true, name, max: 8, target: s.target, bots: big ? s.bots : Math.min(7, s.bots), gameMode: s.mode === 'inkhold' ? 'inkhold' : (big ? 'expedition' : 'arena'), biome: s.biome, public: false, set: s.set, terrain: s.terrain });
+    startHost({ name, max: 8, target: s.target, bots: big ? s.bots : Math.min(7, s.bots), gameMode: s.mode === 'inkhold' ? 'inkhold' : (big ? 'expedition' : 'arena'), biome: s.biome, set: s.set, terrain: s.terrain });
   },
 };
 
 MainMenu.build();
+
+/* =====================================================================
+   Settings extras (menu.js runs after expansion.js, so Settings and
+   saveSettings already exist). Wires the new offline Settings screen rows:
+   leaf sway, water reflections, water quality, fullscreen and reset.
+   ===================================================================== */
+(function settingsExtras() {
+  /* new Settings fields — persisted with the rest via the ib_settings cookie */
+  if (Settings.leafSway == null) Settings.leafSway = true;
+  if (Settings.waterReflections == null) Settings.waterReflections = true;
+  if (!Settings.waterQuality) Settings.waterQuality = 'medium';
+
+  const ls = $('#leafSwaySetting'), wr = $('#waterReflSetting'), wq = $('#waterQualitySetting');
+  if (ls) { ls.checked = Settings.leafSway; ls.addEventListener('change', () => { Settings.leafSway = ls.checked; saveSettings(); }); }
+  if (wr) { wr.checked = Settings.waterReflections; wr.addEventListener('change', () => { Settings.waterReflections = wr.checked; saveSettings(); }); }
+  if (wq) { wq.value = Settings.waterQuality; wq.addEventListener('change', () => { Settings.waterQuality = wq.value; saveSettings(); }); }
+
+  /* fullscreen toggle (only shown when the Fullscreen API exists) */
+  const bF = $('#bFullscreen');
+  const doc = document.documentElement;
+  const canFs = !!(doc.requestFullscreen || doc.webkitRequestFullscreen);
+  if (bF) {
+    if (!canFs) { const row = bF.closest('.setting-row'); if (row) row.style.display = 'none'; }
+    else {
+      const sync = () => { bF.textContent = (document.fullscreenElement || document.webkitFullscreenElement) ? 'Exit fullscreen' : 'Enter fullscreen'; };
+      sync();
+      document.addEventListener('fullscreenchange', sync);
+      bF.addEventListener('click', () => {
+        const on = document.fullscreenElement || document.webkitFullscreenElement;
+        if (on) { const ex = document.exitFullscreen || document.webkitExitFullscreen; if (ex) ex.call(document); }
+        else { const rq = doc.requestFullscreen || doc.webkitRequestFullscreen; const p = rq.call(doc); if (p && p.catch) p.catch(() => { }); }
+      });
+    }
+  }
+
+  /* reset to defaults: refreshes every control, including expansion.js's */
+  const bR = $('#bResetSettings');
+  if (bR) bR.addEventListener('click', () => {
+    Audio2.play('ui');
+    Object.assign(Settings, { graphics: 'auto', weather: true, shake: true, volume: .65, fps: false, leafSway: true, waterReflections: true, waterQuality: 'medium' });
+    const gs = $('#graphicsSetting'), ws = $('#weatherSetting'), ss = $('#shakeSetting'), vs = $('#volumeSetting'), fs2 = $('#fpsSetting');
+    if (gs) gs.value = Settings.graphics; if (ws) ws.checked = Settings.weather; if (ss) ss.checked = Settings.shake;
+    if (vs) vs.value = Math.round(Settings.volume * 100); if (fs2) fs2.checked = Settings.fps;
+    if (ls) ls.checked = Settings.leafSway; if (wr) wr.checked = Settings.waterReflections; if (wq) wq.value = Settings.waterQuality;
+    try { qLevel = qFloor = baseQuality(); applyQuality(); Weather.resize(); } catch (e) { }
+    if (Audio2.master) Audio2.master.gain.value = .85 * Settings.volume;
+    saveSettings();
+  });
+})();

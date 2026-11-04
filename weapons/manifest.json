@@ -56,6 +56,15 @@
    ]
   },
   {
+   "id": "boomerang-blade",
+   "js": "boomerang-blade.js",
+   "png": "boomerang-blade.png",
+   "files": [
+    "boomerang-blade.js",
+    "boomerang-blade.png"
+   ]
+  },
+  {
    "id": "bounce-blaster",
    "js": "bounce-blaster.js",
    "png": "bounce-blaster.png",
@@ -112,6 +121,15 @@
    ]
   },
   {
+   "id": "crystal-wand",
+   "js": "crystal-wand.js",
+   "png": "crystal-wand.png",
+   "files": [
+    "crystal-wand.js",
+    "crystal-wand.png"
+   ]
+  },
+  {
    "id": "daggers",
    "js": "daggers.js",
    "png": "daggers.png",
@@ -155,6 +173,15 @@
     "F",
     "flamer.js",
     "flamer.png"
+   ]
+  },
+  {
+   "id": "flamethrower",
+   "js": "flamethrower.js",
+   "png": "flamethrower.png",
+   "files": [
+    "flamethrower.js",
+    "flamethrower.png"
    ]
   },
   {
@@ -348,6 +375,15 @@
    "files": [
     "plasma.js",
     "plasma.png"
+   ]
+  },
+  {
+   "id": "poison-dart",
+   "js": "poison-dart.js",
+   "png": "poison-dart.png",
+   "files": [
+    "poison-dart.js",
+    "poison-dart.png"
    ]
   },
   {
@@ -589,6 +625,15 @@
     "F",
     "tesla.js",
     "tesla.png"
+   ]
+  },
+  {
+   "id": "thunder-hammer",
+   "js": "thunder-hammer.js",
+   "png": "thunder-hammer.png",
+   "files": [
+    "thunder-hammer.js",
+    "thunder-hammer.png"
    ]
   },
   {

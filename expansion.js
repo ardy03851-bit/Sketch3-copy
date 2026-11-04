@@ -73,7 +73,13 @@ G.biome = 0; G.biomeChoice = -1; G.gameMode = 'arena';
 
 /* world resizing (arena 1600x1000, Big Wilds 3600x1600). Terrain buffers scale
    with quality so phones never allocate desktop-sized bitmaps. */
-const Settings = { graphics: 'auto', weather: true, shake: true, volume: .65, fps: false };
+const Settings = { graphics: 'auto', weather: true, shake: true, volume: .65, fps: false, leafSway: true, waterReflections: true, waterQuality: 'auto' };
+function waterQualityLevel() {
+  // resolves the water quality setting to 'low' | 'medium' | 'high'
+  const q = Settings.waterQuality;
+  if (q === 'low' || q === 'medium' || q === 'high') return q;
+  return R8.fxScale >= .75 ? 'high' : R8.fxScale >= .5 ? 'medium' : 'low';
+}
 function readSettings() { try { const j = JSON.parse(getCookie('ib_settings') || '{}'); Object.assign(Settings, j); } catch (e) { } }
 function saveSettings() { setCookie('ib_settings', JSON.stringify(Settings)); }
 readSettings();
@@ -275,25 +281,57 @@ function waterAt(x, y) {
   return null;
 }
 function waterSurfaceY(b, x) { const i = clamp(Math.round((x - b.x0) / WSTEP), 0, b.n - 1); return b.level + b.disp[i]; }
-function waterPoke(b, x, force, spread = 1) { const i = Math.round((x - b.x0) / WSTEP); for (let k = -spread; k <= spread; k++) { const j = i + k; if (j >= 0 && j < b.n && (b.sea || b.bottom[j] > b.level)) b.vel[j] += force * (1 - Math.abs(k) / (spread + 1)); } b.energy = 1; }
+function waterPoke(b, x, force, spread = 1) {
+  // smooth (cosine) falloff so pokes blend into the neighbouring columns instead of denting
+  const i = Math.round((x - b.x0) / WSTEP); if (i < -spread || i > b.n - 1 + spread) return;
+  for (let k = -spread; k <= spread; k++) { const j = i + k; if (j >= 0 && j < b.n && (b.sea || b.bottom[j] > b.level)) b.vel[j] += force * (.5 + .5 * Math.cos(k / (spread + .001) * Math.PI * .5)); } b.energy = 1;
+}
+/* pooled FX emitters — the hot paths (drops, embers, sparks, leaves, bubbles) reuse
+   particle objects instead of allocating a fresh literal every call. FX.update pushes
+   dead recyclables back into FX._pool. */
+const FX_POOL_MAX = 420;
+FX._pool = []; FX._dying = [];
+FX._recycle = function (p) { if (this._pool.length < FX_POOL_MAX) { p.rest = 0; p.bub = 0; p.g = 0; p.drag = 0; this._pool.push(p); } };
+function fxGet() { return FX._pool.pop() || { t: 0 }; }
+function fxDrop(x, y, vx, vy, r, color, life, bub) { const p = fxGet(); p.k = 'drop'; p.x = x; p.y = y; p.vx = vx; p.vy = vy; p.r = r; p.color = color; p.life = life; p.t = 0; p.bub = bub || 0; FX.add(p); return p; }
+function fxEmber(x, y, vx, vy, life, r, color, g) { const p = fxGet(); p.k = 'ember'; p.x = x; p.y = y; p.vx = vx; p.vy = vy; p.life = life; p.t = 0; p.r = r; p.color = color; p.g = g || 0; FX.add(p); return p; }
+function fxSpark(x, y, vx, vy, life, color, w) { const p = fxGet(); p.k = 'spark'; p.x = x; p.y = y; p.vx = vx; p.vy = vy; p.life = life; p.t = 0; p.color = color; p.w = w || 1.2; FX.add(p); return p; }
+function fxLeaf(x, y, vx, vy, life, r, color) { const p = fxGet(); p.k = 'leaf'; p.x = x; p.y = y; p.vx = vx; p.vy = vy; p.life = life; p.t = 0; p.r = r; p.color = color; p.rot = Math.random() * TAU; p.rest = 0; FX.add(p); return p; }
 function splash(x, y, power = 1, b = null) {
   b = b || waterAt(x, y + 4) || waterAt(x, y + 14); if (!b) return; const sy = waterSurfaceY(b, x); waterPoke(b, x, 160 * power, Math.round(1 + power * 2));
-  if (!visibleWorld(x, sy, 120)) return; const n = Math.min(22, Math.round(4 + power * 9 * R8.fxScale));
-  for (let i = 0; i < n; i++) { const a = -Math.PI / 2 + (Math.random() - .5) * 1.5; const sp = (120 + Math.random() * 360) * Math.sqrt(power); FX.add({ k: 'drop', x: x + (Math.random() - .5) * 10, y: sy - 2, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: 1.6 + Math.random() * 2.8, color: b.lava ? '#ffb347' : b.shallow, life: 1.2, t: 0 }); }
-  if (power > .6) FX.ring(x, sy, 18 + power * 18, b.lava ? 'rgba(255,180,90,.8)' : 'rgba(240,252,255,.75)', 2, .35);
+  if (!visibleWorld(x, sy, 140)) return; const q = R8.fxScale;
+  if (!b.lava) {
+    // droplet arcs (gravity in FX.update) + spray foam + a crown of slower fat drops
+    const n = Math.min(24, Math.round((4 + power * 9) * q));
+    for (let i = 0; i < n; i++) { const a = -Math.PI / 2 + (Math.random() - .5) * 1.6; const sp = (120 + Math.random() * 380) * Math.sqrt(power); fxDrop(x + (Math.random() - .5) * 10, sy - 2, Math.cos(a) * sp, Math.sin(a) * sp, 1.6 + Math.random() * 2.8, b.shallow, 1.2); }
+    const nf = Math.min(10, Math.round((2 + power * 4) * q));
+    for (let i = 0; i < nf; i++) { const a = -Math.PI / 2 + (Math.random() - .5) * 2.6; const sp = (60 + Math.random() * 180) * Math.sqrt(power); fxDrop(x + (Math.random() - .5) * 14, sy - 1, Math.cos(a) * sp, Math.sin(a) * sp - 40, 2.4 + Math.random() * 3, 'rgba(255,255,252,.85)', .8); }
+    // expanding multi-ring ripples on the surface
+    if (power > .35) { FX.ring(x, sy, 14 + power * 16, 'rgba(240,252,255,.7)', 2, .38); if (power > .8) FX.ring(x, sy, 26 + power * 26, 'rgba(240,252,255,.45)', 1.6, .55); }
+    if (power > 1.4) { FX.ring(x, sy, 40 + power * 30, 'rgba(240,252,255,.3)', 1.4, .7); }
+    if (power > .6) { Env.ripples.push(rippleMake(x, sy)); if (power > 1.2) Env.ripples.push(rippleMake(x, sy)); }
+  } else {
+    const n = Math.min(16, Math.round((3 + power * 6) * q));
+    for (let i = 0; i < n; i++) { const a = -Math.PI / 2 + (Math.random() - .5) * 1.6; const sp = (100 + Math.random() * 300) * Math.sqrt(power); fxDrop(x + (Math.random() - .5) * 10, sy - 2, Math.cos(a) * sp, Math.sin(a) * sp, 1.4 + Math.random() * 2.2, '#ffb347', 1.1); }
+    if (power > .6) FX.ring(x, sy, 18 + power * 18, 'rgba(255,180,90,.8)', 2, .35);
+  }
   Audio2.play(b.lava ? 'sizzle' : 'splash', x, clamp(power * .6, .15, 1));
 }
+/* surface ripple rings (rain, splashes) — pooled, capped */
+function rippleMake(x, y) { const r = _ripplePool.length ? _ripplePool.pop() : { x: 0, y: 0, t: 0 }; r.x = x; r.y = y; r.t = 0; return r; }
+const _ripplePool = [];
 function updateWater(dt) {
   for (const b of Env.water) {
     if (!b.alive) continue;
     if (b.level < b.target - .5) updateWaterDrain(b, dt); else if (b.flow) b.flow = Math.max(0, b.flow - dt * 2);
-    if (b.energy < .002) continue; let e = 0; const d = b.disp, v = b.vel, n = b.n, k = b.lava ? 50 : 90, damp = b.lava ? 6 : 3.4;
+    if (b.energy < .002) continue; let e = 0; const d = b.disp, v = b.vel, n = b.n, k = b.lava ? 50 : 120, damp = b.lava ? 6 : 3.1;
     for (let i = 0; i < n; i++) { v[i] += (-k * d[i] - damp * v[i]) * dt; }
-    for (let pass = 0; pass < 2; pass++) for (let i = 1; i < n - 1; i++) { const l = (d[i] - d[i - 1]) * 18 * dt, r = (d[i] - d[i + 1]) * 18 * dt; v[i - 1] += l * 4; v[i + 1] += r * 4; }
+    // wider, faster energy sharing: ripples travel further before dying (looks like real dispersion)
+    for (let pass = 0; pass < 2; pass++) for (let i = 1; i < n - 1; i++) { const l = (d[i] - d[i - 1]) * 26 * dt, r = (d[i] - d[i + 1]) * 26 * dt; v[i - 1] += l * 4; v[i + 1] += r * 4; }
     for (let i = 0; i < n; i++) { d[i] += v[i] * dt; if (d[i] > 28) d[i] = 28; else if (d[i] < -28) d[i] = -28; e += Math.abs(v[i]) + Math.abs(d[i]); }
     b.energy = e / n;
   }
-  if (Env.time - (Env.ambT || 0) > .45) { Env.ambT = Env.time; for (const b of Env.water) if (b.alive && b.sea) waterPoke(b, b.x0 + Math.random() * (b.x1 - b.x0), (Math.random() - .5) * 60, 3); else if (b.alive && b.lava && Math.random() < .5) { const x = b.x0 + 20 + Math.random() * (b.x1 - b.x0 - 40); if (waterAt(x, b.level + 6)) { waterPoke(b, x, -50, 1); FX.add({ k: 'ember', x, y: b.level, vx: (Math.random() - .5) * 40, vy: -90 - Math.random() * 120, life: .9, t: 0, r: 2.2, color: '#ffb347' }); } } }
+  if (Env.time - (Env.ambT || 0) > .45) { Env.ambT = Env.time; for (const b of Env.water) if (b.alive && b.sea) waterPoke(b, b.x0 + Math.random() * (b.x1 - b.x0), (Math.random() - .5) * 60, 3); else if (b.alive && b.lava && Math.random() < .5) { const x = b.x0 + 20 + Math.random() * (b.x1 - b.x0 - 40); if (waterAt(x, b.level + 6)) { waterPoke(b, x, -50, 1); fxEmber(x, b.level, (Math.random() - .5) * 40, -90 - Math.random() * 120, .9, 2.2, '#ffb347'); } } }
 }
 /* after a crater: refresh floors; find the height the pool can still hold */
 /* where does the water go? flood the pool cells below a candidate surface on the terrain grid;
@@ -337,8 +375,14 @@ function updateWaterDrain(b, dt) {
   const old = b.level; b.level = Math.min(b.target, b.level + dt * rate); b.energy = 1; waterColumns(b);
   if ((old / 14 | 0) !== (b.level / 14 | 0)) waterPoke(b, b.leakX, 26, 2);
   b.flow = Math.min(1, (b.flow || 0) + dt * 3);
-  if (b.leakX != null && visibleWorld(b.leakX, b.leakY, 220) && R8.fxScale > .35) {
-    if (Math.random() < .55) FX.add({ k: 'drop', x: b.leakX + (Math.random() - .5) * 8, y: Math.max(b.level, b.leakY) + 4, vx: (Math.random() - .5) * 50, vy: 90 + Math.random() * 120, r: 1.6 + Math.random() * 2.2, color: b.shallow, life: 1.4, t: 0 });
+  if (b.leakX != null && visibleWorld(b.leakX, b.leakY, 240) && R8.fxScale > .35) {
+    if (Math.random() < .55) fxDrop(b.leakX + (Math.random() - .5) * 8, Math.max(b.level, b.leakY) + 4, (Math.random() - .5) * 50, 90 + Math.random() * 120, 1.6 + Math.random() * 2.2, b.shallow, 1.4);
+    // waterfall: foam + a small surface ripple where the stream lands
+    const gy = groundBelow(b.leakX, b.leakY + 6, 420);
+    if (gy != null && gy < b.leakY + 400 && Math.random() < .3) {
+      fxDrop(b.leakX + (Math.random() - .5) * 16, gy - 2, (Math.random() - .5) * 240, -120 - Math.random() * 200, 2 + Math.random() * 2.4, 'rgba(255,255,252,.8)', .6);
+      const land = waterAt(b.leakX, gy - 4); if (land) waterPoke(land, b.leakX, 30 * (b.flow || 1), 1);
+    }
   }
   if (b.level >= b.target - .5) { b.draining = false; if (b.level >= b.maxBottom - 1 || b.level >= b.floorMax) { b.alive = false; } buildMiniMap(); }
 }
@@ -352,11 +396,63 @@ function waterGradient(c, b, view) {
   else { gr.addColorStop(0, rgba(b.shallow, .9)); gr.addColorStop(.18, rgba(b.color, .88)); gr.addColorStop(.6, rgba(shade(b.color, -.25), .92)); gr.addColorStop(1, rgba(shade(b.color, -.5), .96)); }
   _waterGrad.set(b, { key, g: gr }); return gr;
 }
+/* ---------- reflections ----------
+   The world above the waterline is pre-rendered once per frame into a small
+   offscreen canvas (half resolution), then each visible water body composites it
+   vertically flipped around its surface with per-strip alpha fadeout + a gentle
+   horizontal sine wobble (shimmer). Cached per frame; skipped entirely on low
+   quality or when Settings.waterReflections is off. */
+const Refl = { c: null, x: null, s: .5, w: 0, h: 0, frame: 0, stale: 0, skyKey: '', skyGrad: null };
+function reflectionsOn() { return Settings.waterReflections !== false && waterQualityLevel() !== 'low' && R8.fxScale >= .5; }
+function renderReflection(view, t) {
+  const s = Refl.s, w = Math.max(2, Math.ceil((view.x1 - view.x0) * s)), h = Math.max(2, Math.ceil((view.y1 - view.y0) * s));
+  if (!Refl.c || Refl.w !== w || Refl.h !== h) { Refl.c = mkCanvas(w, h); Refl.x = Refl.c.getContext('2d'); Refl.w = w; Refl.h = h; }
+  const x = Refl.x, th = T.theme;
+  x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, w, h);
+  x.setTransform(s, 0, 0, s, -view.x0 * s, -view.y0 * s);
+  // sky (cached gradient, world-space over the current view)
+  const skyKey = th.skyT + th.skyB + '|' + (view.y1 - view.y0);
+  if (Refl.skyKey !== skyKey) { const g = x.createLinearGradient(0, view.y0, 0, view.y1); g.addColorStop(0, shade(th.skyT, .08)); g.addColorStop(1, shade(th.skyB, -.12)); Refl.skyGrad = g; Refl.skyKey = skyKey; }
+  x.fillStyle = Refl.skyGrad; x.fillRect(view.x0, view.y0, view.x1 - view.x0, view.y1 - view.y0);
+  // far backdrop with the same parallax the main render uses
+  if (T.bg) { const b = T.bg; let px = 0, py = 0; if (G.gameMode === 'expedition') { px = clamp((Cam.x - W / 2) * .42, -b.M + 30, b.M - 30); py = clamp((Cam.y - H / 2) * .3, -b.M + 30, b.M - 30); } x.drawImage(b.c, -b.M + px, -b.M + py, W + b.M * 2, H + b.M * 2); }
+  // terrain slice
+  if (T.out) { const Q = T.Q, x0 = clamp(Math.floor(view.x0) - 2, 0, W), y0 = clamp(Math.floor(view.y0) - 2, 0, H), x1 = clamp(Math.ceil(view.x1) + 2, 0, W), y1 = clamp(Math.ceil(view.y1) + 2, 0, H); if (x1 > x0 && y1 > y0) x.drawImage(T.out, x0 * Q, y0 * Q, (x1 - x0) * Q, (y1 - y0) * Q, x0, y0, x1 - x0, y1 - y0); }
+  // props + bodies + players (same draw calls as the main pipeline, at half scale)
+  drawProps(x, view, t);
+  for (const p of G.players.values()) if (p.alive && visibleWorld(p.x, p.y, 140)) drawPlayer(x, p, t);
+  x.setTransform(1, 0, 0, 1, 0, 0);
+}
+function drawReflection(c, b, i0, i1, view, t) {
+  if (!Refl.c) return;
+  const L = b.level, s = Refl.s, w = Refl.w, h = Refl.h;
+  const x0 = Math.max(b.x0, view.x0 - 20), x1 = Math.min(b.x1, view.x1 + 20);
+  const maxDepth = b.sea ? Math.min(view.y1 + 60 - L, 300) : Math.min(b.maxBottom - L, 300);
+  if (maxDepth <= 4) return;
+  const NS = waterQualityLevel() === 'high' ? 10 : 6, band = maxDepth / NS;
+  const baseA = b.sea ? .34 : .3;
+  c.save(); c.translate(0, 2 * L); c.scale(1, -1); // mirror the world around the surface
+  for (let i = 0; i < NS; i++) {
+    // in mirrored space the strip is the world region [2L-yBot, 2L-yTop] above the surface
+    const wy0 = 2 * L - (L + (i + 1) * band), wy1 = 2 * L - (L + i * band);
+    let sy0 = (wy0 - view.y0) * s, sy1 = (wy1 - view.y0) * s;
+    if (sy1 <= 0) continue; // reflected content is above the rendered view
+    let dyTop = wy0;
+    if (sy0 < 0) { dyTop = wy0 - sy0 / s; sy0 = 0; }
+    if (sy1 > h) sy1 = h;
+    if (sy1 - sy0 < .5) continue;
+    // horizontal wobble grows slightly with depth — the shimmer
+    const wob = Math.sin(wy0 * .045 + t * 2.6) * 1.6 + Math.sin(wy0 * .013 - t * 1.7) * 1.1;
+    c.globalAlpha = baseA * (1 - i / NS);
+    c.drawImage(Refl.c, 0, sy0, w, sy1 - sy0, x0 + wob, dyTop, x1 - x0, (sy1 - sy0) / s);
+  }
+  c.globalAlpha = 1; c.restore();
+}
 function drawWaterBack(c, view) {
   const t = Env.time;
   for (const b of Env.water) {
     if (!b.alive) continue; const x0 = Math.max(b.x0, view.x0 - 20), x1 = Math.min(b.x1, view.x1 + 20); if (x1 <= x0) continue; const i0 = Math.max(0, Math.floor((x0 - b.x0) / WSTEP)), i1 = Math.min(b.n - 1, Math.ceil((x1 - b.x0) / WSTEP));
-    c.fillStyle = waterGradient(c, b, view); c.beginPath(); waterPath(c, b, i0, i1, view); c.fill();
+    c.fillStyle = waterGradient(c, b, view); c.beginPath(); waterPath(c, b, i0, i1, view, t); c.fill();
     if (b.lava || R8.fxScale < .55) continue;
     // under-water light: drifting caustic bands (and sun shafts in the open sea), clipped to the water
     c.save(); c.clip(); c.globalCompositeOperation = 'lighter';
@@ -371,26 +467,53 @@ function drawWaterBack(c, view) {
     c.restore();
   }
 }
-function waterPath(c, b, i0, i1, view) {
-  if (b.sea) { c.moveTo(b.x0 + i0 * WSTEP, view.y1 + 60); for (let i = i0; i <= i1; i++) c.lineTo(b.x0 + i * WSTEP, b.level + b.disp[i]); c.lineTo(b.x0 + i1 * WSTEP, view.y1 + 60); c.closePath(); return; }
+/* ambient surface waves (visual only — physics still uses the spring surface).
+   Two overlapping sines at different speeds/frequencies; lava barely moves. */
+function waveY(x, t, lava) { if (lava) return Math.sin(x * .02 + t * .6) * .5; return Math.sin(x * .016 + t * 1.5) * 1.15 + Math.sin(x * .043 - t * .9) * .75; }
+function waterPath(c, b, i0, i1, view, t) {
+  const wv = t == null ? 0 : 1;
+  if (b.sea) { c.moveTo(b.x0 + i0 * WSTEP, view.y1 + 60); for (let i = i0; i <= i1; i++) c.lineTo(b.x0 + i * WSTEP, b.level + b.disp[i] + waveY(b.x0 + i * WSTEP, t, false) * wv); c.lineTo(b.x0 + i1 * WSTEP, view.y1 + 60); c.closePath(); return; }
   let open = false;
   for (let i = i0; i <= i1 + 1; i++) { const wet = i <= i1 && b.bottom[i] > b.level + .5; const x = b.x0 + i * WSTEP;
-    if (wet && !open) { open = true; c.moveTo(x - WSTEP / 2, Math.min(b.level + b.disp[i], b.bottom[i])); }
-    if (wet) c.lineTo(x, Math.min(b.level + b.disp[i], b.bottom[i] - 1));
+    if (wet && !open) { open = true; c.moveTo(x - WSTEP / 2, Math.min(b.level + b.disp[i] + waveY(x, t, b.lava) * wv, b.bottom[i])); }
+    if (wet) c.lineTo(x, Math.min(b.level + b.disp[i] + waveY(x, t, b.lava) * wv, b.bottom[i] - 1));
     if (!wet && open) { open = false; c.lineTo(x - WSTEP / 2, b.level + 1); for (let j = i - 1; j >= i0 && b.bottom[j] > b.level + .5; j--) c.lineTo(b.x0 + j * WSTEP, b.bottom[j] + 2); c.closePath(); } }
 }
 function drawWaterFront(c, view, t) {
+  const refl = reflectionsOn() && Env.water.length;
+  if (refl) {
+    // one offscreen scene render per frame, shared by every water body in view
+    let any = false;
+    for (const b of Env.water) if (b.alive && !b.lava && b.x1 > view.x0 - 20 && b.x0 < view.x1 + 20) { any = true; break; }
+    if (any) {
+      Refl.frame++;
+      if (waterQualityLevel() === 'high' || (Refl.frame & 1) === 0) renderReflection(view, t); // medium: every other frame
+    } else refl = false;
+  }
+  const hiQ = waterQualityLevel() === 'high';
   for (const b of Env.water) {
     if (!b.alive) continue; const x0 = Math.max(b.x0, view.x0 - 20), x1 = Math.min(b.x1, view.x1 + 20); if (x1 <= x0) continue; const i0 = Math.max(0, Math.floor((x0 - b.x0) / WSTEP)), i1 = Math.min(b.n - 1, Math.ceil((x1 - b.x0) / WSTEP));
-    if (!b.lava) { c.globalAlpha = b.sea ? .32 : .24; c.fillStyle = b.color; c.beginPath(); waterPath(c, b, i0, i1, view); c.fill(); c.globalAlpha = 1; }
+    if (!b.lava) {
+      if (refl) { c.save(); c.beginPath(); waterPath(c, b, i0, i1, view, t); c.clip(); drawReflection(c, b, i0, i1, view, t); c.restore(); }
+      // cheap refraction hint: a gently wobbling shifted copy of the terrain, clipped to the water
+      if (hiQ && T.out && R8.fxScale >= .78) {
+        const Q = T.Q, tx0 = clamp(Math.floor(view.x0) - 2, 0, W), ty0 = clamp(Math.floor(view.y0) - 2, 0, H), tx1 = clamp(Math.ceil(view.x1) + 2, 0, W), ty1 = clamp(Math.ceil(view.y1) + 2, 0, H);
+        if (tx1 > tx0 && ty1 > ty0) { c.save(); c.beginPath(); waterPath(c, b, i0, i1, view, t); c.clip(); c.globalAlpha = .3; c.drawImage(T.out, tx0 * Q, ty0 * Q, (tx1 - tx0) * Q, (ty1 - ty0) * Q, tx0 + Math.sin(t * 1.8 + b.level * .01) * 1.4, ty0 + 2, tx1 - tx0, ty1 - ty0); c.globalAlpha = 1; c.restore(); }
+      }
+      c.globalAlpha = b.sea ? .32 : .24; c.fillStyle = b.color; c.beginPath(); waterPath(c, b, i0, i1, view, t); c.fill(); c.globalAlpha = 1;
+    }
     // the surface line: one path reused for the soft band, the ink line and the paper highlight
     c.beginPath(); let pen = false, segs = 0;
-    for (let i = i0; i <= i1; i++) { const wet = b.sea || b.bottom[i] > b.level + .5; const x = b.x0 + i * WSTEP, y = Math.min(b.level + b.disp[i], b.sea ? 1e9 : b.bottom[i] - 1); if (!wet) { pen = false; continue; } if (pen) c.lineTo(x, y); else { c.moveTo(x, y); segs++; } pen = true; }
+    for (let i = i0; i <= i1; i++) { const wet = b.sea || b.bottom[i] > b.level + .5; const x = b.x0 + i * WSTEP, y = Math.min(b.level + b.disp[i] + waveY(x, t, b.lava), b.sea ? 1e9 : b.bottom[i] - 1); if (!wet) { pen = false; continue; } if (pen) c.lineTo(x, y); else { c.moveTo(x, y); segs++; } pen = true; }
     if (!segs) continue;
     c.lineCap = 'round'; c.lineJoin = 'round';
     if (!b.lava && R8.fxScale > .45) { c.lineWidth = 9; c.strokeStyle = rgba(b.shallow, .28); c.save(); c.translate(0, 5); c.stroke(); c.restore(); }
     c.lineWidth = 2.6; c.strokeStyle = b.lava ? 'rgba(80,20,10,.75)' : 'rgba(31,28,36,.55)'; c.stroke();
     c.lineWidth = 1.4; c.strokeStyle = b.lava ? '#ffe8a8' : 'rgba(255,255,250,.85)'; c.save(); c.translate(0, 2.4); c.stroke(); c.restore();
+    if (!b.lava && R8.fxScale > .4) {
+      // waterline glow: a soft additive halo hugging the surface
+      c.save(); c.globalCompositeOperation = 'lighter'; c.lineWidth = 5; c.strokeStyle = rgba(b.shallow, .16 + .05 * Math.sin(t * 2.2)); c.save(); c.translate(0, 1.5); c.stroke(); c.restore(); c.restore();
+    }
     if (R8.fxScale > .5) {
       // drifting glints + crest foam where the surface is moving
       c.strokeStyle = b.lava ? 'rgba(255,240,180,.65)' : 'rgba(255,255,250,.55)'; c.lineWidth = 1.5; c.beginPath();
@@ -433,8 +556,8 @@ const Weather = {
     for (let i = 0; i < n; i++) { const p = this.parts[i]; p.t += dt;
       switch (k) {
         case 'rain': case 'storm': case 'drizzle': { const sp = (k === 'storm' ? 1450 : k === 'drizzle' ? 760 : 1080) * p.s; p.x += wind * 2.2 * dt; p.y += sp * dt; p.vx = wind * 2.2; p.vy = sp;
-          if (solidAt(p.x, p.y)) { if (Math.random() < .35 && R8.fxScale > .4) FX.add({ k: 'drop', x: p.x, y: p.y - 3, vx: (Math.random() - .5) * 90, vy: -90 - Math.random() * 110, r: 1.1, color: 'rgba(225,238,245,.85)', life: .3, t: 0 }); this.spawn(p); }
-          else { const b = waterAt(p.x, p.y); if (b) { if (!b.lava && Math.random() < .5) waterPoke(b, p.x, 22, 0); if (Math.random() < .3) Env.ripples.push({ x: p.x, y: waterSurfaceY(b, p.x), t: 0 }); this.spawn(p); } }
+          if (solidAt(p.x, p.y)) { if (Math.random() < .35 && R8.fxScale > .4) fxDrop(p.x, p.y - 3, (Math.random() - .5) * 90, -90 - Math.random() * 110, 1.1, 'rgba(225,238,245,.85)', .3); this.spawn(p); }
+          else { const b = waterAt(p.x, p.y); if (b) { if (!b.lava && Math.random() < .5) waterPoke(b, p.x, 22, 0); if (Math.random() < .3) { const rp = rippleMake(p.x, waterSurfaceY(b, p.x)); rp.t = 0; Env.ripples.push(rp); } this.spawn(p); } }
           break; }
         case 'snow': p.x += (wind + Math.sin(p.t * 1.7 + p.r) * 30) * dt; p.y += 70 * p.s * dt; if (solidAt(p.x, p.y) || waterAt(p.x, p.y)) this.spawn(p); break;
         case 'leaves': case 'petals': p.x += (wind * 1.4 + Math.sin(p.t * 2 + p.r) * 40) * dt; p.y += (k === 'petals' ? 52 : 70) * p.s * dt; p.r += dt * (1.5 + p.s); if (solidAt(p.x, p.y) || waterAt(p.x, p.y)) this.spawn(p); break;
@@ -477,7 +600,7 @@ function rayEnd(x, y, a, range) { const dx = Math.cos(a), dy = Math.sin(a); let 
 function fireBeam(e, w, auth) {
   const [ex, ey, hitWall] = rayEnd(e.x, e.y, e.a, w.range || 2400); const col = (w.projectile && w.projectile.color) || w.vfx.tracer;
   Env.beams.push({ x0: e.x, y0: e.y, x1: ex, y1: ey, t: 0, life: .32, color: col, glow: (w.projectile && w.projectile.glow) || '#fff', w: (w.projectile && w.projectile.size) || 6 });
-  FX.light(ex, ey, 220, w.vfx.light || col, .2, 1.2); FX.sparks(ex, ey, e.a + Math.PI, 14, col); for (let d = 0; d < Math.hypot(ex - e.x, ey - e.y); d += 90) FX.add({ k: 'spark', x: e.x + Math.cos(e.a) * d, y: e.y + Math.sin(e.a) * d, vx: (Math.random() - .5) * 200, vy: (Math.random() - .5) * 200, life: .25, t: 0, color: col, w: 1.4 });
+  FX.light(ex, ey, 220, w.vfx.light || col, .2, 1.2); FX.sparks(ex, ey, e.a + Math.PI, 14, col); for (let d = 0, bl = Math.sqrt((ex - e.x) * (ex - e.x) + (ey - e.y) * (ey - e.y)); d < bl; d += 90) fxSpark(e.x + Math.cos(e.a) * d, e.y + Math.sin(e.a) * d, (Math.random() - .5) * 200, (Math.random() - .5) * 200, .25, col, 1.4);
   const wb = waterHitAlong(e.x, e.y, ex, ey); if (wb) splash(wb[0], wb[1], .9);
   if (!auth) return; let left = (w.pierce | 0) + 1; const hits = [];
   for (const p of G.players.values()) { if (!p.alive || p.id === e.id) continue; const t = ((p.x - e.x) * Math.cos(e.a) + (p.y - e.y) * Math.sin(e.a)); if (t < 0 || t > Math.hypot(ex - e.x, ey - e.y) + 10) continue; const px = e.x + Math.cos(e.a) * t, py = e.y + Math.sin(e.a) * t; if (Math.abs(px - p.x) < HW + 6 && Math.abs(py - p.y) < HH + 6) hits.push([t, p, py]); }
@@ -501,12 +624,12 @@ function mkBullet(e, w, a, sp, auth, o = {}) {
 }
 function bulletDie(b, w, how) {
   if (b.dead) return; b.dead = true; b.fade = 0; const ex = b.sub ? w.cluster && { radius: w.cluster.radius, damage: w.cluster.damage, knockback: 600, crater: w.cluster.crater, selfDamage: .5 } : w.explosion;
-  if (b.type === 'bubble') { FX.ring(b.x, b.y, b.size * 2, 'rgba(230,250,255,.9)', 2, .25); for (let i = 0; i < 6; i++) FX.add({ k: 'drop', x: b.x, y: b.y, vx: (Math.random() - .5) * 220, vy: (Math.random() - .5) * 220, r: 1.6, color: 'rgba(200,240,255,.9)', life: .5, t: 0 }); Audio2.play('bubble', b.x, .4, 1.6); }
+  if (b.type === 'bubble') { FX.ring(b.x, b.y, b.size * 2, 'rgba(230,250,255,.9)', 2, .25); for (let i = 0; i < 6; i++) fxDrop(b.x, b.y, (Math.random() - .5) * 220, (Math.random() - .5) * 220, 1.6, 'rgba(200,240,255,.9)', .5); Audio2.play('bubble', b.x, .4, 1.6); }
   if (b.type === 'flame') FX.smoke(b.x, b.y, 1, 10, 'rgba(90,80,80,.35)');
   if (b.auth && ex) hostExplode(b.x, b.y, ex, b.owner, b.wid, !!b.sub);
   if (b.auth && !b.sub && w.cluster && how !== 'water') emit({ k: 'shot', id: b.owner, wid: b.wid, x: Math.round(b.x), y: Math.round(b.y - 6), a: 0, s: randSeed(), sub: 1 });
 }
-function nearestEnemy(b, maxD) { let best = null, bd = maxD; for (const p of G.players.values()) { if (!p.alive || p.id === b.owner) continue; const d = Math.hypot(p.x - b.x, p.y - b.y); if (d < bd) { bd = d; best = p; } } return best; }
+function nearestEnemy(b, maxD) { let best = null, bd = maxD * maxD; for (const p of G.players.values()) { if (!p.alive || p.id === b.owner) continue; const dx = p.x - b.x, dy = p.y - b.y, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = p; } } return best; }
 updateBullets = function (dt) {
   for (const b of G.bullets) {
     if (b.dead) { b.fade = (b.fade || 0) + dt; continue; }
@@ -516,13 +639,13 @@ updateBullets = function (dt) {
     if (b.fuse && b.t > b.fuse) { bulletDie(b, w, 'fuse'); continue; }
     if (w.drag) { const k = Math.exp(-w.drag * dt); b.vx *= k; b.vy *= k; }
     if (b.type === 'flame' || b.type === 'bubble') b.vx += Env.wind * (b.type === 'bubble' ? .5 : .9) * dt;
-    if (w.homing) { const q = nearestEnemy(b, 640); if (q) { const a = Math.atan2(b.vy, b.vx), want = Math.atan2(q.y - b.y, q.x - b.x), sp = Math.hypot(b.vx, b.vy); const na = a + clamp(angDiff(want, a), -w.homing * dt, w.homing * dt); b.vx = Math.cos(na) * sp; b.vy = Math.sin(na) * sp; } }
-    if (b.ret) { const o = G.players.get(b.owner); if (!o || !o.alive) { b.dead = true; b.fade = 0; continue; } const dx = o.x - b.x, dy = o.y - b.y, d = Math.hypot(dx, dy), sp = Math.max(900, Math.hypot(b.vx, b.vy)); b.vx = lerp(b.vx, dx / d * sp * 1.1, 1 - Math.exp(-7 * dt)); b.vy = lerp(b.vy, dy / d * sp * 1.1, 1 - Math.exp(-7 * dt)); if (d < 30) { b.dead = true; b.fade = .2; Audio2.play('tink', b.x, .5); continue; } }
-    if (w.pull && w.pull.radius) for (const p of G.players.values()) { if (!p.alive || !controlledHere(p) || p.id === b.owner) continue; const dx = b.x - p.x, dy = b.y - p.y, d = Math.hypot(dx, dy); if (d < w.pull.radius && d > 8) { const f = (1 - d / w.pull.radius) * w.pull.force * dt; p.vx += dx / d * f; p.vy += dy / d * f; p.grounded = false; } }
-    const sp = Math.hypot(b.vx, b.vy); const n = Math.max(1, Math.ceil(sp * dt / 5)); const h = dt / n;
+    if (w.homing) { const q = nearestEnemy(b, 640); if (q) { const a = Math.atan2(b.vy, b.vx), want = Math.atan2(q.y - b.y, q.x - b.x), sp = Math.sqrt(b.vx * b.vx + b.vy * b.vy); const na = a + clamp(angDiff(want, a), -w.homing * dt, w.homing * dt); b.vx = Math.cos(na) * sp; b.vy = Math.sin(na) * sp; } }
+    if (b.ret) { const o = G.players.get(b.owner); if (!o || !o.alive) { b.dead = true; b.fade = 0; continue; } const dx = o.x - b.x, dy = o.y - b.y, d = Math.sqrt(dx * dx + dy * dy), sp = Math.max(900, Math.sqrt(b.vx * b.vx + b.vy * b.vy)); b.vx = lerp(b.vx, dx / d * sp * 1.1, 1 - Math.exp(-7 * dt)); b.vy = lerp(b.vy, dy / d * sp * 1.1, 1 - Math.exp(-7 * dt)); if (d < 30) { b.dead = true; b.fade = .2; Audio2.play('tink', b.x, .5); continue; } }
+    if (w.pull && w.pull.radius) for (const p of G.players.values()) { if (!p.alive || !controlledHere(p) || p.id === b.owner) continue; const dx = b.x - p.x, dy = b.y - p.y, d = Math.sqrt(dx * dx + dy * dy); if (d < w.pull.radius && d > 8) { const f = (1 - d / w.pull.radius) * w.pull.force * dt; p.vx += dx / d * f; p.vy += dy / d * f; p.grounded = false; } }
+    const sp = Math.sqrt(b.vx * b.vx + b.vy * b.vy); const n = Math.max(1, Math.ceil(sp * dt / 5)); const h = dt / n;
     for (let i = 0; i < n && !b.dead; i++) {
       b.vy += (w.bulletGravity || 0) * h; b.x += b.vx * h; b.y += b.vy * h; b.dist += sp * h;
-      if (Env.water.length) { const wb = waterAt(b.x, b.y); if (wb && !b.wet) { b.wet = true; splash(b.x, b.y, clamp(sp / 2400, .25, 1.2) * (b.type === 'rocket' || b.type === 'grenade' ? 1.5 : 1), wb); if (wb.lava) { if (b.type !== 'beam') { bulletDie(b, w, 'lava'); break; } } else if (b.type === 'flame') { FX.smoke(b.x, b.y, 2, 12, 'rgba(235,240,245,.6)'); Audio2.play('sizzle', b.x, .25); bulletDie(b, w, 'water'); break; } else if (b.type === 'bubble') { b.vy = -300; } else { b.vx *= .45; b.vy *= .45; } } else if (!wb && b.wet) { b.wet = false; if (b.vy < 0) splash(b.x, b.y + 4, .35); } if (b.wet && Math.random() < .25 && R8.fxScale > .4) FX.add({ k: 'drop', x: b.x, y: b.y, vx: 0, vy: -60, r: 1.5, color: 'rgba(230,248,255,.7)', life: .4, t: 0, bub: 1 }); }
+      if (Env.water.length) { const wb = waterAt(b.x, b.y); if (wb && !b.wet) { b.wet = true; splash(b.x, b.y, clamp(sp / 2400, .25, 1.2) * (b.type === 'rocket' || b.type === 'grenade' ? 1.5 : 1), wb); if (wb.lava) { if (b.type !== 'beam') { bulletDie(b, w, 'lava'); break; } } else if (b.type === 'flame') { FX.smoke(b.x, b.y, 2, 12, 'rgba(235,240,245,.6)'); Audio2.play('sizzle', b.x, .25); bulletDie(b, w, 'water'); break; } else if (b.type === 'bubble') { b.vy = -300; } else { b.vx *= .45; b.vy *= .45; } } else if (!wb && b.wet) { b.wet = false; if (b.vy < 0) splash(b.x, b.y + 4, .35); } if (b.wet && Math.random() < .25 && R8.fxScale > .4) fxDrop(b.x, b.y, 0, -60, 1.5, 'rgba(230,248,255,.7)', .4, 1); }
       if (!w.passTerrain && !b.ret && solidAt(b.x, b.y)) {
         if (b.type === 'hook') { b.vx = b.vy = 0; if (w.grapple) { b.hookT = .9; const o = G.players.get(b.owner); if (o) o.grap = { x: b.x, y: b.y, sp: w.grapple, t: .9, b }; } else { b.dead = true; b.fade = 0; } FX.sparks(b.x, b.y, Math.atan2(-b.vy, -b.vx), 6, '#fff2cc'); Audio2.play('tink', b.x, .8, .7); if (b.auth) hostImpact(b, w, false); break; }
         if (b.type === 'boomerang' || w.returns) { b.ret = true; FX.sparks(b.x, b.y, Math.atan2(-b.vy, -b.vx), 8, w.vfx.tracer); if (b.auth) hostImpact(b, w, true); break; }
@@ -535,7 +658,7 @@ updateBullets = function (dt) {
       for (const p of G.players.values()) {
         if (!p.alive || (p.id === b.owner && !b.deflected)) continue; if (b.hits && b.hits.has(p.id)) continue;
         const r = Math.max(3, b.size * .6); if (Math.abs(b.x - p.x) < HW + r && Math.abs(b.y - p.y) < HH + r) {
-          if (b.auth) { const head = b.y < p.y - HH * .35; const dmg = Math.round(w.damage * (head ? (w.headshot || 1) : 1)); const l = Math.hypot(b.vx, b.vy) || 1; let kx = b.vx / l * w.knockback, ky = b.vy / l * w.knockback * .5 - 140;
+          if (b.auth) { const head = b.y < p.y - HH * .35; const dmg = Math.round(w.damage * (head ? (w.headshot || 1) : 1)); const l = Math.sqrt(b.vx * b.vx + b.vy * b.vy) || 1; let kx = b.vx / l * w.knockback, ky = b.vy / l * w.knockback * .5 - 140;
             if (w.pullToShooter) { const o = G.players.get(b.owner); if (o) { const dx = o.x - p.x, dy = o.y - p.y, dd = Math.hypot(dx, dy) || 1; kx = dx / dd * w.pullToShooter; ky = dy / dd * w.pullToShooter * .6 - 300; } }
             hostDamage(p, dmg, b.owner, b.wid, kx, ky, b.x, b.y, head); if (w.onHit) try { w.onHit({ x: b.x, y: b.y, target: p.id, shooter: b.owner }, HookAPI); } catch (er) { } }
           if (b.type === 'hook' && w.pullToShooter) Env.ropes.push({ a: b.owner, x: b.x, y: b.y, t: .25 });
@@ -550,7 +673,9 @@ updateBullets = function (dt) {
     }
     if (!b.dead && Env.props.length) propHitPoint(b, w);
     if (!b.dead) bulletTrailFx(b, w, dt);
-    b.trail.push([b.x, b.y]); if (b.trail.length > (b.type === 'flame' ? 2 : 6)) b.trail.shift();
+    // trail pairs are recycled (shift + mutate) so a sustained firefight allocates nothing
+    const tl = b.trail, tlMax = b.type === 'flame' ? 2 : 6;
+    if (tl.length >= tlMax) { const pr = tl.shift(); pr[0] = b.x; pr[1] = b.y; tl.push(pr); } else tl.push([b.x, b.y]);
   }
   let k = 0; for (const b of G.bullets) if (!b.dead || b.fade < .12) G.bullets[k++] = b; G.bullets.length = k;
   for (const arr of [Env.beams, Env.zaps, Env.ropes]) { let j = 0; for (const z of arr) { z.t += dt; if (z.t < (z.life || .3)) arr[j++] = z; } arr.length = j; }
@@ -559,7 +684,7 @@ function bulletTrailFx(b, w, dt) {
   b.fxT -= dt; if (b.fxT > 0 || !visibleWorld(b.x, b.y, 60)) return; const tr = w.projectile && w.projectile.trail; const q = R8.fxScale;
   if (b.type === 'rocket') { b.fxT = .025 / q; FX.smoke(b.x - b.vx * .01, b.y - b.vy * .01, 1, 9, 'rgba(225,220,212,.6)', -b.vx * .05, -b.vy * .05); FX.light(b.x, b.y, 70, (w.projectile && w.projectile.glow) || '#ffb35c', .05, .8); }
   else if (b.type === 'flame') { b.fxT = .05 / q; FX.light(b.x, b.y, 50 + b.t * 90, '#ff8a3c', .06, .5); }
-  else if (tr === 'sparkle') { b.fxT = .04 / q; FX.add({ k: 'spark', x: b.x, y: b.y, vx: (Math.random() - .5) * 90, vy: (Math.random() - .5) * 90, life: .25, t: 0, color: b.glow || b.color, w: 1.3 }); }
+  else if (tr === 'sparkle') { b.fxT = .04 / q; fxSpark(b.x, b.y, (Math.random() - .5) * 90, (Math.random() - .5) * 90, .25, b.glow || b.color, 1.3); }
   else if (tr === 'smoke') { b.fxT = .04 / q; FX.smoke(b.x, b.y, 1, 7, 'rgba(225,220,212,.45)'); }
   else b.fxT = 1;
 }
@@ -576,8 +701,8 @@ function fxExplosion(e) {
   const r = e.r, big = !e.sm; const q = R8.fxScale; const w = Weapons.byId[e.wid]; const glow = (w && w.projectile && w.projectile.glow) || '#ffb35c';
   FX.light(e.x, e.y, r * 3.4, glow, .32, 1.6); FX.ring(e.x, e.y, r, 'rgba(255,246,228,.95)', big ? 5 : 3, .35); if (big) FX.ring(e.x, e.y, r * 1.5, rgba(INK, .35), 2, .5);
   FX.smoke(e.x, e.y, Math.round((big ? 9 : 4) * q) + 1, r * .45, 'rgba(70,60,62,.5)', 0, -60); FX.smoke(e.x, e.y, Math.round((big ? 6 : 3) * q) + 1, r * .35, rgba(glow, .55), 0, -40);
-  for (let i = 0; i < Math.round((big ? 22 : 9) * q); i++) { const a = Math.random() * TAU, sp = 300 + Math.random() * 700; FX.add({ k: 'spark', x: e.x, y: e.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 200, life: .3 + Math.random() * .5, t: 0, color: Math.random() < .5 ? glow : '#fff1d0', w: 2 }); }
-  for (let i = 0; i < Math.round((big ? 8 : 3) * q); i++) FX.add({ k: 'ember', x: e.x, y: e.y, vx: (Math.random() - .5) * 500, vy: -200 - Math.random() * 500, life: .9 + Math.random() * .8, t: 0, r: 2.5, color: glow, g: 1 });
+  for (let i = 0; i < Math.round((big ? 22 : 9) * q); i++) { const a = Math.random() * TAU, sp = 300 + Math.random() * 700; fxSpark(e.x, e.y, Math.cos(a) * sp, Math.sin(a) * sp - 200, .3 + Math.random() * .5, Math.random() < .5 ? glow : '#fff1d0', 2); }
+  for (let i = 0; i < Math.round((big ? 8 : 3) * q); i++) fxEmber(e.x, e.y, (Math.random() - .5) * 500, -200 - Math.random() * 500, .9 + Math.random() * .8, 2.5, glow, 1);
   FX.flash(e.x, e.y, -Math.PI / 2, big ? 2.2 : 1.2); splash(e.x, e.y, big ? 2.2 : 1.1);
   const me = G.players.get(G.myId); const near = me ? clamp(1 - Math.hypot(me.x - e.x, me.y - e.y) / (r * 6), 0, 1) : .5; G.trauma = Math.min(1, G.trauma + (big ? .75 : .35) * near); if (big && near > .6) G.flash = Math.max(G.flash, .12 * near);
   Audio2.play('boom', e.x, big ? 1 : .5, big ? 1 : 1.4);
@@ -662,7 +787,7 @@ function updateWeaponTimers(dt) {
   for (const p of G.players.values()) {
     const w = weaponOf(p); const st = p.status;
     if (st) { for (const k of ['burn', 'shock', 'freeze', 'bubble']) if (st[k] > 0) st[k] = Math.max(0, st[k] - dt); if (st.chill > 0) st.chill = Math.max(0, st.chill - dt * .6);
-      if (st.burn > 0 && visibleWorld(p.x, p.y, 40) && Math.random() < dt * 22 * R8.fxScale) FX.add({ k: 'ember', x: p.x + (Math.random() - .5) * PW, y: p.y + (Math.random() - .3) * PH * .6, vx: (Math.random() - .5) * 40, vy: -80 - Math.random() * 90, life: .5, t: 0, r: 3.2, color: '#ff9a3c', g: -1 });
+      if (st.burn > 0 && visibleWorld(p.x, p.y, 40) && Math.random() < dt * 22 * R8.fxScale) fxEmber(p.x + (Math.random() - .5) * PW, p.y + (Math.random() - .3) * PH * .6, (Math.random() - .5) * 40, -80 - Math.random() * 90, .5, 3.2, '#ff9a3c', -1);
       if (st.burn > 0 && waterAt(p.x, p.y)) { st.burn = 0; FX.smoke(p.x, p.y, 3, 14, 'rgba(235,240,245,.6)'); Audio2.play('sizzle', p.x, .4); } }
     if (!p.alive) { p.charging = null; p.burstLeft = 0; continue; }
     if (w.spinUp) { if (p.spinHold > 0) { p.spinHold -= dt; p.spin = Math.min(1, (p.spin || 0) + dt / w.spinUp); } else p.spin = Math.max(0, (p.spin || 0) - dt * 1.4); } else p.spin = 0;
@@ -730,17 +855,36 @@ physicsStep = function (p, dt) {
   const inp = p.input, st = p.status || {}, w = weaponOf(p); const mx0 = inp.mx; const held = (st.freeze > 0 || st.bubble > 0);
   let ms = w.moveSpeed || 1; if (st.shock > 0) ms *= .5; if (st.chill > 0) ms *= 1 - Math.min(.45, st.chill * .15); if (w.spinUp && p.spin > .3) ms *= .85;
   if (held) { inp.mx = 0; inp.jump = false; } else inp.mx *= ms;
-  if (p.grap) { const g = p.grap; g.t -= dt; const dx = g.x - p.x, dy = g.y - p.y, d = Math.hypot(dx, dy); if (d < 40 || g.t <= 0 || inp.jump || held) { p.grap = null; if (g.b) g.b.hookT = 0; if (d < 60) p.vy = Math.min(p.vy, -380); } else { const k = 1 - Math.exp(-9 * dt); p.vx = lerp(p.vx, dx / d * g.sp, k); p.vy = lerp(p.vy, dy / d * g.sp - 120, k); p.grounded = false; p.lungeT = Math.max(p.lungeT, dt * 2); p.jumps = 1; } }
+  if (p.grap) { const g = p.grap; g.t -= dt; const dx = g.x - p.x, dy = g.y - p.y, d = Math.sqrt(dx * dx + dy * dy); if (d < 40 || g.t <= 0 || inp.jump || held) { p.grap = null; if (g.b) g.b.hookT = 0; if (d < 60) p.vy = Math.min(p.vy, -380); } else { const k = 1 - Math.exp(-9 * dt); p.vx = lerp(p.vx, dx / d * g.sp, k); p.vy = lerp(p.vy, dy / d * g.sp - 120, k); p.grounded = false; p.lungeT = Math.max(p.lungeT, dt * 2); p.jumps = 1; } }
   const water = Env.water.length ? waterAt(p.x, p.y + 4) : null; const depth = water ? p.y + 4 - waterSurfaceY(water, p.x) : 0;
   if (water && depth < 34) p.coyote = Math.max(p.coyote, .05);
   if (inp.jump && !p.grounded && p.coyote <= 0 && !water && groundBelow(p.x, p.y + HH, 14) == null) { const wd = wallDir(p, Math.sign(inp.mx)); if (wd) { inp.jump = false; p.vy = -JUMP * .92; p.vx = -wd * 560; p.lungeT = .13; p.face = -wd; p.sq = 1.2; p.sqv = 0; FX.dustPuff(p.x + wd * HW, p.y, 5, .7); FX.ring(p.x + wd * HW, p.y, 18, 'rgba(255,248,232,.8)'); Audio2.play('jump2', p.x, 1, 1.15); } }
   const ovx = p.vx; _physicsStep(p, dt); inp.mx = mx0;
   if (held) { p.vx *= Math.exp(-6 * dt); if (st.bubble > 0) { p.vy = approach(p.vy, -130, 2400 * dt); p.vx = approach(p.vx, Env.wind * .6, 300 * dt); } }
-  if (water) { const buoy = GRAV * clamp(.7 + depth / 50, .7, 1.3); p.vy -= buoy * dt; p.vx *= Math.exp(-2.3 * dt); p.vy *= Math.exp(-(water.lava ? 5 : 2.6) * dt); if (inp.jumpHeld && !held && depth > 20) p.vy -= 700 * dt; p.vy = clamp(p.vy, -560, 420); p.jumps = 1;
-    if (!p.wasWet) { splash(p.x, p.y, clamp(Math.abs(p.vy) / 800 + .3, .3, 1.8), water); p.vy *= .45; } if (Math.random() < dt * 3 && depth > 30 && !water.lava) FX.add({ k: 'drop', x: p.x, y: p.y - 10, vx: 0, vy: -70, r: 2, color: 'rgba(235,250,255,.75)', life: .6, t: 0, bub: 1 }); if (Math.abs(p.vx) > 120 && depth < 26 && Math.random() < dt * 8) waterPoke(water, p.x, 40, 1); }
+  if (water) {
+    // Archimedes: buoyancy scales with the submerged fraction of the body, so players
+    // settle floating with roughly half submerged instead of hovering or sinking
+    const sub = clamp(depth / (HH * 1.6), 0, 1);
+    const buoy = GRAV * (.5 + .9 * sub);
+    p.vy -= buoy * dt;
+    // drag grows with depth (lava is much thicker)
+    p.vx *= Math.exp(-(1.5 + 2.4 * sub) * dt);
+    p.vy *= Math.exp(-(water.lava ? 5 : 2.4 + 1.4 * sub) * dt);
+    if (inp.jumpHeld && !held && depth > 20) p.vy -= 700 * dt; // swim up
+    p.vy = clamp(p.vy, -560, 420); p.jumps = 1;
+    // wave push: near the surface, the slope of the passing wave nudges the player along
+    if (!water.lava && depth < 40 && water.n > 2) {
+      const i = clamp(Math.round((p.x - water.x0) / WSTEP), 1, water.n - 2);
+      const slope = (water.disp[i + 1] - water.disp[i - 1]) / (2 * WSTEP);
+      p.vx += slope * 820 * (1 - depth / 40) * dt;
+    }
+    if (!p.wasWet) { splash(p.x, p.y, clamp(Math.abs(p.vy) / 800 + .3, .3, 1.8), water); p.vy *= .45; }
+    if (!water.lava && Math.random() < dt * 3 && depth > 26) fxDrop(p.x + (Math.random() - .5) * 8, p.y - HH * .4, 0, -70 - Math.random() * 40, 1.4 + Math.random() * 1.6, 'rgba(235,250,255,.75)', .6, 1);
+    if (Math.abs(p.vx) > 120 && depth < 26 && Math.random() < dt * 8) waterPoke(water, p.x, 40, 1);
+  }
   else if (p.wasWet && p.vy < -200) splash(p.x, p.y + HH, .45);
   p.wasWet = !!water;
-  if (T.theme.icy && p.grounded && !held) { p.vx = lerp(ovx, p.vx, .22); if (Math.abs(p.vx) > 200 && Math.random() < dt * 10) FX.add({ k: 'spark', x: p.x, y: p.y + HH, vx: -p.vx * .2, vy: -60, life: .25, t: 0, color: '#eaf8ff', w: 1.2 }); }
+  if (T.theme.icy && p.grounded && !held) { p.vx = lerp(ovx, p.vx, .22); if (Math.abs(p.vx) > 200 && Math.random() < dt * 10) fxSpark(p.x, p.y + HH, -p.vx * .2, -60, .25, '#eaf8ff', 1.2); }
   if (!p.grounded && !water && p.vy > 120 && inp.mx && !held) { const wd = wallDir(p, Math.sign(inp.mx)); if (wd === Math.sign(inp.mx)) { p.vy = Math.min(p.vy, 230); p.slideT = (p.slideT || 0) + dt; if (p.slideT > .08) { p.slideT = 0; FX.add({ k: 'smoke', x: p.x + wd * HW, y: p.y + HH * .4, vx: -wd * 20, vy: -10, r: 4, gr: 9, life: .4, t: 0, color: rgba(T.theme.cap, .5), rot: 0 }); } } }
   if (p.vy > 40 && Env.props.length) for (const pr of Env.props) { const d = PROPS[pr.kind]; if (!d.bounce || pr.dead || pr.cut) continue; const top = pr.y - d.bounceH * pr.s; if (Math.abs(p.x - pr.x) < d.bounce * pr.s && p.y + HH >= top - 8 && p.y + HH <= top + 20) { p.vy = pr.kind === 'giantshroom' ? -1500 : -1320; p.grounded = false; p.jumps = 1; p.sq = 1.4; p.sqv = 0; pr.squish = 1; FX.ring(pr.x, top, 34, 'rgba(255,248,232,.9)', 3, .3); Audio2.play('boing', pr.x); break; } }
 };
@@ -794,9 +938,12 @@ function updateZone() {
   const elapsed = (G.roundLen || 150) - (G.phaseEnd - now()); const k = clamp((elapsed - 35) / 95, 0, 1); const e = k * k * (3 - 2 * k); const cx = W * (.3 + hash(T.seed) * .4); const half = lerp(W * .5 + 260, 380, e);
   Env.zone = { x0: cx - half, x1: cx + half, k };
 }
+const _zoneEdges = [[0, 0, 0, 1], [0, 0, 0, -1]];
 function drawZone(c, view, t) {
   const z = Env.zone; if (!z || z.k <= 0) return; c.save();
-  for (const [a, b, edge, dir] of [[view.x0 - 50, z.x0, z.x0, 1], [z.x1, view.x1 + 50, z.x1, -1]]) { if (b <= a) continue; c.fillStyle = 'rgba(70,40,80,.32)'; c.fillRect(a, view.y0 - 50, b - a, view.y1 - view.y0 + 100);
+  _zoneEdges[0][0] = view.x0 - 50; _zoneEdges[0][1] = z.x0; _zoneEdges[0][2] = z.x0;
+  _zoneEdges[1][0] = z.x1; _zoneEdges[1][1] = view.x1 + 50; _zoneEdges[1][2] = z.x1;
+  for (const [a, b, edge, dir] of _zoneEdges) { if (b <= a) continue; c.fillStyle = 'rgba(70,40,80,.32)'; c.fillRect(a, view.y0 - 50, b - a, view.y1 - view.y0 + 100);
     c.strokeStyle = 'rgba(180,120,255,.85)'; c.lineWidth = 3; c.beginPath(); for (let y = view.y0 - 40; y < view.y1 + 40; y += 24) c.lineTo(edge + Math.sin(y * .03 + t * 3) * 8, y); c.stroke(); c.strokeStyle = INK; c.lineWidth = 1.3; c.stroke(); }
   c.restore();
 }
@@ -870,11 +1017,15 @@ let qLevel = 0, qLow = 0, qHigh = 0, qFloor = 0;
 function baseQuality() { return Settings.graphics === 'high' ? 0 : Settings.graphics === 'medium' ? 1 : Settings.graphics === 'low' ? 2 : [2, 1, 0][deviceTier]; }
 function applyQuality() { const L = QL[qLevel]; R8.quality = L.q; R8.fxScale = L.fx; R8.grainOn = !!L.grain; FX.max = Math.round(160 + 280 * L.fx); resize(); Weather.resize(); }
 qLevel = qFloor = baseQuality(); R8.fxScale = QL[qLevel].fx; R8.grainOn = !!QL[qLevel].grain; R8.quality = QL[qLevel].q; FX.max = Math.round(160 + 280 * R8.fxScale);
+let qLastChange = -30;
 function adaptQuality(fps) {
   const el = $('#fpsReadout'); if (Settings.fps && G.mode === 'play') { el.classList.remove('hidden'); el.textContent = `${Math.round(fps)} fps · ${['high', 'medium', 'low', 'lowest'][qLevel]} · ${FX.parts.length} fx`; } else el.classList.add('hidden');
   if (Settings.graphics !== 'auto' || G.mode !== 'play' || document.hidden) { qLow = qHigh = 0; return; }
-  if (fps < 50) { qHigh = 0; if (++qLow >= 2 && qLevel < QL.length - 1) { qLevel++; qLow = 0; applyQuality(); } }
-  else if (fps > 58.5) { qLow = 0; if (++qHigh >= 5 && qLevel > qFloor) { qLevel--; qHigh = 0; applyQuality(); } }
+  // hysteresis: more consecutive readings required + a cooldown after every switch,
+  // so a framerate hovering between the two thresholds can't oscillate the quality level
+  const t = now();
+  if (fps < 50) { qHigh = 0; if (++qLow >= 3 && qLevel < QL.length - 1 && t - qLastChange > 6) { qLevel++; qLow = 0; qLastChange = t; applyQuality(); } }
+  else if (fps > 58.5) { qLow = 0; if (++qHigh >= 6 && qLevel > qFloor && t - qLastChange > 6) { qLevel--; qHigh = 0; qLastChange = t; applyQuality(); } }
   else qLow = qHigh = 0;
 }
 const Cam = { x: 800, y: 500, snap: true };
@@ -897,32 +1048,43 @@ buildOverlay = function () { if (G.gameMode !== 'expedition') return _buildOverl
 let hpVig = null, hpKey = '';
 function lowHpVignette() { const key = R8.cw + 'x' + R8.ch; if (hpKey === key) return hpVig; hpKey = key; const c = mkCanvas(R8.cw / 2, R8.ch / 2), x = c.getContext('2d'); const g = x.createRadialGradient(c.width / 2, c.height / 2, Math.min(c.width, c.height) * .3, c.width / 2, c.height / 2, Math.max(c.width, c.height) * .62); g.addColorStop(0, 'rgba(160,30,30,0)'); g.addColorStop(1, 'rgba(160,30,30,.7)'); x.fillStyle = g; x.fillRect(0, 0, c.width, c.height); return hpVig = c; }
 const _fxUpdate = FX.update.bind(FX);
+const _fxRecyclable = { drop: 1, spark: 1, ember: 1, leaf: 1 };
 FX.update = function (dt) {
   for (const p of this.parts) switch (p.k) {
     case 'drop': if (p.bub) { p.y += p.vy * dt; p.x += Math.sin(p.t * 14) * 20 * dt; if (!waterAt(p.x, p.y)) p.t = p.life; break; } p.vy += GRAV * .9 * dt; p.x += p.vx * dt; p.y += p.vy * dt; if (p.vy > 0 && p.t > .05) { if (solidAt(p.x, p.y)) p.t = p.life; else if (Env.water.length) { const b = waterAt(p.x, p.y); if (b) { p.t = p.life; waterPoke(b, p.x, 14, 0); } } } break;
     case 'leaf': if (p.rest) break; p.vy = Math.min(90, p.vy + 260 * dt); p.vx = p.vx * Math.exp(-1.5 * dt) + Env.wind * .8 * dt; p.x += (p.vx + Math.sin(p.t * 4 + p.rot) * 30) * dt; p.y += p.vy * dt; p.rot += dt * 3; if (solidAt(p.x, p.y + 2)) p.rest = true; break;
     case 'ember': p.vx *= Math.exp(-1.2 * dt); p.vy = p.vy * Math.exp(-1.2 * dt) + (p.g === 1 ? 700 : -30) * dt; p.x += p.vx * dt; p.y += p.vy * dt; break;
   }
+  // harvest dying recyclables into the pool before the compaction drops them
+  const dying = FX._dying; let dn = 0;
+  const P = this.parts;
+  for (let i = 0; i < P.length; i++) { const p = P[i]; if (_fxRecyclable[p.k] && p.t + dt >= p.life) dying[dn++] = p; }
   _fxUpdate(dt);
+  for (let i = 0; i < dn; i++) FX._recycle(dying[i]);
+  dying.length = 0;
 };
 const _drawParticles = drawParticles;
 drawParticles = function (c, layer) {
   _drawParticles(c, layer); if (layer !== 1) return; const P = FX.parts;
   // drops are batched per colour (one fill per colour instead of one per drop) and stretched along their motion
-  const groups = _dropGroups; groups.clear();
-  for (const p of P) { if (p.k === 'drop' && visibleWorld(p.x, p.y, 10)) { if (p.bub) { c.fillStyle = p.color; c.beginPath(); c.arc(p.x, p.y, p.r, 0, TAU); c.fill(); c.strokeStyle = 'rgba(31,28,36,.3)'; c.lineWidth = .8; c.stroke(); continue; } let g = groups.get(p.color); if (!g) groups.set(p.color, g = []); g.push(p); }
+  const groups = _dropGroups; groups.clear(); const bubs = _bubGroups; bubs.clear();
+  for (const p of P) { if (p.k === 'drop' && visibleWorld(p.x, p.y, 10)) { if (p.bub) { let g = bubs.get(p.color); if (!g) bubs.set(p.color, g = []); g.push(p); continue; } let g = groups.get(p.color); if (!g) groups.set(p.color, g = []); g.push(p); }
     else if (p.k === 'leaf' && visibleWorld(p.x, p.y, 10)) { const k = p.t / p.life; c.globalAlpha = k > .8 ? (1 - k) / .2 : 1; c.fillStyle = p.color; c.beginPath(); c.ellipse(p.x, p.y, p.r, p.r * .45 * Math.abs(Math.cos(p.rot)) + .8, p.rot, 0, TAU); c.fill(); c.globalAlpha = 1; } }
-  for (const [col, g] of groups) { c.fillStyle = col; c.beginPath(); for (const p of g) { const r = p.r * (1 - p.t / p.life * .5), sp = Math.hypot(p.vx || 0, p.vy || 0), st = 1 + Math.min(1.1, sp / 700), a = Math.atan2(p.vy || 0, p.vx || 0); c.moveTo(p.x + Math.cos(a) * r * st, p.y + Math.sin(a) * r * st); c.ellipse(p.x, p.y, r * st, r / Math.sqrt(st), a, 0, TAU); } c.fill(); }
+  for (const [col, g] of groups) { c.fillStyle = col; c.beginPath(); for (const p of g) { const r = p.r * (1 - p.t / p.life * .5), sp = Math.sqrt(p.vx * p.vx + p.vy * p.vy), st = 1 + Math.min(1.1, sp / 700), a = Math.atan2(p.vy || 0, p.vx || 0); c.moveTo(p.x + Math.cos(a) * r * st, p.y + Math.sin(a) * r * st); c.ellipse(p.x, p.y, r * st, r / Math.sqrt(st), a, 0, TAU); } c.fill(); }
+  // bubbles: one path + fill + ink stroke per colour instead of one of each per bubble
+  c.lineWidth = .8; c.strokeStyle = 'rgba(31,28,36,.3)';
+  for (const [col, g] of bubs) { c.fillStyle = col; c.beginPath(); for (const p of g) { c.moveTo(p.x + p.r, p.y); c.arc(p.x, p.y, p.r, 0, TAU); } c.fill(); c.stroke(); }
 };
-const _dropGroups = new Map();
+const _dropGroups = new Map(); const _bubGroups = new Map();
 function drawEmbers(c) { const spr = softSprite('rgba(255,150,60,1)'); for (const p of FX.parts) { if (p.k !== 'ember' || !visibleWorld(p.x, p.y, 20)) continue; const k = p.t / p.life; c.globalAlpha = (1 - k) * .9; const r = p.r * (1.6 - k); c.drawImage(spr, p.x - r * 2, p.y - r * 2, r * 4, r * 4); } c.globalAlpha = 1; }
-function drawRipples(c) { if (!Env.ripples.length) return; c.strokeStyle = 'rgba(255,255,250,.55)'; c.lineWidth = 1; c.beginPath(); let k = 0; for (const r of Env.ripples) { r.t += R8.rdt || 1 / 60; if (r.t > .5) continue; Env.ripples[k++] = r; if (!visibleWorld(r.x, r.y, 10)) continue; const s = 2 + r.t * 22; c.moveTo(r.x + s, r.y); c.ellipse(r.x, r.y, s, s * .25, 0, 0, TAU); } Env.ripples.length = Math.min(k, 80); c.stroke(); }
+function drawRipples(c) { if (!Env.ripples.length) return; c.strokeStyle = 'rgba(255,255,250,.55)'; c.lineWidth = 1; c.beginPath(); let k = 0; for (const r of Env.ripples) { r.t += R8.rdt || 1 / 60; if (r.t > .5) { if (_ripplePool.length < 80) _ripplePool.push(r); continue; } Env.ripples[k++] = r; if (!visibleWorld(r.x, r.y, 10)) continue; const s = 2 + r.t * 22; c.moveTo(r.x + s, r.y); c.ellipse(r.x, r.y, s, s * .25, 0, 0, TAU); } Env.ripples.length = k; c.stroke(); }
 function drawLavaGlow(c, t) { for (const b of Env.water) { if (!b.alive || !b.lava) continue; const w = b.x1 - b.x0, cx = (b.x0 + b.x1) / 2; c.globalAlpha = .45 + .1 * Math.sin(t * 2); c.drawImage(softSprite('rgba(255,120,40,1)'), cx - w * .8, b.level - w * .45, w * 1.6, w * .9); } c.globalAlpha = 1; }
 function drawOffscreenArrows(c) {
   if (G.gameMode !== 'expedition') return; const m = 26; for (const p of G.players.values()) { if (!p.alive || p.id === G.myId) continue; const [sx, sy] = toScreen(p.x, p.y); if (sx > 0 && sx < R8.cw && sy > 0 && sy < R8.ch) continue;
     const cx = clamp(sx, m, R8.cw - m), cy = clamp(sy, 70, R8.ch - m); const a = Math.atan2(sy - cy, sx - cx); c.save(); c.translate(cx, cy); c.rotate(a); c.fillStyle = p.color; c.strokeStyle = INK; c.lineWidth = 2; c.beginPath(); c.moveTo(13, 0); c.lineTo(-8, -9); c.lineTo(-4, 0); c.lineTo(-8, 9); c.closePath(); c.fill(); c.stroke(); c.restore(); }
 }
 let lastRenderT = 0;
+const _psBuf = [];
 const _render = render;
 render = function (t) {
   if (G.mode !== 'play') return _render(t);
@@ -940,7 +1102,7 @@ render = function (t) {
   drawProps(c, V, t); drawCrates(c, t);
   drawParticles(c, 0);
   drawLasers(c); const me = G.players.get(G.myId); if (me) drawAimGuide(c, me);
-  const ps = [...G.players.values()]; for (const p of ps) if (p.alive && visibleWorld(p.x, p.y, 140)) drawPlayer(c, p, t);
+  const ps = _psBuf; ps.length = 0; for (const q of G.players.values()) ps.push(q); for (const p of ps) if (p.alive && visibleWorld(p.x, p.y, 140)) drawPlayer(c, p, t);
   drawBullets(c);
   drawWaterFront(c, V, t); drawRipples(c);
   drawParticles(c, 1); biomeHook('drawFront', c, V, t);
@@ -964,6 +1126,8 @@ render = function (t) {
 };
 function updateEnvironment(dt) {
   Env.time += dt; if (G.mode !== 'play') return;
+  // underwater: gently duck the master gain (muffled mix), restored on surfacing
+  if (Audio2.master) { const me = G.players.get(G.myId); const tgt = .85 * Settings.volume * (me && me.alive && me.wasWet ? .55 : 1); const g = Audio2.master.gain; g.value += (tgt - g.value) * Math.min(1, dt * 10); }
   updateWater(dt); updateZone(); updateProps(dt); updateCrates(dt); updateBolts(dt); Weather.update(dt, currentView()); biomeHook('update', dt, Env.time);
 }
 

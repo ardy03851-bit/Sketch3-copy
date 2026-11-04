@@ -8,7 +8,7 @@ The whole game is three things:
 ```
 inkbrawl/
 ├── README.md          ← this file
-├── index.html         ← the core game (engine, UI, netcode, art, sound)
+├── index.html         ← the core game (engine, UI, art, sound)
 ├── expansion.js       ← biomes, water, weather, props, new weapon mechanics, big-map mode, quality scaling
 ├── manifest.webmanifest ← home-screen app name, icon, standalone window
 ├── sw.js              ← the service worker (offline home-screen app)
@@ -32,7 +32,7 @@ You never edit `index.html` to add a weapon. Drop a new folder into `weapons/` a
 1. [Running it](#running-it)
 2. [Playing](#playing)
 3. [Add it to your home screen](#add-it-to-your-home-screen)
-4. [Multiplayer and rooms](#multiplayer-and-rooms)
+4. [Offline play (vs bots)](#offline-play-vs-bots)
 5. [Controls](#controls)
 6. [Round rules](#round-rules)
 7. [Adding a weapon](#adding-a-weapon)
@@ -92,7 +92,7 @@ Then open `http://<computer-ip>:8000` on the iPad. Python's server shows folder 
 
 Any iPad web-server app that serves a folder **with directory listings turned on** works the same way as Option B.
 
-> Only the **host** needs the weapons folder. When someone joins your room, the host sends them every weapon script and PNG over the connection, so friends can join from a plain link on any device.
+> Inkbrawl is **offline-only**: every match is you versus bots, on your device. Nothing connects anywhere except to load the game files themselves.
 
 ---
 
@@ -102,11 +102,9 @@ Title screen:
 
 - **Your name / character** — remembered with a small cookie.
 - **Play (offline, vs bots)** — opens the game setup (mode, world, bots, rules). Press *Start* and you are in.
-- **Host online** — the same setup screen with the room options (name, max players, first-to score, bots, public or private).
-- **Servers** — the live list of public rooms. Tap *Join* on any of them, or type a 5-letter room code.
-- Badges at the bottom show how many weapons were found and whether the server list is online.
+- Badges at the bottom show how many weapons were found.
 
-In-game, the **pause button** (top left) shows the room code, a *Copy invite link* button, and *Leave*.
+In-game, the **pause button** (top left) shows the player list, the bot count (you can add or remove bots mid-match), settings, *Resume* and *Leave*.
 
 ---
 
@@ -122,41 +120,24 @@ If you update the game, bump the `CACHE` version at the top of `sw.js` so return
 
 ---
 
-## Multiplayer and rooms
+## Offline play (vs bots)
 
-There is **no game server to run**. Your iPad is the server.
+Inkbrawl is **100% offline and bots-only**. There is no multiplayer, no room
+list, no server browser, no room codes and no invite links — those were
+removed along with the netcode. Every match runs entirely on your device:
 
 ```
-             ┌────────────── public room list (MQTT, retained message) ─────────────┐
-             │  topic inkbrawl/v1/rooms/<CODE> → {name, host, players, round, …}    │
-             └───────────────▲─────────────────────────────────▲────────────────────┘
-                             │ announce every few seconds      │ read the list
-                             │                                 │
-   ┌─────────────────────────┴───────┐   WebRTC data channel  ┌┴───────────────────────┐
-   │  HOST (your iPad)               │◄──────────────────────►│  PLAYER (any browser)  │
-   │  runs the authoritative game:   │   inputs →             │  predicts own movement │
-   │  damage, kills, rounds, bots,   │   ← snapshots, events  │  draws everyone else   │
-   │  craters, weapon rolls          │                        │  smoothly interpolated │
-   └─────────────────────────────────┘                        └────────────────────────┘
+   ┌─────────────────────────────────────────────────┐
+   │  YOUR DEVICE                                     │
+   │  the one authoritative game:                      │
+   │  damage, kills, rounds, bots, craters, weapon rolls │
+   └─────────────────────────────────────────────────┘
 ```
 
-- **Connections** use [PeerJS](https://peerjs.com/) (WebRTC). The room code is the host's peer id, so a code is all anyone needs. PeerJS's free public broker is only used to introduce the two devices; game traffic goes device-to-device.
-- **The server list** uses free public MQTT brokers over secure WebSockets (EMQX, HiveMQ and Mosquitto — whichever answers). The host publishes a small retained "room card" and a last-will message removes it if the host disappears. Private rooms simply never publish a card; join them by code or link.
-- **Drop-in any time.** Players can join a room in the middle of a round. They spawn straight into the current round (or at the start of the next one if a round has just ended), receive the current map including every crater already blown into it, and get the weapon files streamed to them.
-- **Invite link.** `…/index.html?join=ABCDE` opens the game and joins straight away.
-- **Host-authoritative.** Hits, damage, kills, crater carving and weapon rolls are decided by the host and broadcast as events, so everyone sees the same holes in the same places. Your own movement is predicted locally so controls feel instant even with lag.
-- **Bots** fill empty seats if you asked for them, and step aside automatically when real players join.
-- **Keep the host awake.** The game requests a screen Wake Lock while hosting. If the host app is closed or the iPad sleeps, the room closes. If the internet blips, the host reconnects to the broker automatically and existing players stay connected.
-- **Limits.** Up to 8 players in the arena.
-
-### Joining from another device (relay fallback)
-
-Joining tries two routes at once, so it works on nearly every network with no server of your own (`net.js`):
-
-1. **Direct (WebRTC).** Uses Google, Cloudflare and Twilio STUN servers plus a public TURN relay, which gets through most home, mobile and school networks.
-2. **Relay.** If no direct link opens within about 3.5 seconds, the game switches to a relay over the same public MQTT brokers that carry the server list (`inkbrawl/v2/relay/<CODE>/…`). Snapshots are split into chunks and reassembled in order, so the game plays the same way, just with a little more lag.
-
-The HUD shows your ping and route (`direct` or `relay`). The host keeps its room open even if the PeerJS broker drops, because the relay still reaches it. The Join screen remembers the last room and offers a **Rejoin** button, and clicking the room code in the HUD copies an invite link. To test the relay on purpose, open the page with `?relay=1`.
+- **Bots** are your opponents. Pick how many (0–7 in the arena, up to 100 in The Big Wilds) and their skill in the setup screen, and add or remove them mid-match from the pause menu.
+- **Everything is local.** Hits, damage, kills, crater carving and weapon rolls are decided on your device, so the holes are always exactly where you blew them.
+- **Nothing leaves your device.** No accounts, no servers, no telemetry — the only network use is loading the game files (and the service worker caches those for offline play).
+- **Wake Lock.** The game requests a screen Wake Lock during a match so the iPad doesn't sleep mid-brawl.
 
 ---
 
@@ -171,7 +152,7 @@ The HUD shows your ping and route (`direct` or `relay`). The host keeps its room
 | **Right stick** | Drag to aim (a dotted aim line appears), **release to attack**. |
 | **Tap** on the right side | Quick attack, auto-aimed at the nearest visible enemy. |
 | Automatic weapons | Hold the right stick out at the edge to keep firing. |
-| **Pause** (top left) | Room code, invite link, leave. |
+| **Pause** (top left) | Player list, bot count, settings, resume, leave. |
 
 The sticks float: they appear under your thumb wherever you put it, so there is no "missing the button". Everything is sized for thumbs and nothing important sits under your palms.
 
@@ -438,15 +419,15 @@ The rule: **effects are drawn, short, and heavy** — like ink, chalk and paper,
 `index.html` is organised into numbered sections:
 
 1. **Styles** — palette, paper UI, buttons, HUD, touch controls.
-2. **Markup** — SVG icon set and the screens (title, host setup, servers, weapons, pause, HUD).
+2. **Markup** — SVG icon set and the screens (title, weapons, setup, settings, pause, HUD).
 3. **Core** — config, themes, weapon discovery (`discoverWeapons`, `parseWeaponScript`, `normalizeWeapon`), terrain grid, map generator, crater carving.
 4. **World** — players, physics, bullets, particles, lights, synth audio, renderer.
-5. **Game** — input, attacks, host authority (`hostAttack`, `hostDamage`, `hostKill`), rounds, bots, networking (`startHost`, `startClient`, room list).
+5. **Game** — input, attacks, local match authority (`hostAttack`, `hostDamage`, `hostKill`), rounds, bots. There is no netcode: the game is offline-only.
 6. **UI + loop** — menus, HUD, fixed 60 Hz simulation step, rendering, boot.
 
 For automated testing the page exposes `window.render_game_to_text()` (a JSON summary of the game state) and `window.advanceTime(ms)`.
 
-External scripts loaded at runtime from a CDN (unpkg, with jsDelivr as backup): PeerJS 1.5.4 and MQTT.js 5.10.1. Besides `index.html`, the engine is split into `expansion.js` (maps, water, biome API), `weather.js` (weather registry), `world.js` (props, art), `build.js`, `modes.js` (rules, teams, War), `content.js` (folder loading), `menu.js`, `net.js` (connections and relay) and `ui3d.js` (3D HUD, scoreboard, victory scene).
+No external scripts are loaded from CDNs. Besides `index.html`, the engine is split into `expansion.js` (maps, water, biome API), `weather.js` (weather registry), `world.js` (props, art), `build.js`, `modes.js` (rules, teams, War), `content.js` (folder loading), `menu.js` and `ui3d.js` (3D HUD, scoreboard, victory scene).
 
 ---
 
@@ -457,8 +438,7 @@ External scripts loaded at runtime from a CDN (unpkg, with jsDelivr as backup): 
 | "0 weapons" / only Fists | The page isn't being served with folder listings. Use GitHub Pages, `python3 -m http.server`, or tap the weapons badge → *Pick weapons folder*. |
 | A weapon shows a pink/black square | Its PNG is missing or named differently. The weapons screen lists what was found. |
 | A weapon uses odd stats | Its script failed to parse. Open the weapons screen to see the error. |
-| Room isn't in the server list | Check it's set to Public, wait a few seconds and tap Refresh. School/office networks sometimes block the list — join by code or invite link instead. |
-| "Could not reach host" | The host closed the tab, the iPad slept, or a strict network blocks WebRTC. Try another network (mobile hotspot works). |
+| A biome (world) is missing | Folder discovery failed — the game falls back to a built-in list of biome folders and fetches each script directly. Check the browser console. |
 | No sound | Tap the screen once; iPad only allows audio after a touch. Check the silent switch. |
 | Laggy on an old iPad | Close other tabs. The game lowers its own quality automatically. |
 
@@ -470,7 +450,7 @@ External scripts loaded at runtime from a CDN (unpkg, with jsDelivr as backup): 
 - Bullet tracers use a curved, multi-pass line with an ink edge, warm body, pale core, and small direction tick without allocating a new gradient for every bullet each frame.
 - Active particles are capped with single-particle eviction to avoid occasional large array-splice spikes.
 
-Syntax validation has been run; actual frame-time measurements and multiplayer playtesting are still required to confirm device-specific performance.
+Syntax validation has been run; actual frame-time measurements and bot-match playtesting are still required to confirm device-specific performance.
 
 
 ---
@@ -486,7 +466,7 @@ Everything in this section lives in `expansion.js`, loaded after the core script
 | Classic arena | 1600 × 1000, whole map on screen | Original rules, 60 s rounds |
 | The Big Wilds (expedition) | the classic map ×4 (or ×6 / ×9), follow camera | 150 s rounds, minimap, off-screen arrows, supply crates, Tool Box, teams, War mode, up to 100 bots; optional storm wall |
 
-Pick the mode and atmosphere in *Practice vs bots* or when hosting a room. Online rooms send the mode and biome to every player.
+Pick the mode and atmosphere in the setup screen — both apply to your local match.
 
 ### Atmospheres (17)
 
@@ -550,7 +530,7 @@ Code for this section lives in `build.js` (building, digging, the Tool Box) and 
 
 ### Rules & customisation
 
-Open **Rules & customisation** on the Practice or Host screen. Your choices are saved in a cookie and sent to everyone in the room.
+Open **Rules & customisation** on the setup screen. Your choices are saved in a cookie and apply to your local matches.
 
 | Option | Choices |
 |---|---|
@@ -583,7 +563,7 @@ War mode is a Big Wilds sub-mode with 2 to 4 teams:
 - **Build phase**: for the first 20, 30 or 60 seconds nobody can be hurt. Everyone gets the **build kit**: planks, beams, stone, metal, glass, light bulbs, springs, TNT, plus dig and fill. Bots build little lean-to forts with bulbs around their flag.
 - After that it's a fight. Dead players respawn at their base while the team still has **lives** (shown in the team chips).
 - Press **B** at any time in War mode to switch between your weapon and the build kit. **1-0** picks a piece, **Q/E** or the mouse wheel rotates it, and clicking places it.
-- The host can end War mode, or start it, from the pause menu at any time. The room keeps going with the new rules from the next round.
+- You can end War mode, or start it, from the pause menu at any time. The match keeps going with the new rules from the next round.
 
 ### The Tool Box
 
@@ -591,7 +571,7 @@ The Tool Box is a weapon (`weapons/toolbox/`) that only appears in The Big Wilds
 
 ### Many bots
 
-Up to 100 bots can play in The Big Wilds. Bots far from any real player think at half rate and only check line of sight to their few closest targets. In big rooms, far-away players are sent to each client at a quarter of the rate. Name tags, props, pieces and players outside the camera are not drawn. The scoreboard shows the top 8 and you.
+Up to 100 bots can play in The Big Wilds. Bots far from any player think at half rate and only check line of sight to their few closest targets. Name tags, props, pieces and players outside the camera are not drawn. The scoreboard shows the top 8 and you.
 
 ### New weapons
 
@@ -759,9 +739,33 @@ newProps: {
 }
 ```
 
-Prop fields: `w`, `h`, `mat` (`wood`, `plank`, `stone`, `crystal`, `metal`, `leaf`), `hp`, `tree: 1` (counts as a tree for the tree settings and chopping), `solid` (you can stand on it), `small: 1`, `leafy: 1`. Once a prop is registered, any biome can use it.
+Prop fields: `w`, `h`, `mat` (`wood`, `plank`, `stone`, `crystal`, `metal`, `leaf`), `hp`, `tree: 1` (counts as a tree for the tree settings and chopping), `solid` (you can stand on it), `small: 1`, `leafy: 1` (canopy sways — see below), `leafAnchor` (where the sway pivots, `[x, y]` fractions of the sprite; default `[.5,.38]` for trees, `[.5,.96]` for bushes). Once a prop is registered, any biome can use it.
 
 One file can call `Biome({...})` more than once; the extra biomes get ids like `frosty-pier-2`.
+
+### Leaf sway: two-layer props
+
+Any prop marked `leafy: 1` is drawn in two layers so its foliage can move on its own:
+
+- `inkPiece(sp, { ... })` renders a trunk/stem piece onto the **base** layer (the default).
+- `inkPiece(sp, { layer: "leaf", ... })` renders canopy/fronds onto the **leaf** layer, drawn on top.
+
+`propSprite` returns `{ base, leaf, c, S, M, w, h }` — `base` and `leaf` are the two canvases, `c` a lazily-built combined canvas. All the destruction paths (`cutPiece`, `makeStump`, `Bodies.fromCanvas`, shatter, topple) use `sp.c`, so they keep working unchanged.
+
+The sway is a spring per prop (`leafAng`/`leafVel` in `world.js`): the target angle follows `Env.wind` plus a gust-noise function `gustAt(x, t)`, stiffness and damping vary by prop (trees slow and heavy, bushes fast and light), and the leaf layer is rotated and sheared around `leafAnchor` — trees pivot at the crown, bushes keep their base grounded while the top waves. Offscreen props snap straight to the target (no spring churn), and the whole thing is gated by the `leafSway` setting (default on) in the settings screen.
+
+Biome authors only need to annotate pieces: trunk pieces stay default, canopy pieces get `layer: "leaf"`, and the prop gets `leafy: 1` (plus `leafAnchor` if the default pivot is wrong). Draw order is preserved within each layer, so a base piece that must cover a leaf piece should be moved into the leaf layer — see monstera in `biomes/emerald-tangle/` for an example of the reordering.
+
+### Giant plant variants
+
+`world.js` wraps the 17 plant kinds (`oak pine palm bamboo cherry birch willow acacia baobab bush fern reeds lavender flowers tallgrass mushroom pumpkin`) into `giant_` variants at 3x size, 3x hp and 3x bounce, with boosted detail counts (`d.giant` in the art functions). `placeProps` rolls one instead of the normal kind about 6.5% of the time, in every biome. They cut, burn, topple and shatter exactly like normal props.
+
+### iPad memory guard (jungle fix)
+
+The Emerald Tangle is the heaviest biome on sprite memory (14 custom props x 3 variants). Two changes keep it inside iPad Safari's canvas budget:
+
+- `world.js`: `spriteScale()` drops to 1.35 on iPads and low-tier devices (1.8 on desktop), the `PropArt` cache cap is lowered per device tier (70/105/140), and eviction now frees canvases for real (LRU, `width = 0`).
+- The biome itself thins its cover on iPads: `plantDensity` 2.4 -> 1.4, `thingDensity` 1.8 -> 1.05, `critters` 8 -> 5, detected via `navigator.maxTouchPoints` and `deviceTier`.
 
 ### Stepped terrain (The Simple Lands)
 
@@ -832,7 +836,7 @@ Ponds and puddles are real bodies of water. When a crater opens a hole in a pond
 ## HUD, victory scene and shortcuts
 
 - The HUD sits on stacked paper layers in 3D and tilts slightly with the mouse. Score chips use each player's colour as a gradient, and the leader wears a crown. The weapon card flips and shines when you change weapon, and the health bar pulses when you are low.
-- **Hold Tab** for a scoreboard (splats, wins, teams). The **fullscreen** button is next to the room code.
+- **Hold Tab** for a scoreboard (splats, wins, teams). The **fullscreen** button is in the HUD's top bar and in Settings.
 - **Victory:** when someone wins the match, the screen fades into a small 3D scene in the biome's colours: a podium rises, the winner (or the winning team) drops onto it wearing a crown with their weapon, confetti falls, the camera moves in, and the name appears in raised ink lettering. Press Esc to skip it. The code is in `ui3d.js`.
 
 ---
@@ -869,16 +873,16 @@ Ponds and puddles are real bodies of water. When a crater opens a hole in a pond
 
 ## The event page (weapons2 and biomes2)
 
-The orange arrow on the right of the main menu turns the page (a 3D page flip) to the event page. Games started there use only `weapons2/` and `biomes2/` — a completely separate set — while everything else (modes, rules, multiplayer) works the same. Online rooms remember which set they use, so friends joining an event room get the event weapons and biomes. The arrow on the event page flips back.
+The orange arrow on the right of the main menu turns the page (a 3D page flip) to the event page. Games started there use only `weapons2/` and `biomes2/` — a completely separate set — while everything else (modes, rules, offline play) works the same. The arrow on the event page flips back.
 
 ---
 
 ## Setting up a game: flat or normal maps
 
-Play and Host online open one setup screen with three tabs:
+Play vs bots opens one setup screen with three tabs:
 
 - **Mode & map** — Arena, Big Wilds or War; **Terrain: Normal hills or Flat**; map size for the bigger modes; the world (or Random).
-- **Players** — bots, bot skill, first to, teams, max players, room name and visibility.
+- **Players** — bots, bot skill, first to, teams.
 - **Rules** — health, round time, sudden death, drops, weapon pool, friendly fire, storm, War tickets and build time.
 
 Flat maps are one long level field (no pits or islands), great for big War battles and building. They work in every mode and every size. Your last setup is remembered.
@@ -907,5 +911,5 @@ Press **B** (or tap the **Build** button on iPad) to take out the build kit. Tap
 - New biomes: Misty Highlands, Coral Shallows, Sunflower Hills, Starfall Plateau; event biomes Pumpkin Patch, Graveyard Fog, Witchwood.
 - Flat maps for every mode and size; one tidy setup screen.
 - Much more building, an easier build bar on iPad, and no more accidental zooming when tapping fast.
-- Multiplayer: fixed friends failing to join big maps (the map was sent in one message that was too large; it's now split into parts).
+- The game is now offline-only: the multiplayer netcode (rooms, server list, invite links) was removed and every match is vs bots.
 - Faster drawing of physics debris and lights so big War matches stay smooth.

@@ -5,6 +5,11 @@
    heliconias, bromeliads, orchids, a rafflesia or two, mossy logs, hanging lianas,
    water lilies and glowing bell flowers — plus its own blossom-drift weather,
    painted jungle backdrop, canopy tree line and mossy ground texture. */
+/* iPad / low-tier guard: this biome is by far the heaviest on sprite memory
+   (14 custom props x 3 variants at high sprite scale). On tablets we thin the
+   plant cover and let world.js drop the sprite scale + cache cap so the whole
+   jungle stays inside Safari's canvas memory budget. */
+const PAD = (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1 && !/iPhone|Android/.test(navigator.userAgent)) || (typeof deviceTier !== 'undefined' && deviceTier === 0);
 Biome({
   order: 340, // position in the menu list (lower comes first)
   name: "The Emerald Tangle",  // shown in menus
@@ -36,14 +41,14 @@ Biome({
   cloud: "#f2f8e4",
   water: "#3f9a82",
   shallow: "#8fe0b8",
-  grass: 1.45,
+  grass: PAD ? 0.9 : 1.45,
   grassCol: ["#578a36", "#a8c860"],
   leaf: ["#7fae58", "#a4c868", "#e8a0b8"],
   leafTone: "#5d8a44",
-  critters: 8,  // little animals that wander around
+  critters: PAD ? 5 : 8,  // little animals that wander around (fewer on iPad)
   treeDensity: 1.15,  // how many trees
-  plantDensity: 2.4,  // a very large amount of small plants
-  thingDensity: 1.8,  // room for all the landmarks as well
+  plantDensity: PAD ? 1.4 : 2.4,  // a very large amount of small plants (thinned on iPad)
+  thingDensity: PAD ? 1.05 : 1.8,  // room for all the landmarks as well
   haze: 0.15,
   newWeather: {
     // petals and winged seeds drifting down through the canopy
@@ -70,7 +75,7 @@ Biome({
   },
   newProps: {
     // The jungle giant: buttress roots, a tall trunk and a layered canopy dotted with blossoms.
-    kapok: { w: 210, h: 250, tree: 1, mat: 'wood', leafy: 1, hp: 150, art(sp, d) {
+    kapok: { w: 210, h: 250, tree: 1, mat: 'wood', leafy: 1, leafAnchor: [.5, .3], hp: 150, art(sp, d) {
       const { R, th, cx, h } = d;
       const wood = mix('#6d5238', th.deep, .14), lean = (R() - .5) * 9;
       inkPiece(sp, { fill: wood, light: lit(wood, .22), rim: 3.4, shape: x => {
@@ -88,11 +93,11 @@ Biome({
         x.beginPath(); x.moveTo(cx - 40, h - 8); x.quadraticCurveTo(cx, h - 2, cx + 42, h - 6); x.stroke();
       } });
       const clumps = [[cx - 62, 78, 32], [cx - 30, 52, 34], [cx + 4, 44, 38], [cx + 38, 56, 33], [cx + 66, 80, 27], [cx - 6, 92, 30], [cx - 40, 110, 24]];
-      inkPiece(sp, { fill: '#3a5c30', light: '#63854a', dark: '#2c4725', rim: 6, line: 2.1, box: [cx - 96, 10, cx + 96, 132], shape: x => {
+      inkPiece(sp, { layer: 'leaf', fill: '#3a5c30', light: '#63854a', dark: '#2c4725', rim: 6, line: 2.1, box: [cx - 96, 10, cx + 96, 132], shape: x => {
         for (const [px, py, r] of clumps) lobed(x, px, py, r, r * .82, 6, R, .24, R() * TAU);
       }, detail: x => { marks(x, R, 16, cx - 76, 18, cx + 76, 126, rgbaC(INK, .3), 1.2, 7, 'c'); } });
       const front = [[cx - 46, 66, 22], [cx - 12, 46, 26], [cx + 22, 46, 28], [cx + 48, 68, 21], [cx + 4, 80, 24], [cx - 30, 92, 19], [cx + 38, 94, 18]];
-      inkPiece(sp, { fill: '#6fa848', light: '#c4e88a', dark: '#4a7a34', rim: 4.5, line: 1.8, box: [cx - 90, 8, cx + 90, 122], shape: x => {
+      inkPiece(sp, { layer: 'leaf', fill: '#6fa848', light: '#c4e88a', dark: '#4a7a34', rim: 4.5, line: 1.8, box: [cx - 90, 8, cx + 90, 122], shape: x => {
         for (const [px, py, r] of front) lobed(x, px, py, r, r * .85, 6, R, .2, R() * TAU);
       }, detail: x => {
         marks(x, R, 22, cx - 60, 20, cx + 60, 116, rgbaC(INK, .26), 1.2, 8, 'c');
@@ -103,7 +108,7 @@ Biome({
     } },
 
     // A tree fern: slender scarred trunk topped with a crown of arching fronds.
-    treefern: { w: 110, h: 185, tree: 1, mat: 'wood', leafy: 1, hp: 60, art(sp, d) {
+    treefern: { w: 110, h: 185, tree: 1, mat: 'wood', leafy: 1, leafAnchor: [.5, .25], hp: 60, art(sp, d) {
       const { R, th, cx, h } = d;
       const trunk = mix('#5c4a38', th.deep, .1), lean = (R() - .5) * 10;
       inkPiece(sp, { fill: trunk, light: lit(trunk, .2), rim: 3, shape: x => {
@@ -113,7 +118,7 @@ Biome({
         for (let yy = h - 14; yy > h * .25; yy -= 11) { x.beginPath(); x.moveTo(cx - 6 + (h - yy) * .004, yy); x.lineTo(cx + 6 - (h - yy) * .004, yy - 3); x.stroke(); }
       } });
       const topY = h * .17, n = 7 + (R() * 3 | 0);
-      inkPiece(sp, { fill: '#4e7c34', light: '#9cc458', rim: 2.6, line: 1.6, box: [cx - 55, 0, cx + 55, h * .3], shape: x => {
+      inkPiece(sp, { layer: 'leaf', fill: '#4e7c34', light: '#9cc458', rim: 2.6, line: 1.6, box: [cx - 55, 0, cx + 55, h * .3], shape: x => {
         for (let i = 0; i < n; i++) {
           const a = -Math.PI + (i + .5) / n * Math.PI, L = 44 + R() * 12;
           const frond = (t) => [cx + lean + Math.cos(a) * L * t, topY + Math.sin(a) * L * .55 * t + t * t * 14];
@@ -140,7 +145,7 @@ Biome({
         const a = -Math.PI * .92 + (i + .5) / 6 * Math.PI * .84, L = 52 + R() * 22;
         leaves.push([a, L]);
       }
-      inkPiece(sp, { fill: '#578a36', light: '#a4c860', rim: 2.8, line: 1.8, shape: x => {
+      inkPiece(sp, { layer: 'leaf', fill: '#578a36', light: '#a4c860', rim: 2.8, line: 1.8, shape: x => {
         for (const [a, L] of leaves) {
           const tipX = cx + Math.cos(a) * L, tipY = h - 12 + Math.sin(a) * L * .8 - 6;
           const nx = -(tipY - (h - 12)), ny = tipX - cx, nl = Math.hypot(nx, ny) || 1;
@@ -157,7 +162,7 @@ Biome({
           x.beginPath(); x.moveTo(cx, h - 12); x.quadraticCurveTo((cx + tipX) / 2, (h - 12 + tipY) / 2, tipX, tipY); x.stroke();
         }
       } });
-      inkPiece(sp, { fill: '#a45848', light: '#c97a62', rim: 2.4, shape: x => {
+      inkPiece(sp, { layer: 'leaf', fill: '#a45848', light: '#c97a62', rim: 2.4, shape: x => {
         x.save(); x.translate(cx - 4, h - 42); x.rotate(-.5);
         x.beginPath(); x.ellipse(0, 0, 6, 13, 0, 0, TAU); x.fill(); x.restore();
       }, detail: x => { dots(x, R, 4, cx - 10, h - 50, cx + 2, h - 34, rgbaC('#5c2c22', .5), .8, 1.4); } });
@@ -166,7 +171,13 @@ Biome({
     // Monstera: three big split-leaf philodendron leaves with pale slits.
     monstera: { w: 116, h: 104, mat: 'leaf', leafy: 1, small: 1, hp: 20, art(sp, d) {
       const { R, cx, h } = d;
-      const leaf = (lx, ly, r, rot) => inkPiece(sp, { fill: '#3f6e2e', light: '#7fae58', rim: 3, line: 1.7, shape: x => {
+      // stems are the base layer (drawn first) so the split leaves can sway above them
+      inkPiece(sp, { fill: '#578a36', light: '#a4c860', rim: 2, line: 1.4, hatch: false, shape: x => {
+        for (const [bx, tx, ty] of [[cx, cx - 30, h - 26], [cx + 4, cx + 30, h - 28], [cx - 2, cx, h - 42]]) {
+          x.lineWidth = 3; x.beginPath(); x.moveTo(bx, h); x.quadraticCurveTo(bx, (h + ty) / 2, tx, ty); x.stroke();
+        }
+      } });
+      const leaf = (lx, ly, r, rot) => inkPiece(sp, { layer: 'leaf', fill: '#3f6e2e', light: '#7fae58', rim: 3, line: 1.7, shape: x => {
         x.save(); x.translate(lx, ly); x.rotate(rot);
         lobed(x, 0, 0, r, r * .62, 5, R, .26);
         x.restore();
@@ -180,15 +191,10 @@ Biome({
       leaf(cx - 30, h - 26, 26, -.35);
       leaf(cx + 30, h - 28, 25, .4);
       leaf(cx, h - 42, 30, -.05);
-      inkPiece(sp, { fill: '#578a36', light: '#a4c860', rim: 2, line: 1.4, hatch: false, shape: x => {
-        for (const [bx, tx, ty] of [[cx, cx - 30, h - 26], [cx + 4, cx + 30, h - 28], [cx - 2, cx, h - 42]]) {
-          x.lineWidth = 3; x.beginPath(); x.moveTo(bx, h); x.quadraticCurveTo(bx, (h + ty) / 2, tx, ty); x.stroke();
-        }
-      } });
     } },
 
     // Heliconia: a drooping zig-zag stem with red-and-gold lobster-claw bracts.
-    heliconia: { w: 68, h: 124, mat: 'leaf', small: 1, hp: 20, art(sp, d) {
+    heliconia: { w: 68, h: 124, mat: 'leaf', leafy: 1, small: 1, hp: 20, art(sp, d) {
       const { R, cx, h } = d;
       inkPiece(sp, { fill: '#4e7c34', light: '#9cc458', rim: 2.2, hatch: false, shape: x => {
         x.lineWidth = 3.4; x.beginPath(); x.moveTo(cx, h);
@@ -196,7 +202,7 @@ Biome({
         x.beginPath(); x.ellipse(cx - 14, h - 34, 15, 6, -.5, 0, TAU); x.fill();
         x.beginPath(); x.ellipse(cx - 20, h - 58, 13, 5, -.35, 0, TAU); x.fill();
       } });
-      inkPiece(sp, { fill: '#c4482e', light: '#e87a4a', rim: 2.6, line: 1.6, shape: x => {
+      inkPiece(sp, { layer: 'leaf', fill: '#c4482e', light: '#e87a4a', rim: 2.6, line: 1.6, shape: x => {
         const bx = cx + 12; let by = h - 86;
         for (let i = 0; i < 6; i++) {
           const s = i % 2 ? 1 : -1, w = 13 - i * 1.2;
@@ -209,9 +215,9 @@ Biome({
     } },
 
     // A bromeliad: a spiky rosette of leaves with a pink-and-violet heart.
-    bromeliad: { w: 88, h: 68, mat: 'leaf', small: 1, hp: 20, art(sp, d) {
+    bromeliad: { w: 88, h: 68, mat: 'leaf', leafy: 1, small: 1, hp: 20, art(sp, d) {
       const { R, cx, h } = d;
-      inkPiece(sp, { fill: '#4e7c34', light: '#8ab455', rim: 2.6, line: 1.6, shape: x => {
+      inkPiece(sp, { layer: 'leaf', fill: '#4e7c34', light: '#8ab455', rim: 2.6, line: 1.6, shape: x => {
         const leaf = (a, L, w) => { x.save(); x.translate(cx, h - 6); x.rotate(a);
           x.beginPath(); x.moveTo(0, 4); x.quadraticCurveTo(-w, -L * .5, 0, -L); x.quadraticCurveTo(w, -L * .5, 0, 4); x.closePath(); x.fill(); x.restore(); };
         for (const a of [-2.6, -2.1, -1.35, -.7, -.15, .5, 1.2, 1.9, 2.5]) leaf(a, 34 + R() * 12, 7);
@@ -219,13 +225,13 @@ Biome({
         x.strokeStyle = rgbaC(INK, .28); x.lineWidth = .9;
         for (const a of [-1.8, -.4, .9]) { x.beginPath(); x.moveTo(cx, h - 6); x.lineTo(cx + Math.sin(a) * 36, h - 6 - Math.cos(a) * 38); x.stroke(); }
       } });
-      inkPiece(sp, { fill: '#c4588a', light: '#e88ab4', rim: 2.2, line: 1.5, shape: x => {
+      inkPiece(sp, { layer: 'leaf', fill: '#c4588a', light: '#e88ab4', rim: 2.2, line: 1.5, shape: x => {
         x.beginPath(); x.ellipse(cx, h - 40, 7, 11, 0, 0, TAU); x.fill();
       }, detail: x => { dots(x, R, 5, cx - 4, h - 46, cx + 4, h - 34, '#f2e0f0', .8, 1.5); } });
     } },
 
     // An epiphytic orchid: thick aerial roots, a slim stem and two spotted blossoms.
-    orchid: { w: 54, h: 78, mat: 'leaf', small: 1, hp: 10, art(sp, d) {
+    orchid: { w: 54, h: 78, mat: 'leaf', leafy: 1, small: 1, hp: 10, art(sp, d) {
       const { R, cx, h } = d;
       inkPiece(sp, { fill: '#8aa05c', light: '#c0cc7e', rim: 1.8, hatch: false, shape: x => {
         x.lineWidth = 2.4; x.beginPath(); x.moveTo(cx - 3, h); x.quadraticCurveTo(cx - 8, h - 10, cx - 6, h - 18); x.stroke();
@@ -233,10 +239,10 @@ Biome({
         x.lineWidth = 2; x.beginPath(); x.moveTo(cx, h - 14); x.quadraticCurveTo(cx + 1, h - 34, cx, h - 44); x.stroke();
       } });
       const bloom = (bx, by) => {
-        inkPiece(sp, { fill: '#f6e8ee', light: '#ffffff', rim: 2, line: 1.4, hatch: false, shape: x => {
+        inkPiece(sp, { layer: 'leaf', fill: '#f6e8ee', light: '#ffffff', rim: 2, line: 1.4, hatch: false, shape: x => {
           for (let k = 0; k < 5; k++) { const a = k / 5 * TAU + .3; x.beginPath(); x.ellipse(bx + Math.cos(a) * 6.5, by + Math.sin(a) * 6.5, 5.5, 3, a, 0, TAU); x.fill(); }
         } });
-        inkPiece(sp, { fill: '#c4588a', light: '#e88ab4', rim: 1.6, line: 1.2, hatch: false, shape: x => {
+        inkPiece(sp, { layer: 'leaf', fill: '#c4588a', light: '#e88ab4', rim: 1.6, line: 1.2, hatch: false, shape: x => {
           x.beginPath(); x.ellipse(bx, by + 2, 3.4, 4.4, 0, 0, TAU); x.fill();
         }, detail: x => { dots(x, R, 3, bx - 2, by, bx + 2, by + 4, '#f2c230', .7, 1.2); } });
       };
@@ -290,7 +296,7 @@ Biome({
     } },
 
     // Hanging lianas: a snapped branch with leafy vines trailing down.
-    lianas: { w: 132, h: 175, mat: 'leaf', leafy: 1, hp: 25, art(sp, d) {
+    lianas: { w: 132, h: 175, mat: 'leaf', leafy: 1, leafAnchor: [.5, .06], hp: 25, art(sp, d) {
       const { R, th, cx, h } = d;
       const wood = mix('#7c5c40', th.deep, .12);
       inkPiece(sp, { fill: wood, light: lit(wood, .2), rim: 2.8, shape: x => {
@@ -300,7 +306,7 @@ Biome({
       } });
       const vines = [];
       for (let i = 0; i < 4; i++) vines.push({ x0: cx - 48 + i * 26 + R() * 8, len: 60 + R() * (h - 80), ph: R() * 10 });
-      inkPiece(sp, { fill: '#4e7c34', rim: 0, line: 1.8, hatch: false, shape: x => {
+      inkPiece(sp, { layer: 'leaf', fill: '#4e7c34', rim: 0, line: 1.8, hatch: false, shape: x => {
         for (const v of vines) {
           x.lineWidth = 2.2; x.beginPath(); x.moveTo(v.x0, 8);
           const midX = v.x0 + Math.sin(v.ph) * 8;
@@ -316,13 +322,13 @@ Biome({
     } },
 
     // Glowing bell flowers: curving stems with luminous teal bells.
-    glowbell: { w: 58, h: 88, mat: 'leaf', small: 1, hp: 10, glow: 'rgba(150,255,205,1)', glowAt: [0, 55], art(sp, d) {
+    glowbell: { w: 58, h: 88, mat: 'leaf', leafy: 1, small: 1, hp: 10, glow: 'rgba(150,255,205,1)', glowAt: [0, 55], art(sp, d) {
       const { R, cx, h } = d;
       inkPiece(sp, { fill: '#578a36', light: '#a4c860', rim: 2, hatch: false, shape: x => {
         const stem = (bx, tx, ty) => { x.lineWidth = 2.2; x.beginPath(); x.moveTo(bx, h); x.quadraticCurveTo(bx + (tx - bx) * .3, (h + ty) / 2, tx, ty); x.stroke(); };
         stem(cx, cx - 8, h - 46); stem(cx + 2, cx + 10, h - 58); stem(cx - 2, cx - 2, h - 66);
       } });
-      inkPiece(sp, { fill: '#3fb89a', light: '#8fe8c8', rim: 2, line: 1.4, hatch: false, shape: x => {
+      inkPiece(sp, { layer: 'leaf', fill: '#3fb89a', light: '#8fe8c8', rim: 2, line: 1.4, hatch: false, shape: x => {
         const bell = (bx, by) => { x.beginPath(); x.moveTo(bx - 4, by); x.quadraticCurveTo(bx - 5, by + 9, bx, by + 11); x.quadraticCurveTo(bx + 5, by + 9, bx + 4, by); x.closePath(); x.fill(); };
         bell(cx - 8, h - 46); bell(cx + 10, h - 58); bell(cx - 2, h - 66);
       }, detail: x => {
@@ -332,7 +338,7 @@ Biome({
     } },
 
     // A giant water lily: a big pad with an upturned rim and one pink blossom.
-    giantlily: { w: 96, h: 46, mat: 'leaf', small: 1, hp: 15, art(sp, d) {
+    giantlily: { w: 96, h: 46, mat: 'leaf', leafy: 1, small: 1, hp: 15, art(sp, d) {
       const { R, cx, h } = d;
       inkPiece(sp, { fill: '#4e8a4a', light: '#8ec06a', rim: 2.6, line: 1.7, shape: x => {
         x.beginPath(); x.ellipse(cx, h - 10, 40, 15, 0, 0, TAU); x.fill();
@@ -343,10 +349,10 @@ Biome({
         x.strokeStyle = rgbaC(INK, .25); x.lineWidth = .9;
         for (let i = 0; i < 7; i++) { const a = i / 7 * TAU; x.beginPath(); x.moveTo(cx + Math.cos(a) * 6, h - 10 + Math.sin(a) * 2); x.lineTo(cx + Math.cos(a) * 36, h - 10 + Math.sin(a) * 13); x.stroke(); }
       } });
-      inkPiece(sp, { fill: '#f3b6c4', light: '#ffe4ea', rim: 2, line: 1.4, hatch: false, shape: x => {
+      inkPiece(sp, { layer: 'leaf', fill: '#f3b6c4', light: '#ffe4ea', rim: 2, line: 1.4, hatch: false, shape: x => {
         for (let k = 0; k < 6; k++) { const a = k / 6 * TAU; x.beginPath(); x.ellipse(cx - 14 + Math.cos(a) * 5, h - 24 + Math.sin(a) * 5, 4.4, 2.6, a, 0, TAU); x.fill(); }
       } });
-      inkPiece(sp, { fill: '#f2c230', light: '#ffe27a', rim: 1.6, line: 1.2, hatch: false, shape: x => {
+      inkPiece(sp, { layer: 'leaf', fill: '#f2c230', light: '#ffe27a', rim: 1.6, line: 1.2, hatch: false, shape: x => {
         x.beginPath(); x.arc(cx - 14, h - 24, 2.6, 0, TAU); x.fill();
       } });
     } },

@@ -30,14 +30,13 @@ const Ink = {
   hatchPattern(x) { if (!this.hatch) { const c = mkCanvas(12, 12), h = c.getContext('2d'); h.strokeStyle = 'rgba(31,28,36,.55)'; h.lineWidth = 1.1; h.beginPath(); for (let k = -12; k < 24; k += 6) { h.moveTo(k, 12); h.lineTo(k + 12, 0); } h.stroke(); this.hatch = c; } return x.createPattern(this.hatch, 'repeat'); }
 };
 /* Draws one inked piece onto the sprite. spec.shape(ctx) fills the silhouette
-   (strokes count too) in sprite units; detail(ctx) draws clipped marks. */
+   (strokes count too) in sprite units; detail(ctx) draws clipped marks.
+   spec.layer: 'leaf' draws the piece onto the swaying leaf layer (if the sprite
+   has one — see propSprite); anything else lands on the static base layer. */
 function inkPiece(sp, spec) {
-  const S = sp.S, M = sp.M, cw = sp.c.width, ch = sp.c.height;
+  const S = sp.S, M = sp.M, cw = sp.cw, ch = sp.ch;
   const m = Ink.buf(0, cw, ch), mx = m.getContext('2d'); mx.setTransform(S, 0, 0, S, M * S, M * S); mx.fillStyle = '#000'; mx.strokeStyle = '#000'; mx.lineJoin = 'round'; mx.lineCap = 'round'; spec.shape(mx);
-  const o = sp.x; o.save(); o.setTransform(1, 0, 0, 1, 0, 0);
   const lw = (spec.line ?? 2.3) * S;
-  if (lw > 0) { const ink = Ink.buf(1, cw, ch), ix = ink.getContext('2d'); ix.drawImage(m, 0, 0); ix.globalCompositeOperation = 'source-in'; ix.fillStyle = spec.ink || INK; ix.fillRect(0, 0, cw, ch);
-    for (let i = 0; i < 12; i++) { const a = i / 12 * TAU; const k = 1 + .55 * Math.max(0, Math.cos(a - .85)); o.drawImage(ink, Math.cos(a) * lw * k, Math.sin(a) * lw * k); } }
   const b = Ink.buf(2, cw, ch), bx = b.getContext('2d'); bx.drawImage(m, 0, 0); bx.globalCompositeOperation = 'source-in'; bx.fillStyle = spec.fill; bx.fillRect(0, 0, cw, ch); bx.globalCompositeOperation = 'source-atop';
   const [gx0, gy0, gx1, gy1] = spec.box || [0, 0, sp.w, sp.h];
   const g = bx.createLinearGradient((M + gx0) * S, (M + gy0) * S, (M + gx1) * S, (M + gy1) * S); g.addColorStop(0, rgbaC(spec.light || lit(spec.fill, .35), .55)); g.addColorStop(.45, rgbaC(spec.fill, 0)); g.addColorStop(1, rgbaC(spec.dark || lit(spec.fill, -.35), .45)); bx.fillStyle = g; bx.fillRect(0, 0, cw, ch);
@@ -46,7 +45,14 @@ function inkPiece(sp, spec) {
     bx.globalAlpha = .9; bx.drawImage(sh, 0, 0); bx.globalAlpha = 1;
     if (spec.hatch !== false) { const ht = Ink.buf(4, cw, ch), hx = ht.getContext('2d'); hx.fillStyle = Ink.hatchPattern(hx); hx.save(); hx.scale(S / 1.6, S / 1.6); hx.fillRect(0, 0, cw * 1.6 / S, ch * 1.6 / S); hx.restore(); hx.globalCompositeOperation = 'destination-in'; hx.drawImage(sh, 0, 0); bx.globalAlpha = spec.hatchA ?? .5; bx.drawImage(ht, 0, 0); bx.globalAlpha = 1; } }
   if (spec.detail) { bx.setTransform(S, 0, 0, S, M * S, M * S); bx.lineJoin = 'round'; bx.lineCap = 'round'; spec.detail(bx); bx.setTransform(1, 0, 0, 1, 0, 0); }
-  const mr = spec.misreg ?? .7; o.drawImage(b, -mr * S, -mr * .7 * S); o.restore();
+  // compose the finished piece in its own buffer, then blit it to the layer(s)
+  const pc = Ink.buf(5, cw, ch), px = pc.getContext('2d');
+  if (lw > 0) { const ink = Ink.buf(1, cw, ch), ix = ink.getContext('2d'); ix.drawImage(m, 0, 0); ix.globalCompositeOperation = 'source-in'; ix.fillStyle = spec.ink || INK; ix.fillRect(0, 0, cw, ch);
+    for (let i = 0; i < 12; i++) { const a = i / 12 * TAU; const k = 1 + .55 * Math.max(0, Math.cos(a - .85)); px.drawImage(ink, Math.cos(a) * lw * k, Math.sin(a) * lw * k); } }
+  const mr = spec.misreg ?? .7;
+  px.drawImage(b, -mr * S, -mr * .7 * S);
+  const tgt = (spec.layer === 'leaf' && sp.leafX) ? sp.leafX : (sp.baseX || sp.x);
+  if (tgt) tgt.drawImage(pc, 0, 0);
 }
 /* scalloped outline: alternating outer/inner points through smoothPath */
 function lobed(x, cx, cy, rx, ry, n, R, depth = .16, rot = 0) {
@@ -83,15 +89,15 @@ const PROPS = {
   oak: { w: 168, h: 184, tree: 1, mat: 'wood', leafy: 1, hp: 120, art: artBroadleaf },
   autumn: { w: 168, h: 184, tree: 1, mat: 'wood', leafy: 1, hp: 120, art: artBroadleaf },
   cherry: { w: 172, h: 170, tree: 1, mat: 'wood', leafy: 1, hp: 110, art: artBroadleaf },
-  birch: { w: 120, h: 206, tree: 1, mat: 'wood', leafy: 1, hp: 90, art: artBirch },
-  willow: { w: 190, h: 190, tree: 1, mat: 'wood', leafy: 1, hp: 130, art: artWillow },
-  acacia: { w: 210, h: 172, tree: 1, mat: 'wood', leafy: 1, hp: 120, art: artAcacia },
-  baobab: { w: 140, h: 176, tree: 1, mat: 'wood', leafy: 1, hp: 200, art: artBaobab },
-  pine: { w: 104, h: 204, tree: 1, mat: 'wood', leafy: 1, hp: 110, art: artPine },
-  snowpine: { w: 104, h: 204, tree: 1, mat: 'wood', leafy: 1, hp: 110, art: artPine },
-  palm: { w: 176, h: 222, tree: 1, mat: 'wood', leafy: 1, hp: 100, art: artPalm },
+  birch: { w: 120, h: 206, tree: 1, mat: 'wood', leafy: 1, hp: 90, leafAnchor: [.5, .3], art: artBirch },
+  willow: { w: 190, h: 190, tree: 1, mat: 'wood', leafy: 1, hp: 130, leafAnchor: [.5, .28], art: artWillow },
+  acacia: { w: 210, h: 172, tree: 1, mat: 'wood', leafy: 1, hp: 120, leafAnchor: [.5, .3], art: artAcacia },
+  baobab: { w: 140, h: 176, tree: 1, mat: 'wood', leafy: 1, hp: 200, leafAnchor: [.5, .3], art: artBaobab },
+  pine: { w: 104, h: 204, tree: 1, mat: 'wood', leafy: 1, hp: 110, leafAnchor: [.5, .55], art: artPine },
+  snowpine: { w: 104, h: 204, tree: 1, mat: 'wood', leafy: 1, hp: 110, leafAnchor: [.5, .55], art: artPine },
+  palm: { w: 176, h: 222, tree: 1, mat: 'wood', leafy: 1, hp: 100, leafAnchor: [.5, .22], art: artPalm },
   dead: { w: 126, h: 164, tree: 1, mat: 'wood', hp: 70, art: artDead },
-  bamboo: { w: 78, h: 236, tree: 1, mat: 'wood', leafy: 1, hp: 80, art: artBamboo },
+  bamboo: { w: 78, h: 236, tree: 1, mat: 'wood', leafy: 1, hp: 80, leafAnchor: [.5, .45], art: artBamboo },
   giantshroom: { w: 128, h: 150, tree: 1, mat: 'soft', hp: 90, bounce: 128 * .78, bounceH: 112, art: artGiantShroom, glow: 'rgba(170,230,255,1)', glowNight: 1 },
   cactus: { w: 80, h: 118, tree: 1, mat: 'soft', hp: 70, noBurn: 1, art: artCactus },
   bush: { w: 92, h: 52, small: 1, mat: 'leaf', leafy: 1, hp: 30, art: artBush },
@@ -111,95 +117,128 @@ const PROPS = {
   lamp: { w: 46, h: 132, mat: 'metal', hp: 60, noBurn: 1, art: artLamp, glow: 'rgba(255,214,140,1)', glowAt: [14, 108] },
   lantern: { w: 46, h: 118, mat: 'wood', hp: 40, art: artLantern, glow: 'rgba(255,160,90,1)', glowAt: [12, 92] }
 };
+/* giant variants: the same art at 3x size and 3x hp — the art functions read
+   d.w/d.h so they scale up naturally, and d.giant boosts the detail counts.
+   placeProps rolls one of these instead of the normal kind ~6% of the time. */
+for (const _k of ['oak', 'pine', 'palm', 'bamboo', 'cherry', 'birch', 'willow', 'acacia', 'baobab', 'bush', 'fern', 'reeds', 'lavender', 'flowers', 'tallgrass', 'mushroom', 'pumpkin']) {
+  const b = PROPS[_k]; if (!b) continue;
+  const g = Object.assign({}, b, { w: Math.round(b.w * 3), h: Math.round(b.h * 3), hp: b.hp * 3, giant: 1, art: (sp, d) => b.art(sp, Object.assign({}, d, { kind: _k, giant: 1 })) });
+  if (b.bounce) { g.bounce = b.bounce * 3; g.bounceH = b.bounceH * 3; }
+  PROPS['giant_' + _k] = g;
+}
 const PROP_SIZE = new Proxy({}, { get: (_, k) => { const d = PROPS[k]; return d ? [d.w, d.h] : [40, 40]; } });
 const TREES = new Set(Object.keys(PROPS).filter(k => PROPS[k].tree));
 const SPRITE_M = 8;
-function spriteScale() { return deviceTier === 0 || Settings.graphics === 'low' ? 1.35 : 1.8; }
+/* iPads (and low-memory devices) get a smaller sprite scale: Safari caps total
+   canvas memory hard, and lush biomes with many custom props blow past it. */
+const IS_PAD = (() => { try { return navigator.maxTouchPoints > 1 && !/iPhone|Android/.test(navigator.userAgent); } catch (e) { return false; } })();
+function spriteScale() { return IS_PAD || deviceTier === 0 || Settings.graphics === 'low' ? 1.35 : deviceTier === 1 ? 1.5 : 1.8; }
+function propArtMax() { return deviceTier === 0 ? 70 : deviceTier === 1 ? 105 : 140; }
+function freeSprite(sp) { if (!sp) return; try { if (sp.base) sp.base.width = 0; if (sp.leaf) sp.leaf.width = 0; if (sp._comb) sp._comb.width = 0; if (sp.flat && sp.c) sp.c.width = 0; } catch (e) { } }
+/* Builds (and caches) a prop sprite. Leafy props are built as TWO layers —
+   sp.base (trunk/stem) and sp.leaf (the canopy) — so the canopy can sway on
+   its own at draw time. sp.c (the flattened trunk+leaf sprite, used by
+   cutPiece / makeStump / debris) is composed lazily on first access, so the
+   split costs no extra steady-state memory. */
 function propSprite(kind, variant, th, haze = 0) {
-  const key = kind + '|' + variant + '|' + th.name + '|' + haze; let sp = PropArt.get(key); if (sp) return sp;
-  const def = PROPS[kind] || PROPS.rock; const S = spriteScale(), M = SPRITE_M; const w = def.w, h = def.h;
-  const c = mkCanvas((w + M * 2) * S, (h + M * 2) * S), x = c.getContext('2d');
-  sp = { c, x, S, M, w, h, key };
+  const key = kind + '|' + variant + '|' + th.name + '|' + haze; let sp = PropArt.get(key);
+  if (sp) { PropArt.delete(key); PropArt.set(key, sp); return sp; } // LRU touch
+  const def = PROPS[kind] || PROPS.rock;
+  const S = Math.min(spriteScale(), def.giant ? 1.4 : 9), M = SPRITE_M; const w = def.w, h = def.h;
+  const cw = Math.ceil((w + M * 2) * S), ch = Math.ceil((h + M * 2) * S);
+  sp = { S, M, w, h, key, cw, ch };
+  const mkLayer = () => { const cc = mkCanvas(cw, ch), xx = cc.getContext('2d'); xx.setTransform(S, 0, 0, S, M * S, M * S); xx.lineJoin = 'round'; xx.lineCap = 'round'; return [cc, xx]; };
+  let c, x;
+  if (def.leafy) { // split sprite: base + leaf layers
+    const [bc, bx] = mkLayer(), [lc, lx] = mkLayer();
+    sp.base = bc; sp.leaf = lc; sp.baseX = bx; sp.leafX = lx; c = bc; x = bx;
+  } else { const [cc, xx] = mkLayer(); c = cc; x = xx; sp.flat = 1; }
+  sp.c = c; sp.x = x;
   const R = rng((hash(variant + 11, kind.length * 31 + kind.charCodeAt(0), th.name.length) * 1e9) | 0);
-  x.setTransform(S, 0, 0, S, M * S, M * S); x.lineJoin = 'round'; x.lineCap = 'round';
   try { def.art(sp, { R, th, v: variant, cx: w / 2, w, h, kind }); } catch (e) { console.warn('prop art', kind, e); }
-  x.setTransform(1, 0, 0, 1, 0, 0);
   // atmospheric grade: every prop sits in its biome's light
-  x.globalCompositeOperation = 'source-atop'; x.fillStyle = rgbaC(th.skyB, (th.night ? .1 : .07) + haze * .4); x.fillRect(0, 0, c.width, c.height);
-  if (th.night) { x.fillStyle = 'rgba(40,46,90,.16)'; x.fillRect(0, 0, c.width, c.height); }
-  x.globalCompositeOperation = 'source-over'; sp.x = null;
-  PropArt.set(key, sp); if (PropArt.size > 140) PropArt.delete(PropArt.keys().next().value);
+  const grade = xx => { xx.setTransform(1, 0, 0, 1, 0, 0); xx.globalCompositeOperation = 'source-atop'; xx.fillStyle = rgbaC(th.skyB, (th.night ? .1 : .07) + haze * .4); xx.fillRect(0, 0, cw, ch); if (th.night) { xx.fillStyle = 'rgba(40,46,90,.16)'; xx.fillRect(0, 0, cw, ch); } xx.globalCompositeOperation = 'source-over'; };
+  if (def.leafy) {
+    grade(sp.baseX); grade(sp.leafX);
+    // flattened sprite on demand (destruction time only) — keeps memory flat
+    Object.defineProperty(sp, 'c', { configurable: true, get() { if (!sp._comb) { const comb = mkCanvas(cw, ch), cx2 = comb.getContext('2d'); cx2.drawImage(sp.base, 0, 0); cx2.drawImage(sp.leaf, 0, 0); grade(cx2); sp._comb = comb; } return sp._comb; } });
+    sp.x = sp.baseX = sp.leafX = null;
+  } else { grade(x); sp.x = null; }
+  PropArt.set(key, sp);
+  const cap = propArtMax();
+  while (PropArt.size > cap) { const k = PropArt.keys().next().value; freeSprite(PropArt.get(k)); PropArt.delete(k); }
   return sp;
 }
 /* --- art --- */
 function artBroadleaf(sp, d) {
-  const { R, th, v, cx, w, h, kind } = d; const wood = kind === 'cherry' ? mix('#5a3b3a', th.deep, .15) : woodOf(th);
+  const { R, th, v, cx, w, h, kind } = d; const gi = d.giant ? 2 : 1; const wood = kind === 'cherry' ? mix('#5a3b3a', th.deep, .15) : woodOf(th);
   const pal = kind === 'autumn' ? [['#c9542f', '#e3923a'], ['#b8452c', '#d9733a'], ['#d58a2c', '#ecb44a'], ['#a8442f', '#cf6a35']][v % 4]
     : kind === 'cherry' ? ['#e58fac', '#f7c9d7'] : [leafOf(th, .08), lit(leafOf(th), .16)];
   const crownY = h * .38, lean = (R() - .5) * 10;
   const limbs = [[-38 - R() * 10, crownY + 8, 6], [34 + R() * 10, crownY + 2, 6], [lean - 4, crownY - 28, 5]];
   inkPiece(sp, { fill: wood, rim: 3, shape: x => { taperTrunk(x, cx, h, crownY + 10, 13, 7.5, lean); for (const [dx, dy, lw] of limbs) branch(x, cx + lean * .6, h * .6, cx + dx, dy, lw * 1.4, lw * .6, (R() - .5) * 8); },
-    detail: x => { marks(x, R, 7, cx - 8, h * .55, cx + 6, h - 8, rgbaC(INK, .38), 1.1, 9, '|'); x.strokeStyle = rgbaC(INK, .3); x.beginPath(); x.arc(cx + 2, h * .7, 3, 0, TAU); x.stroke(); } });
-  const clumps = []; const nC = 6 + (v % 3);
+    detail: x => { marks(x, R, 7 * gi, cx - 8, h * .55, cx + 6, h - 8, rgbaC(INK, .38), 1.1, 9, '|'); x.strokeStyle = rgbaC(INK, .3); x.beginPath(); x.arc(cx + 2, h * .7, 3, 0, TAU); x.stroke(); } });
+  const clumps = []; const nC = 6 + (v % 3) + (d.giant ? 4 : 0);
   for (let i = 0; i < nC; i++) { const a = (i / nC) * TAU + R() * .5; const rr = 34 + R() * 12; clumps.push([cx + Math.cos(a) * (36 + R() * 14) + lean * .5, crownY - 4 + Math.sin(a) * (26 + R() * 8), rr]); }
   clumps.push([cx + lean * .5, crownY - 8, 46]);
-  inkPiece(sp, { fill: lit(pal[0], -.12), rim: 6, box: [cx - 80, crownY - 70, cx + 80, crownY + 50], shape: x => { for (const [px, py, r] of clumps) lobed(x, px, py, r, r * .86, 6, R, .14, R() * TAU); } });
+  inkPiece(sp, { layer: 'leaf', fill: lit(pal[0], -.12), rim: 6, box: [cx - 80, crownY - 70, cx + 80, crownY + 50], shape: x => { for (const [px, py, r] of clumps) lobed(x, px, py, r, r * .86, 6, R, .14, R() * TAU); } });
   const front = clumps.filter((_, i) => i % 2 === 0).map(([px, py, r]) => [px - 6, py - 8, r * .7]);
-  inkPiece(sp, { fill: pal[0], light: pal[1], rim: 5, line: 1.8, box: [cx - 70, crownY - 70, cx + 70, crownY + 40], shape: x => { for (const [px, py, r] of front) lobed(x, px, py, r, r * .85, 5, R, .16, R() * TAU); },
-    detail: x => { marks(x, R, 16, cx - 60, crownY - 50, cx + 60, crownY + 30, rgbaC(INK, .32), 1.2, 9, 'c');
-      if (kind === 'cherry') dots(x, R, 34, cx - 64, crownY - 50, cx + 64, crownY + 30, '#fff3f6', 1.4, 2.8);
-      else if (kind === 'oak' && v === 2) dots(x, R, 9, cx - 50, crownY - 30, cx + 50, crownY + 30, '#c9453a', 2, 3.2);
-      dots(x, R, 14, cx - 60, crownY - 56, cx + 20, crownY - 10, rgbaC(pal[1], .7), 2, 4); } });
+  inkPiece(sp, { layer: 'leaf', fill: pal[0], light: pal[1], rim: 5, line: 1.8, box: [cx - 70, crownY - 70, cx + 70, crownY + 40], shape: x => { for (const [px, py, r] of front) lobed(x, px, py, r, r * .85, 5, R, .16, R() * TAU); },
+    detail: x => { marks(x, R, 16 * gi, cx - 60, crownY - 50, cx + 60, crownY + 30, rgbaC(INK, .32), 1.2, 9, 'c');
+      if (kind === 'cherry') dots(x, R, 34 * gi, cx - 64, crownY - 50, cx + 64, crownY + 30, '#fff3f6', 1.4, 2.8);
+      else if (kind === 'oak' && v === 2) dots(x, R, 9 * gi, cx - 50, crownY - 30, cx + 50, crownY + 30, '#c9453a', 2, 3.2);
+      dots(x, R, 14 * gi, cx - 60, crownY - 56, cx + 20, crownY - 10, rgbaC(pal[1], .7), 2, 4); } });
 }
 function artBirch(sp, d) {
   const { R, th, v, cx, h } = d; const bark = mix('#f1ece0', th.skyB, .1), leaf = th.leafTone || mix('#b9c45a', th.cap, .35);
   const lean = (R() - .5) * 14, top = h * .2;
   inkPiece(sp, { fill: bark, dark: '#bdb5a5', rim: 2.5, hatch: false, shape: x => { taperTrunk(x, cx, h, top, 8, 4, lean, .4); branch(x, cx + lean * .4, h * .45, cx - 26, h * .3, 4, 1.6, 4); branch(x, cx + lean * .6, h * .35, cx + 28, h * .2, 3.6, 1.4, -4); },
     detail: x => { x.fillStyle = INK; for (let i = 0; i < 9; i++) { const y = h * .25 + R() * h * .7, ww = 3 + R() * 6; x.fillRect(cx + lean * (1 - y / h) - 7 + R() * 6, y, ww, 1.6 + R() * 1.6); } } });
-  const cl = []; for (let i = 0; i < 6; i++) cl.push([cx + lean * .7 + (R() - .5) * 64, h * (.12 + R() * .3), 18 + R() * 12]);
-  inkPiece(sp, { fill: lit(leaf, -.08), light: lit(leaf, .3), rim: 4, line: 1.9, shape: x => { for (const [px, py, r] of cl) lobed(x, px, py, r, r * .8, 6, R, .22); },
-    detail: x => { marks(x, R, 14, cx - 50, 0, cx + 50, h * .45, rgbaC(INK, .3), 1, 6, 'v'); dots(x, R, 12, cx - 46, 0, cx + 30, h * .3, rgbaC(lit(leaf, .45), .8), 1.5, 3); } });
+  const gi = d.giant ? 2 : 1;
+  const cl = []; for (let i = 0; i < 6 + (d.giant ? 4 : 0); i++) cl.push([cx + lean * .7 + (R() - .5) * 64, h * (.12 + R() * .3), 18 + R() * 12]);
+  inkPiece(sp, { layer: 'leaf', fill: lit(leaf, -.08), light: lit(leaf, .3), rim: 4, line: 1.9, shape: x => { for (const [px, py, r] of cl) lobed(x, px, py, r, r * .8, 6, R, .22); },
+    detail: x => { marks(x, R, 14 * gi, cx - 50, 0, cx + 50, h * .45, rgbaC(INK, .3), 1, 6, 'v'); dots(x, R, 12 * gi, cx - 46, 0, cx + 30, h * .3, rgbaC(lit(leaf, .45), .8), 1.5, 3); } });
 }
 function artWillow(sp, d) {
   const { R, th, cx, w, h } = d; const wood = woodOf(th), leaf = mix(th.leafTone || th.cap, '#b4c76a', .3);
   inkPiece(sp, { fill: wood, rim: 3, shape: x => { taperTrunk(x, cx, h, h * .42, 17, 10, (R() - .5) * 8); branch(x, cx, h * .5, cx - 40, h * .3, 8, 3, 6); branch(x, cx, h * .5, cx + 44, h * .32, 8, 3, -6); } });
-  const strands = []; for (let i = 0; i < 22; i++) { const a = Math.PI + (i / 21) * Math.PI; strands.push([cx + Math.cos(a) * (70 + R() * 12), h * .3 + Math.sin(a) * 50, h * (.66 + R() * .22)]); }
-  inkPiece(sp, { fill: lit(leaf, -.1), light: lit(leaf, .25), rim: 5, line: 1.9, shape: x => { lobed(x, cx, h * .26, 78, 46, 8, R, .12); x.lineWidth = 9; for (const [sx, sy, ey] of strands) { x.beginPath(); x.moveTo(sx, sy); x.quadraticCurveTo(sx + (R() - .5) * 14, (sy + ey) / 2, sx + (R() - .5) * 10, ey); x.stroke(); } },
-    detail: x => { x.strokeStyle = rgbaC(INK, .3); x.lineWidth = 1; for (const [sx, sy, ey] of strands) { x.beginPath(); x.moveTo(sx + 2, sy + 10); x.lineTo(sx + 1, ey - 6); x.stroke(); } marks(x, R, 10, cx - 60, h * .1, cx + 60, h * .4, rgbaC(INK, .28), 1, 7, 'c'); } });
+  const strands = []; for (let i = 0; i < 22 + (d.giant ? 14 : 0); i++) { const a = Math.PI + (i / 21) * Math.PI; strands.push([cx + Math.cos(a) * (70 + R() * 12), h * .3 + Math.sin(a) * 50, h * (.66 + R() * .22)]); }
+  inkPiece(sp, { layer: 'leaf', fill: lit(leaf, -.1), light: lit(leaf, .25), rim: 5, line: 1.9, shape: x => { lobed(x, cx, h * .26, 78, 46, 8, R, .12); x.lineWidth = 9; for (const [sx, sy, ey] of strands) { x.beginPath(); x.moveTo(sx, sy); x.quadraticCurveTo(sx + (R() - .5) * 14, (sy + ey) / 2, sx + (R() - .5) * 10, ey); x.stroke(); } },
+    detail: x => { x.strokeStyle = rgbaC(INK, .3); x.lineWidth = 1; for (const [sx, sy, ey] of strands) { x.beginPath(); x.moveTo(sx + 2, sy + 10); x.lineTo(sx + 1, ey - 6); x.stroke(); } marks(x, R, d.giant ? 20 : 10, cx - 60, h * .1, cx + 60, h * .4, rgbaC(INK, .28), 1, 7, 'c'); } });
 }
 function artAcacia(sp, d) {
   const { R, th, v, cx, w, h } = d; const wood = mix('#6b4a33', th.deep, .2), leaf = mix(th.leafTone || '#7f9a3e', th.cap, .25);
   const topY = h * .28; const forks = [[-58 - R() * 14, topY + 6], [52 + R() * 14, topY + 2], [(R() - .5) * 20, topY - 6]];
   inkPiece(sp, { fill: wood, rim: 3, shape: x => { taperTrunk(x, cx, h, h * .55, 11, 7, (R() - .5) * 10); for (const [dx, y] of forks) branch(x, cx, h * .58, cx + dx, y, 8, 3, (R() - .5) * 12); } });
-  inkPiece(sp, { fill: lit(leaf, -.08), light: lit(leaf, .28), rim: 5, line: 2, box: [0, topY - 40, w, topY + 30], shape: x => { lobed(x, cx, topY - 4, 98, 22, 10, R, .2); lobed(x, cx - 40, topY - 14, 50, 16, 6, R, .2); lobed(x, cx + 38, topY - 12, 52, 17, 6, R, .2); },
-    detail: x => { marks(x, R, 22, cx - 90, topY - 26, cx + 90, topY + 10, rgbaC(INK, .32), 1, 6, 'v'); } });
+  inkPiece(sp, { layer: 'leaf', fill: lit(leaf, -.08), light: lit(leaf, .28), rim: 5, line: 2, box: [0, topY - 40, w, topY + 30], shape: x => { lobed(x, cx, topY - 4, 98, 22, 10, R, .2); lobed(x, cx - 40, topY - 14, 50, 16, 6, R, .2); lobed(x, cx + 38, topY - 12, 52, 17, 6, R, .2); },
+    detail: x => { marks(x, R, (d.giant ? 40 : 22), cx - 90, topY - 26, cx + 90, topY + 10, rgbaC(INK, .32), 1, 6, 'v'); } });
 }
 function artBaobab(sp, d) {
   const { R, th, cx, w, h } = d; const wood = mix('#9a7a62', th.top || '#8a6a4f', .3), leaf = mix(th.leafTone || '#7f9a3e', th.cap, .3);
   inkPiece(sp, { fill: wood, rim: 5, shape: x => { x.beginPath(); x.moveTo(cx - 40, h); x.bezierCurveTo(cx - 54, h * .7, cx - 30, h * .42, cx - 20, h * .3); x.lineTo(cx + 20, h * .3); x.bezierCurveTo(cx + 30, h * .42, cx + 56, h * .7, cx + 42, h); x.closePath(); x.fill(); for (let i = 0; i < 6; i++) { const a = -Math.PI / 2 + (i - 2.5) * .45; branch(x, cx + (i - 2.5) * 6, h * .32, cx + Math.cos(a) * (40 + R() * 20), h * .3 + Math.sin(a) * (30 + R() * 14), 7, 2.5, (R() - .5) * 8); } },
     detail: x => { x.strokeStyle = rgbaC(INK, .32); x.lineWidth = 1.2; for (let i = 0; i < 6; i++) { const px = cx - 26 + i * 10; x.beginPath(); x.moveTo(px, h - 4); x.quadraticCurveTo(px + (R() - .5) * 10, h * .62, px * .7 + cx * .3, h * .36); x.stroke(); } } });
-  const cl = []; for (let i = 0; i < 6; i++) { const a = -Math.PI / 2 + (i - 2.5) * .45; cl.push([cx + Math.cos(a) * (46 + R() * 16), h * .28 + Math.sin(a) * (34 + R() * 10), 13 + R() * 6]); }
-  inkPiece(sp, { fill: leaf, rim: 3, line: 1.8, shape: x => { for (const [px, py, r] of cl) lobed(x, px, py, r, r * .7, 5, R, .2); } });
+  const cl = []; for (let i = 0; i < 6 + (d.giant ? 5 : 0); i++) { const a = -Math.PI / 2 + (i - 2.5) * .45; cl.push([cx + Math.cos(a) * (46 + R() * 16), h * .28 + Math.sin(a) * (34 + R() * 10), 13 + R() * 6]); }
+  inkPiece(sp, { layer: 'leaf', fill: leaf, rim: 3, line: 1.8, shape: x => { for (const [px, py, r] of cl) lobed(x, px, py, r, r * .7, 5, R, .2); } });
 }
 function artPine(sp, d) {
   const { R, th, v, cx, w, h, kind } = d; const snow = kind === 'snowpine'; const col = th.icy || snow ? mix('#3d6758', th.mid || '#3d6758', .15) : mix(lit(th.leafTone || th.cap, -.3), '#2f5a3e', .35);
   inkPiece(sp, { fill: woodOf(th), rim: 2, shape: x => taperTrunk(x, cx, h, h * .55, 8, 5, 0, .5) });
-  const tiers = 5; const tierPts = [];
-  for (let i = 0; i < tiers; i++) { const ty = 4 + i * h * .15, bw = 16 + i * 9 + R() * 4, by = ty + h * .2; const pts = [[cx, ty]]; const n = 4; for (let k = 1; k <= n; k++) pts.push([cx + bw * k / n, ty + (by - ty) * k / n + (k % 2 ? -4 : 3)]); pts.push([cx + bw * .4, by - 3]); pts.push([cx, by + 2]); pts.push([cx - bw * .4, by - 3]); for (let k = n; k >= 1; k--) pts.push([cx - bw * k / n, ty + (by - ty) * k / n + (k % 2 ? -4 : 3)]); tierPts.push(pts); }
-  inkPiece(sp, { fill: col, light: lit(col, .3), rim: 5, box: [cx - 50, 0, cx + 50, h * .9], shape: x => { for (const p of tierPts) { wobblyPoly(x, p); x.fill(); } },
+  const tiers = d.giant ? 8 : 5; const tierPts = [];
+  for (let i = 0; i < tiers; i++) { const ty = 4 + i * (h - 8) / tiers, bw = 16 + i * 9 + R() * 4, by = ty + h * .2; const pts = [[cx, ty]]; const n = 4; for (let k = 1; k <= n; k++) pts.push([cx + bw * k / n, ty + (by - ty) * k / n + (k % 2 ? -4 : 3)]); pts.push([cx + bw * .4, by - 3]); pts.push([cx, by + 2]); pts.push([cx - bw * .4, by - 3]); for (let k = n; k >= 1; k--) pts.push([cx - bw * k / n, ty + (by - ty) * k / n + (k % 2 ? -4 : 3)]); tierPts.push(pts); }
+  inkPiece(sp, { layer: 'leaf', fill: col, light: lit(col, .3), rim: 5, box: [cx - 50, 0, cx + 50, h * .9], shape: x => { for (const p of tierPts) { wobblyPoly(x, p); x.fill(); } },
     detail: x => { x.strokeStyle = rgbaC(INK, .35); x.lineWidth = 1.1; for (const p of tierPts) { const y = p[0][1] + h * .12; x.beginPath(); x.moveTo(cx - 6, y); x.lineTo(cx - 14, y + 7); x.moveTo(cx + 8, y + 3); x.lineTo(cx + 15, y + 10); x.stroke(); } } });
-  if (snow) inkPiece(sp, { fill: '#fbfdff', dark: '#cfdbe6', rim: 2.5, line: 1.5, hatch: false, shape: x => { for (const p of tierPts) { const ty = p[0][1], bw = Math.abs(p[1][0] - cx) * 4 * .82; x.beginPath(); x.moveTo(cx, ty + 1); x.quadraticCurveTo(cx - bw * .35, ty + h * .08, cx - bw * .75, ty + h * .15); x.quadraticCurveTo(cx - bw * .2, ty + h * .1, cx, ty + h * .12); x.quadraticCurveTo(cx + bw * .2, ty + h * .1, cx + bw * .75, ty + h * .15); x.quadraticCurveTo(cx + bw * .35, ty + h * .08, cx, ty + 1); x.fill(); } } });
+  if (snow) inkPiece(sp, { layer: 'leaf', fill: '#fbfdff', dark: '#cfdbe6', rim: 2.5, line: 1.5, hatch: false, shape: x => { for (const p of tierPts) { const ty = p[0][1], bw = Math.abs(p[1][0] - cx) * 4 * .82; x.beginPath(); x.moveTo(cx, ty + 1); x.quadraticCurveTo(cx - bw * .35, ty + h * .08, cx - bw * .75, ty + h * .15); x.quadraticCurveTo(cx - bw * .2, ty + h * .1, cx, ty + h * .12); x.quadraticCurveTo(cx + bw * .2, ty + h * .1, cx + bw * .75, ty + h * .15); x.quadraticCurveTo(cx + bw * .35, ty + h * .08, cx, ty + 1); x.fill(); } } });
 }
 function artPalm(sp, d) {
   const { R, th, v, cx, w, h } = d; const lean = ((v % 3) - 1) * 22 + (R() - .5) * 8; const tx = cx + lean, ty = h * .2; const wood = mix('#a07a4e', th.top || '#a07a4e', .2), leaf = mix('#5f9a3f', th.leafTone || th.cap, .2);
   inkPiece(sp, { fill: wood, rim: 3, shape: x => { x.beginPath(); x.moveTo(cx - 10, h); x.quadraticCurveTo(cx + lean * .1 - 7, h * .55, tx - 5, ty); x.lineTo(tx + 6, ty + 2); x.quadraticCurveTo(cx + lean * .15 + 8, h * .58, cx + 10, h); x.closePath(); x.fill(); },
     detail: x => { x.strokeStyle = rgbaC(INK, .5); x.lineWidth = 1.3; for (let i = 1; i < 11; i++) { const t = i / 11; const yy = h - (h - ty) * t; const xx = cx + lean * Math.pow(t, 1.7); x.beginPath(); x.moveTo(xx - 8, yy + 1); x.quadraticCurveTo(xx, yy + 4, xx + 8, yy - 1); x.stroke(); } } });
-  const fr = []; for (let k = 0; k < 8; k++) { const a = Math.PI * 1.02 + k / 7 * Math.PI * .96 + (R() - .5) * .2; fr.push([a, 64 + R() * 18]); }
+  const fr = []; for (let k = 0; k < 8 + (d.giant ? 5 : 0); k++) { const a = Math.PI * 1.02 + k / (8 + (d.giant ? 4 : 0)) * Math.PI * .96 + (R() - .5) * .2; fr.push([a, 64 + R() * 18]); }
   const frond = (x, a, L) => { const ex = tx + Math.cos(a) * L, ey = ty + Math.sin(a) * L * .45 + 30; const mx = (tx + ex) / 2, my = ty + Math.sin(a) * 28 - 24; const pts = [[tx, ty]]; for (let i = 1; i <= 8; i++) { const t = i / 8; const px = (1 - t) * (1 - t) * tx + 2 * (1 - t) * t * mx + t * t * ex, py = (1 - t) * (1 - t) * ty + 2 * (1 - t) * t * my + t * t * ey; pts.push([px, py - (i % 2 ? 8 : 3) * (1 - t * .7)]); } for (let i = 8; i >= 1; i--) { const t = i / 8; const px = (1 - t) * (1 - t) * tx + 2 * (1 - t) * t * mx + t * t * ex, py = (1 - t) * (1 - t) * ty + 2 * (1 - t) * t * (my + 14) + t * t * ey; pts.push([px, py + (i % 2 ? 7 : 2) * (1 - t * .7)]); } wobblyPoly(x, pts); x.fill(); };
-  inkPiece(sp, { fill: lit(leaf, -.18), rim: 4, line: 1.9, shape: x => { for (const [a, L] of fr.filter((_, i) => i % 2)) frond(x, a, L); } });
-  inkPiece(sp, { fill: leaf, light: lit(leaf, .3), rim: 4, line: 1.9, shape: x => { for (const [a, L] of fr.filter((_, i) => i % 2 === 0)) frond(x, a, L * .95); },
+  inkPiece(sp, { layer: 'leaf', fill: lit(leaf, -.18), rim: 4, line: 1.9, shape: x => { for (const [a, L] of fr.filter((_, i) => i % 2)) frond(x, a, L); } });
+  inkPiece(sp, { layer: 'leaf', fill: leaf, light: lit(leaf, .3), rim: 4, line: 1.9, shape: x => { for (const [a, L] of fr.filter((_, i) => i % 2 === 0)) frond(x, a, L * .95); },
     detail: x => { x.strokeStyle = rgbaC(INK, .3); x.lineWidth = 1; for (const [a, L] of fr) { x.beginPath(); x.moveTo(tx, ty); x.quadraticCurveTo(tx + Math.cos(a) * L * .5, ty + Math.sin(a) * 28 - 14, tx + Math.cos(a) * L * .95, ty + Math.sin(a) * L * .45 + 28); x.stroke(); } } });
-  inkPiece(sp, { fill: '#6b4a35', rim: 2, line: 1.6, hatch: false, shape: x => { for (let k = 0; k < 3; k++) { x.beginPath(); x.arc(tx - 6 + k * 6, ty + 8 + (k % 2) * 3, 4.6, 0, TAU); x.fill(); } } });
+  inkPiece(sp, { layer: 'leaf', fill: '#6b4a35', rim: 2, line: 1.6, hatch: false, shape: x => { for (let k = 0; k < 3; k++) { x.beginPath(); x.arc(tx - 6 + k * 6, ty + 8 + (k % 2) * 3, 4.6, 0, TAU); x.fill(); } } });
 }
 function artDead(sp, d) {
   const { R, th, cx, h } = d; const col = th.night ? '#56504a' : mix('#6a5646', th.deep, .2);
@@ -209,12 +248,12 @@ function artDead(sp, d) {
     detail: x => marks(x, R, 6, cx - 4, h * .6, cx + 3, h - 6, rgbaC(INK, .4), 1, 8, '|') });
 }
 function artBamboo(sp, d) {
-  const { R, th, cx, w, h } = d; const col = mix('#8db255', th.cap, .25); const n = 3 + (R() * 2 | 0); const st = [];
+  const { R, th, cx, w, h } = d; const col = mix('#8db255', th.cap, .25); const n = (3 + (R() * 2 | 0)) + (d.giant ? 4 : 0); const st = [];
   for (let i = 0; i < n; i++) st.push([cx + (i - (n - 1) / 2) * 13 + (R() - .5) * 5, h * (.04 + R() * .22), 4.5 + R() * 1.5, (R() - .5) * 10]);
   inkPiece(sp, { fill: col, light: lit(col, .3), rim: 2.5, hatch: false, shape: x => { for (const [sx, top, r, lean] of st) { x.beginPath(); x.moveTo(sx - r, h); x.lineTo(sx - r + lean, top); x.lineTo(sx + r + lean, top); x.lineTo(sx + r, h); x.closePath(); x.fill(); } },
     detail: x => { x.strokeStyle = rgbaC(INK, .6); x.lineWidth = 1.5; for (const [sx, top, r, lean] of st) for (let y = h - 18 - R() * 8; y > top + 8; y -= 22 + R() * 8) { const k = 1 - (h - y) / (h - top); const xx = sx + lean * (1 - k); x.beginPath(); x.moveTo(xx - r - 1, y); x.quadraticCurveTo(xx, y + 2.5, xx + r + 1, y); x.stroke(); } } });
-  const leaves = []; for (const [sx, top, r, lean] of st) for (let k = 0; k < 4; k++) { const y = top + 10 + R() * h * .35, a = (R() < .5 ? -1 : 1) * (.3 + R() * .6); leaves.push([sx + lean * (1 - (h - y) / (h - top)), y, a, 16 + R() * 10]); }
-  inkPiece(sp, { fill: lit(col, -.08), rim: 3, line: 1.5, shape: x => { for (const [lx, ly, a, L] of leaves) { const dir = Math.sign(a); x.beginPath(); x.moveTo(lx, ly); x.quadraticCurveTo(lx + dir * L * .5, ly - 6 + Math.abs(a) * 4, lx + dir * L, ly + Math.abs(a) * 10); x.quadraticCurveTo(lx + dir * L * .5, ly + 4, lx, ly); x.fill(); } } });
+  const leaves = []; for (const [sx, top, r, lean] of st) for (let k = 0; k < (d.giant ? 7 : 4); k++) { const y = top + 10 + R() * h * .35, a = (R() < .5 ? -1 : 1) * (.3 + R() * .6); leaves.push([sx + lean * (1 - (h - y) / (h - top)), y, a, 16 + R() * 10]); }
+  inkPiece(sp, { layer: 'leaf', fill: lit(col, -.08), rim: 3, line: 1.5, shape: x => { for (const [lx, ly, a, L] of leaves) { const dir = Math.sign(a); x.beginPath(); x.moveTo(lx, ly); x.quadraticCurveTo(lx + dir * L * .5, ly - 6 + Math.abs(a) * 4, lx + dir * L, ly + Math.abs(a) * 10); x.quadraticCurveTo(lx + dir * L * .5, ly + 4, lx, ly); x.fill(); } } });
 }
 function artGiantShroom(sp, d) {
   const { R, th, v, cx, w, h } = d; const capC = th.night ? ['#5fb6c9', '#8a7ad8', '#6fc7a5'][v % 3] : ['#d9573b', '#c95b8a', '#e9a23b'][v % 3];
@@ -233,31 +272,32 @@ function artCactus(sp, d) {
 function artBush(sp, d) {
   const { R, th, v, cx, w, h } = d; const col = th.name === 'Cherry Blossom' ? '#e7a2b6' : mix(leafOf(th, .04), th.cap, .3);
   const cl = [[cx - 22, h - 16, 18], [cx + 18, h - 15, 17], [cx - 2, h - 25, 22], [cx + (R() - .5) * 20, h - 12, 15]];
-  inkPiece(sp, { fill: col, light: lit(col, .3), rim: 5, box: [cx - 40, h - 50, cx + 40, h], shape: x => { for (const [px, py, r] of cl) lobed(x, px, py, r, r * .86, 6, R, .16); x.fillRect(cx - 36, h - 14, 72, 14); },
-    detail: x => { marks(x, R, 9, cx - 34, h - 42, cx + 34, h - 8, rgbaC(INK, .32), 1.1, 7, 'c'); if (v === 1) dots(x, R, 7, cx - 30, h - 40, cx + 30, h - 12, '#c9453a', 2, 3); if (v === 2) dots(x, R, 6, cx - 30, h - 40, cx + 30, h - 12, '#f4ead2', 2, 3.4); } });
+  if (d.giant) for (let i = 0; i < 5; i++) cl.push([cx + (R() - .5) * 76, h - 14 - R() * 34, 12 + R() * 12]);
+  inkPiece(sp, { layer: 'leaf', fill: col, light: lit(col, .3), rim: 5, box: [cx - 40, h - 50, cx + 40, h], shape: x => { for (const [px, py, r] of cl) lobed(x, px, py, r, r * .86, 6, R, .16); x.fillRect(cx - 36, h - 14, 72, 14); },
+    detail: x => { marks(x, R, 9 * (d.giant ? 2 : 1), cx - 34, h - 42, cx + 34, h - 8, rgbaC(INK, .32), 1.1, 7, 'c'); if (v === 1) dots(x, R, 7 * (d.giant ? 2 : 1), cx - 30, h - 40, cx + 30, h - 12, '#c9453a', 2, 3); if (v === 2) dots(x, R, 6 * (d.giant ? 2 : 1), cx - 30, h - 40, cx + 30, h - 12, '#f4ead2', 2, 3.4); } });
 }
 function artFern(sp, d) {
-  const { R, th, cx, w, h } = d; const col = mix(leafOf(th, .02), '#5f8d3d', .3); const fr = []; for (let i = 0; i < 7; i++) { const a = -Math.PI + (i + .5) / 7 * Math.PI; fr.push([a, 30 + R() * 14]); }
-  inkPiece(sp, { fill: col, light: lit(col, .3), rim: 2, line: 1.6, hatch: false, shape: x => { for (const [a, L] of fr) { const ex = cx + Math.cos(a) * L * 1.1, ey = h + Math.sin(a) * L * .95; x.lineWidth = 2.6; x.beginPath(); x.moveTo(cx, h); x.quadraticCurveTo((cx + ex) / 2, ey - 10, ex, ey + 6); x.stroke(); for (let k = 2; k < 9; k++) { const t = k / 9; const px = lerp(cx, ex, t), py = lerp(h, ey + 6, t) - Math.sin(t * Math.PI) * 9; const ll = 7 * (1 - t * .6); x.lineWidth = 3.2 * (1 - t * .5); x.beginPath(); x.moveTo(px, py); x.lineTo(px - ll * .7, py - ll * .7); x.moveTo(px, py); x.lineTo(px + ll * .7, py - ll * .5); x.stroke(); } } } });
+  const { R, th, cx, w, h } = d; const col = mix(leafOf(th, .02), '#5f8d3d', .3); const fr = []; const nF = (d.giant ? 11 : 7); for (let i = 0; i < nF; i++) { const a = -Math.PI + (i + .5) / nF * Math.PI; fr.push([a, 30 + R() * 14]); }
+  inkPiece(sp, { layer: 'leaf', fill: col, light: lit(col, .3), rim: 2, line: 1.6, hatch: false, shape: x => { for (const [a, L] of fr) { const ex = cx + Math.cos(a) * L * 1.1, ey = h + Math.sin(a) * L * .95; x.lineWidth = 2.6; x.beginPath(); x.moveTo(cx, h); x.quadraticCurveTo((cx + ex) / 2, ey - 10, ex, ey + 6); x.stroke(); for (let k = 2; k < 9; k++) { const t = k / 9; const px = lerp(cx, ex, t), py = lerp(h, ey + 6, t) - Math.sin(t * Math.PI) * 9; const ll = 7 * (1 - t * .6); x.lineWidth = 3.2 * (1 - t * .5); x.beginPath(); x.moveTo(px, py); x.lineTo(px - ll * .7, py - ll * .7); x.moveTo(px, py); x.lineTo(px + ll * .7, py - ll * .5); x.stroke(); } } } });
 }
 function artReeds(sp, d) {
-  const { R, th, cx, w, h } = d; const col = mix('#7f9a4f', th.cap, .2); const st = []; for (let i = 0; i < 8; i++) st.push([8 + i * 7 + R() * 4, 10 + R() * 26, (R() - .5) * 10]);
-  inkPiece(sp, { fill: col, rim: 0, line: 1.4, hatch: false, shape: x => { for (const [bx, top, bend] of st) { x.lineWidth = 2.4; x.beginPath(); x.moveTo(bx, h); x.quadraticCurveTo(bx + bend, h * .5, bx + bend * .6, top); x.stroke(); } } });
-  inkPiece(sp, { fill: '#6b4a35', rim: 1.5, line: 1.4, hatch: false, shape: x => { st.forEach(([bx, top, bend], i) => { if (i % 2) { x.beginPath(); x.ellipse(bx + bend * .6, top + 8, 3.2, 8.5, 0, 0, TAU); x.fill(); } }); } });
+  const { R, th, cx, w, h } = d; const col = mix('#7f9a4f', th.cap, .2); const st = []; const nR = (d.giant ? 16 : 8); for (let i = 0; i < nR; i++) st.push(8 + i * (w - 16) / Math.max(1, nR - 1) + R() * 4, 10 + R() * 26, (R() - .5) * 10);
+  inkPiece(sp, { layer: 'leaf', fill: col, rim: 0, line: 1.4, hatch: false, shape: x => { for (let i = 0; i < st.length; i += 3) { const bx = st[i], top = st[i + 1], bend = st[i + 2]; x.lineWidth = 2.4; x.beginPath(); x.moveTo(bx, h); x.quadraticCurveTo(bx + bend, h * .5, bx + bend * .6, top); x.stroke(); } } });
+  inkPiece(sp, { layer: 'leaf', fill: '#6b4a35', rim: 1.5, line: 1.4, hatch: false, shape: x => { for (let i = 0; i < st.length; i += 3) { if ((i / 3) % 2) { const bx = st[i], top = st[i + 1], bend = st[i + 2]; x.beginPath(); x.ellipse(bx + bend * .6, top + 8, 3.2, 8.5, 0, 0, TAU); x.fill(); } } } });
 }
 function artLavender(sp, d) {
-  const { R, th, cx, w, h } = d; const stem = mix('#7d9a55', th.cap, .3), flower = th.flower || '#9b7fc7'; const st = []; for (let i = 0; i < 11; i++) { const a = -Math.PI / 2 + (i - 5) * .13 + (R() - .5) * .08; st.push([a, 30 + R() * 18]); }
+  const { R, th, cx, w, h } = d; const stem = mix('#7d9a55', th.cap, .3), flower = th.flower || '#9b7fc7'; const st = []; const nL = d.giant ? 18 : 11; for (let i = 0; i < nL; i++) { const a = -Math.PI / 2 + (i - (nL - 1) / 2) * (Math.PI / (nL + 4)) + (R() - .5) * .08; st.push([a, 30 + R() * 18]); }
   inkPiece(sp, { fill: lit(stem, -.1), rim: 2, line: 1.6, hatch: false, shape: x => { lobed(x, cx, h - 6, 26, 9, 6, R, .2); x.lineWidth = 2; for (const [a, L] of st) { x.beginPath(); x.moveTo(cx, h - 6); x.lineTo(cx + Math.cos(a) * L, h - 6 + Math.sin(a) * L); x.stroke(); } } });
-  inkPiece(sp, { fill: flower, light: lit(flower, .4), rim: 2, line: 1.4, hatch: false, shape: x => { for (const [a, L] of st) { const ex = cx + Math.cos(a) * L, ey = h - 6 + Math.sin(a) * L; for (let k = 0; k < 4; k++) { x.beginPath(); x.ellipse(ex - Math.cos(a) * k * 4, ey - Math.sin(a) * k * 4, 2.8, 3.6, a, 0, TAU); x.fill(); } } } });
+  inkPiece(sp, { layer: 'leaf', fill: flower, light: lit(flower, .4), rim: 2, line: 1.4, hatch: false, shape: x => { for (const [a, L] of st) { const ex = cx + Math.cos(a) * L, ey = h - 6 + Math.sin(a) * L; for (let k = 0; k < 4; k++) { x.beginPath(); x.ellipse(ex - Math.cos(a) * k * 4, ey - Math.sin(a) * k * 4, 2.8, 3.6, a, 0, TAU); x.fill(); } } } });
 }
 function artFlowers(sp, d) {
   const { R, th, v, cx, w, h } = d; const petal = ['#f4ead2', '#e9a23b', '#e58fac', '#7aa6d9'][v % 4]; const fl = []; for (let i = 0; i < 4; i++) fl.push([cx - 18 + i * 12 + (R() - .5) * 6, h - 16 - R() * 16]);
   inkPiece(sp, { fill: mix('#6f9a4f', th.cap, .3), rim: 0, line: 1.3, hatch: false, shape: x => { x.lineWidth = 2; for (const [fx, fy] of fl) { x.beginPath(); x.moveTo(fx + (R() - .5) * 4, h); x.quadraticCurveTo(fx + 4, (fy + h) / 2, fx, fy); x.stroke(); x.beginPath(); x.ellipse(fx + 4, (fy + h) / 2 + 4, 4, 2, .5, 0, TAU); x.fill(); } } });
-  inkPiece(sp, { fill: petal, rim: 1.5, line: 1.4, hatch: false, shape: x => { for (const [fx, fy] of fl) for (let k = 0; k < 5; k++) { const a = k / 5 * TAU; x.beginPath(); x.ellipse(fx + Math.cos(a) * 3.6, fy + Math.sin(a) * 3.6, 3.2, 2, a, 0, TAU); x.fill(); } }, detail: x => { for (const [fx, fy] of fl) { x.fillStyle = '#e9a23b'; x.beginPath(); x.arc(fx, fy, 2, 0, TAU); x.fill(); } } });
+  inkPiece(sp, { layer: 'leaf', fill: petal, rim: 1.5, line: 1.4, hatch: false, shape: x => { for (const [fx, fy] of fl) for (let k = 0; k < 5; k++) { const a = k / 5 * TAU; x.beginPath(); x.ellipse(fx + Math.cos(a) * 3.6, fy + Math.sin(a) * 3.6, 3.2, 2, a, 0, TAU); x.fill(); } }, detail: x => { for (const [fx, fy] of fl) { x.fillStyle = '#e9a23b'; x.beginPath(); x.arc(fx, fy, 2, 0, TAU); x.fill(); } } });
 }
 function artTallGrass(sp, d) {
   const { R, th, cx, w, h } = d; const col = th.grassCol ? th.grassCol[0] : mix(th.cap, '#c9a14e', .2);
-  inkPiece(sp, { fill: col, light: lit(col, .3), rim: 0, line: 1.3, hatch: false, shape: x => { for (let i = 0; i < 13; i++) { const bx = cx + (i - 6) * 3.6 + (R() - .5) * 3, top = 6 + R() * 22, bend = (R() - .5) * 22; x.beginPath(); x.moveTo(bx - 2.4, h); x.quadraticCurveTo(bx + bend * .3, h * .5, bx + bend, top); x.quadraticCurveTo(bx + bend * .3 + 1.5, h * .5, bx + 2.4, h); x.fill(); } } });
+  inkPiece(sp, { layer: 'leaf', fill: col, light: lit(col, .3), rim: 0, line: 1.3, hatch: false, shape: x => { for (let i = 0; i < (d.giant ? 22 : 13); i++) { const bx = cx + (i - (d.giant ? 10 : 6)) * 3.6 + (R() - .5) * 3, top = 6 + R() * 22, bend = (R() - .5) * 22; x.beginPath(); x.moveTo(bx - 2.4, h); x.quadraticCurveTo(bx + bend * .3, h * .5, bx + bend, top); x.quadraticCurveTo(bx + bend * .3 + 1.5, h * .5, bx + 2.4, h); x.fill(); } } });
 }
 function artMushroom(sp, d) {
   const { R, th, v, cx, w, h } = d; const capC = th.night ? '#5fb6c9' : v ? '#d9573b' : '#c95b8a';
@@ -332,7 +372,11 @@ function placeProps(R, th) {
   const under = (th.under || (th.icy ? [] : th.lava ? [] : th.style === 'sea' ? [['tallgrass', 1], ['bush', .6]] : [['bush', 1], ['fern', .6], ['tallgrass', .7], ['flowers', .4]])).filter(k => PROPS[k[0]]);
   const smallSet = smalls.length ? smalls.concat(under.map(k => [k[0], k[1] * .5])) : under;
   const scale = W / 1600, sea = th.style === 'sea'; const out = Env.props;
-  const add = (kind, x, y, s) => { const def = PROPS[kind]; out.push({ id: 0, kind, x: Math.round(x), y: Math.round(y) + 3, s, variant: R() * 3 | 0, flip: R() < .5, seed: R() * 999 | 0, sway: R() * TAU, burn: 0, dead: false, leafT: 0, hp: def.hp, cut: 0, cutS: 0 }); };
+  const add = (kind, x, y, s) => {
+    // rare giant variant of any plant kind (3x size, 3x hp — see PROPS)
+    if (!kind.startsWith('giant_') && R() < .065 && PROPS['giant_' + kind]) kind = 'giant_' + kind;
+    const def = PROPS[kind]; out.push({ id: 0, kind, x: Math.round(x), y: Math.round(y) + 3, s, variant: R() * 3 | 0, flip: R() < .5, seed: R() * 999 | 0, sway: R() * TAU, burn: 0, dead: false, leafT: 0, leafAng: 0, leafVel: 0, hp: def.hp, cut: 0, cutS: 0 });
+  };
   const randSurf = x => { const s = surfacesAt(x); return s.length ? s[R() * s.length | 0] : null; };
   // groves: a lead tree, 0-2 companions, plants at their feet
   const nClusters = Math.round(scale * (sea ? 4 : 6) * (th.treeDensity ?? 1)); let tries = 0, made = 0;
@@ -396,15 +440,27 @@ function drawGrass(c, V, t) {
   const g = Env.grass; if (!g || !g.length) return; const th = T.theme; const cols = th.grassCol || [mix(th.cap, '#3e5a2a', .25), lit(th.cap, .12)];
   const near = []; for (const p of G.players.values()) if (p.alive && visibleWorld(p.x, p.y, 60)) near.push(p);
   for (const b of Env.bodies) if (b.awake && b.r > 10 && visibleWorld(b.x, b.y, 40)) near.push(b);
-  const wind = Env.wind || 0, wk = 1 + Math.abs(wind) / 60; const paths = [new Path2D(), new Path2D()];
+  const wind = Env.wind || 0, wk = 1 + Math.abs(wind) / 60; const gust = (gustAt((V.x0 + V.x1) / 2, t) - .5); const paths = [new Path2D(), new Path2D()];
   for (const q of g) { if (q.x < V.x0 - 20 || q.x > V.x1 + 20 || q.y < V.y0 - 20 || q.y > V.y1 + 30) continue;
-    let bend = Math.sin(t * 2.1 + q.ph + q.x * .013) * .16 * wk + wind * .0035; for (const p of near) { const dx = q.x - p.x, dy = q.y - (p.y + (p.vx !== undefined && p.hp !== undefined ? HH : 0)); if (Math.abs(dx) < 34 && Math.abs(dy) < 34) bend += Math.sign(dx || 1) * (1 - Math.abs(dx) / 34) * .95; }
+    let bend = Math.sin(t * 2.1 + q.ph + q.x * .013) * .16 * wk + Math.sin(t * 4.7 + q.ph * 1.7) * .03 + wind * .0035 + gust * .12 * wk; for (const p of near) { const dx = q.x - p.x, dy = q.y - (p.y + (p.vx !== undefined && p.hp !== undefined ? HH : 0)); if (Math.abs(dx) < 34 && Math.abs(dy) < 34) bend += Math.sign(dx || 1) * (1 - Math.abs(dx) / 34) * .95; }
     const P = paths[q.c]; for (let i = 0; i < q.n; i++) { const o = (i - (q.n - 1) / 2) * 3.2, hh = q.h * (.7 + .3 * Math.sin(i * 2.3 + q.ph)), bb = bend + (i - (q.n - 1) / 2) * .22; const tx = q.x + o + Math.sin(bb) * hh, ty = q.y - Math.cos(bb) * hh; P.moveTo(q.x + o, q.y); P.quadraticCurveTo(q.x + o + Math.sin(bb) * hh * .2, q.y - hh * .6, tx, ty); } }
   c.lineCap = 'round'; c.strokeStyle = INK; c.lineWidth = 3.3; c.stroke(paths[0]); c.stroke(paths[1]); c.lineWidth = 1.6; c.strokeStyle = cols[0]; c.stroke(paths[0]); c.strokeStyle = cols[1]; c.stroke(paths[1]);
 }
 function drawBackProps(c, V) {
-  const th = T.theme; for (const b of Env.backProps || []) { const d = PROPS[b.kind]; if (b.x + d.w * b.s < V.x0 || b.x - d.w * b.s > V.x1 || b.y - d.h * b.s > V.y1 || b.y < V.y0) continue;
-    const sp = propSprite(b.kind, b.v, th, .28); c.save(); c.translate(b.x, b.y); if (b.flip) c.scale(-1, 1); const s = b.s; c.drawImage(sp.c, -(d.w / 2 + SPRITE_M) * s, -(d.h + SPRITE_M) * s, (d.w + SPRITE_M * 2) * s, (d.h + SPRITE_M * 2) * s); c.restore(); }
+  const th = T.theme; const t = now(); const swayOn = Settings.leafSway !== false;
+  for (const b of Env.backProps || []) { const d = PROPS[b.kind]; if (b.x + d.w * b.s < V.x0 || b.x - d.w * b.s > V.x1 || b.y - d.h * b.s > V.y1 || b.y < V.y0) continue;
+    const sp = propSprite(b.kind, b.v, th, .28); const split = swayOn && sp.leaf;
+    c.save(); c.translate(b.x, b.y); if (b.flip) c.scale(-1, 1); const s = b.s;
+    const dx = -(d.w / 2 + SPRITE_M) * s, dy = -(d.h + SPRITE_M) * s, dw = (d.w + SPRITE_M * 2) * s, dh = (d.h + SPRITE_M * 2) * s;
+    c.drawImage(split ? sp.base : sp.c, dx, dy, dw, dh);
+    if (split) { // cheap open-loop sway for the hazed background layer
+      const anch = d.leafAnchor || (d.tree ? [.5, .38] : [.5, .96]);
+      const ax = (anch[0] - .5) * d.w * s, ay = (anch[1] - 1) * d.h * s;
+      const ang = clamp((Env.wind || 0) * .0035, -.2, .2) + Math.sin(t * 1.1 + b.x * .01) * .018;
+      c.translate(ax, ay); c.rotate(ang * .45); c.transform(1, 0, -ang * 1.7, 1, 0, 0); c.translate(-ax, -ay);
+      c.drawImage(sp.leaf, dx, dy, dw, dh);
+    }
+    c.restore(); }
 }
 
 /* ---------- D. physics-based destruction ---------- */
@@ -529,9 +585,22 @@ const Bodies = {
 /* ---------- E. props interplay ---------- */
 for (const k in PROPS) { const d = PROPS[k]; d.solid = d.mat === 'stone' || d.mat === 'crystal' || d.mat === 'metal' || k === 'crate'; }
 PROPS.giantshroom.bounce = 50; PROPS.giantshroom.bounceH = 104; PROPS.mushroom.bounce = 27; PROPS.mushroom.bounceH = 38;
+/* bouncy giants: bounce values are assigned here (after the giant wrapper above ran),
+   so scale the giant variants to match — 3x bounce, 3x bounce height */
+if (PROPS.giant_bush) { PROPS.giant_bush.bounce = 81; PROPS.giant_bush.bounceH = 114; }
+if (PROPS.giant_mushroom) { PROPS.giant_mushroom.bounce = 81; PROPS.giant_mushroom.bounceH = 114; }
 function propBox(pr) { const d = PROPS[pr.kind], s = pr.s; const top = pr.y - d.h * s * (pr.cut || .98); if (d.tree) { const hw = pr.cut ? Math.max(10, d.w * .12) : d.w * .32; return [pr.x - hw * s, top, pr.x + hw * s, pr.y]; } return [pr.x - d.w * .42 * s, top, pr.x + d.w * .42 * s, pr.y]; }
-function leafColsOf(kind) { const th = T.theme; if (kind === 'cherry') return ['#f39bb4', '#fde2ea', '#f7b6c8']; if (kind === 'autumn') return ['#d9573b', '#e9a23b', '#c8742f']; if (kind === 'lavender') return ['#9b7fc7', '#b9a0e0', '#7d9a55']; if (kind === 'bamboo') return ['#8fae4a', '#a8c060']; if (th.leaf) return th.leaf; return [leafOf(th), lit(leafOf(th), .18), mix(leafOf(th), '#c9a14e', .25)]; }
-function leafBurst(pr, x, y, n = 5) { if (!visibleWorld(x, y, 60)) return; const cols = leafColsOf(pr.kind); for (let i = 0; i < Math.round(n * R8.fxScale) + 1; i++) FX.add({ k: 'leaf', x: x + (Math.random() - .5) * 30, y: y + (Math.random() - .5) * 26, vx: (Math.random() - .5) * 200, vy: -60 - Math.random() * 120, life: 1.6 + Math.random() * 1.4, t: 0, r: 3.5 + Math.random() * 3, color: cols[i % cols.length], rot: Math.random() * TAU }); }
+function leafColsOf(kind0) { const kind = String(kind0 || '').replace(/^giant_/, ''); const th = T.theme; if (kind === 'cherry') return ['#f39bb4', '#fde2ea', '#f7b6c8']; if (kind === 'autumn') return ['#d9573b', '#e9a23b', '#c8742f']; if (kind === 'lavender') return ['#9b7fc7', '#b9a0e0', '#7d9a55']; if (kind === 'bamboo') return ['#8fae4a', '#a8c060']; if (th.leaf) return th.leaf; return [leafOf(th), lit(leafOf(th), .18), mix(leafOf(th), '#c9a14e', .25)]; }
+function leafBurst(pr, x, y, n = 5) {
+  if (!visibleWorld(x, y, 60)) return; const cols = leafColsOf(pr.kind); const cnt = Math.round(n * R8.fxScale) + 1;
+  for (let i = 0; i < cnt; i++) {
+    const flut = Math.random(); // variety of leaf behaviours: floaters, spinners and darters
+    FX.add({ k: 'leaf', x: x + (Math.random() - .5) * 30, y: y + (Math.random() - .5) * 26,
+      vx: (Math.random() - .5) * 220 + (Env.wind || 0) * .5, vy: -40 - Math.random() * 150,
+      life: 1.5 + flut * 2 + Math.random(), t: 0, r: 2.6 + Math.random() * 4.4,
+      color: cols[i % cols.length], rot: Math.random() * TAU });
+  }
+}
 function chipsFx(pr, x, y, a, n = 4) {
   if (!visibleWorld(x, y, 40)) return; const d = PROPS[pr.kind];
   if (d.mat === 'stone' || d.mat === 'metal') { FX.sparks(x, y, a + Math.PI, n + 2, d.mat === 'metal' ? '#fff1d0' : '#d8d0c4'); FX.smoke(x, y, 1, 8, 'rgba(200,190,175,.45)', 0, -20); return; }
@@ -611,24 +680,78 @@ function propsAfterCrater(e) {
 }
 function propsSupportPass() { for (const pr of Env.props) { if (pr.dead) continue; const d = PROPS[pr.kind]; const hw = Math.min(14, d.w * .14 * pr.s); if (!(solidAt(pr.x - hw, pr.y + 3) || solidAt(pr.x + hw, pr.y + 3) || solidAt(pr.x, pr.y + 8))) pr.dead = true; } if (Env.grass) Env.grass = Env.grass.filter(g => solidAt(g.x, g.y)); }
 function propsBurnFx(pr, dt) { const d = PROPS[pr.kind]; if (!visibleWorld(pr.x, pr.y - 60, 120)) return; const h = d.h * pr.s * (pr.cut || 1); if (Math.random() < dt * 30 * R8.fxScale) FX.add({ k: 'ember', x: pr.x + (Math.random() - .5) * d.w * .5 * pr.s, y: pr.y - h * (.3 + Math.random() * .6), vx: (Math.random() - .5) * 40 + Env.wind * .5, vy: -60 - Math.random() * 120, life: .7 + Math.random() * .6, t: 0, r: 4 + Math.random() * 4, color: Math.random() < .5 ? '#ff8a3c' : '#ffd27a', g: -1 }); if (Math.random() < dt * 4) FX.smoke(pr.x, pr.y - h * .8, 1, 18, 'rgba(70,60,60,.4)', Env.wind * .4, -50); FX.light(pr.x, pr.y - h * .55, 150, '#ff8a3c', .06, .9); }
+/* ---------- leaf sway: gust field + per-prop spring-damper ----------
+   Every leafy prop's canopy angle is a damped spring chasing a target that
+   combines the biome wind with a travelling gust field, so canopies overshoot
+   and settle like real foliage instead of just bobbing on a sine. */
+function gustAt(x, t) { return fbm(x * .005 + t * .45, 911, 3); }
+function leafTarget(pr, gust) {
+  const d = PROPS[pr.kind], wind = Env.wind || 0;
+  const g = gust ? gustAt(pr.x, now()) : .5;
+  const k = d.tree ? .0042 : .0095; // wind speed → canopy angle
+  const amp = d.tree ? .022 : .052, freq = d.tree ? 1.1 : 2.1;
+  return clamp(wind * k * (.6 + g), -.3, .3) + Math.sin(now() * freq + pr.seed * .071) * amp * (.45 + g);
+}
+function leafSwayStep(pr, dt) {
+  const d = PROPS[pr.kind];
+  const off = !visibleWorld(pr.x, pr.y - d.h * pr.s * .4, 140);
+  if (off) { pr.leafAng = leafTarget(pr, 0); pr.leafVel = 0; return; } // snap while offscreen (invisible)
+  const target = leafTarget(pr, 1);
+  const stiff = d.tree ? 30 : d.small ? 95 : 60;   // trees: slow & heavy, bushes: fast & light
+  const damp = d.tree ? 4.2 : 7;
+  pr.leafVel += (target - pr.leafAng) * stiff * dt;
+  pr.leafVel *= Math.exp(-damp * dt);
+  pr.leafAng = clamp(pr.leafAng + pr.leafVel * dt, -.55, .55);
+}
 function updateProps(dt) {
   const rain = Weather.kind === 'rain' || Weather.kind === 'storm' || Weather.kind === 'drizzle'; const wk = 1 + Math.abs(Env.wind || 0) / 80;
+  const swayOn = Settings.leafSway !== false;
   for (const pr of Env.props) {
     if (pr.dead) continue; pr.sway += dt * wk; if (pr.shake) pr.shake = Math.max(0, pr.shake - dt * 3); if (pr.squish) pr.squish = Math.max(0, pr.squish - dt * 3.2);
     if (pr.burn > 0) { pr.burn -= dt * (rain ? 2.2 : 1); propsBurnFx(pr, dt); if (G.isHost) { pr.hp -= dt * 7; if (pr.hp <= 0) propDamage(pr, 1, null, pr.x, pr.y - 40, Env.wind >= 0 ? 1 : -1); }
       if (pr.burn <= 0) { pr.burn = 0; pr.charred = true; const d = PROPS[pr.kind]; if (d.tree && d.leafy && !pr.cut && pr.kind !== 'cactus') { pr.kind = 'dead'; pr.hp = Math.min(pr.hp, PROPS.dead.hp); } FX.smoke(pr.x, pr.y - 60, 4, 30, 'rgba(60,52,52,.5)'); } }
+    else if (swayOn && PROPS[pr.kind].leafy && !pr.cut) leafSwayStep(pr, dt);
   }
+  // falling trees keep shedding leaves as they tumble
+  for (const b of Env.bodies) if (b.leafy && b.gen === 0 && b.awake && Math.abs(b.va) > .7 && Math.random() < dt * 7) leafBurst({ kind: b.kind }, b.x, b.y, 2);
+}
+/* Draws the swaying leaf layer of a prop: rotation + shear around the leaf
+   anchor (bottom center for bushes → the top waves while the base stays
+   grounded; crown base for trees), a slow "breathe" squash/stretch, a fast
+   per-plant jiggle and a sub-pixel drift for small plants. */
+function drawLeafLayer(c, pr, d, sp, t) {
+  if (!sp.leaf) return;
+  const anch = d.leafAnchor || (d.tree ? [.5, .38] : [.5, .96]);
+  const ax = (anch[0] - .5) * d.w, ay = (anch[1] - 1) * d.h;
+  const flip = pr.flip ? -1 : 1;
+  const ang = (pr.leafAng || 0) * flip;
+  const jig = d.small ? Math.sin(t * 3.1 + pr.seed * 2.3) * .016 : 0; // per-plant jiggle
+  const br = d.small ? 1 + Math.sin(t * 2.2 + pr.seed) * .024 : 1 + Math.sin(t * 1.4 + pr.seed) * .007; // breathe
+  if (d.small) c.translate(Math.sin(t * 3.3 + pr.seed * 1.7) * .7, Math.cos(t * 2.6 + pr.seed) * .5); // sub-pixel drift
+  c.translate(ax, ay);
+  c.rotate(ang * .45 + jig);
+  c.transform(1, 0, -ang * 1.7, 1, 0, 0); // shear: the higher the foliage, the further it leans
+  c.scale(1 + (br - 1) * .4, br);
+  c.translate(-ax, -ay);
+  c.drawImage(sp.leaf, -(d.w / 2 + SPRITE_M), -(d.h + SPRITE_M), d.w + SPRITE_M * 2, d.h + SPRITE_M * 2);
 }
 function drawProps(c, V, t) {
   const th = T.theme; const wk = 1 + Math.abs(Env.wind || 0) / 60;
-  c.fillStyle = rgbaC(INK, .14); c.beginPath(); for (const pr of Env.props) { if (pr.dead) continue; const d = PROPS[pr.kind]; if (d.small || pr.x < V.x0 - 100 || pr.x > V.x1 + 100 || pr.y < V.y0 || pr.y > V.y1 + 20) continue; const rx = Math.min(60, d.w * .26) * pr.s; c.moveTo(pr.x + rx, pr.y - 1); c.ellipse(pr.x, pr.y - 1, rx, 4.5 * pr.s, 0, 0, TAU); } c.fill();
+  const swayOn = Settings.leafSway !== false;
+  // shadows: soft penumbra + darker core, nudged downwind
+  const sh1 = new Path2D(), sh2 = new Path2D();
+  for (const pr of Env.props) { if (pr.dead) continue; const d = PROPS[pr.kind]; if (d.small || pr.x < V.x0 - 100 || pr.x > V.x1 + 100 || pr.y < V.y0 || pr.y > V.y1 + 20) continue; const rx = Math.min(60, d.w * .26) * pr.s; const ox = (Env.wind || 0) * .05; sh1.moveTo(pr.x + rx + ox, pr.y - 1); sh1.ellipse(pr.x + ox, pr.y - 1, rx, 4.5 * pr.s, 0, 0, TAU); sh2.moveTo(pr.x + rx * .62 + ox, pr.y - 1); sh2.ellipse(pr.x + ox, pr.y - 1, rx * .62, 3 * pr.s, 0, 0, TAU); }
+  c.fillStyle = rgbaC(INK, .1); c.fill(sh1); c.fillStyle = rgbaC(INK, .1); c.fill(sh2);
   for (const pr of Env.props) {
     if (pr.dead) continue; const d = PROPS[pr.kind]; const s = pr.s; if (pr.x + d.w * s < V.x0 - 60 || pr.x - d.w * s > V.x1 + 60 || pr.y - d.h * s > V.y1 || pr.y < V.y0 - 20) continue;
-    const sp = propSprite(pr.kind, pr.variant, th); const src = pr.stump || sp.c; c.save(); c.translate(pr.x, pr.y);
+    const sp = propSprite(pr.kind, pr.variant, th);
+    const split = swayOn && sp.leaf && !pr.cut && !pr.charred && pr.burn <= 0;
+    const src = pr.stump || (split ? sp.base : sp.c); c.save(); c.translate(pr.x, pr.y);
     let rot = 0; if ((d.tree || d.leafy) && !pr.cut && d.mat !== 'stone') rot = (Math.sin(pr.sway + pr.seed) * .016 + Math.sin(pr.sway * 1.7 + pr.seed) * .006) * wk * (d.small ? 2.2 : 1) + Math.sin(t * 40) * .03 * (pr.shake || 0) + (Env.wind || 0) * .00025;
     else if (pr.shake) rot = Math.sin(t * 50) * .02 * pr.shake;
     c.rotate(rot); let sx = s, sy = s; if (pr.squish) { sy *= 1 - .35 * Math.sin(pr.squish * Math.PI); sx *= 1 + .2 * Math.sin(pr.squish * Math.PI); } if (pr.flip) sx = -sx;
     const dx = -(d.w / 2 + SPRITE_M), dy = -(d.h + SPRITE_M), dw = d.w + SPRITE_M * 2, dh = d.h + SPRITE_M * 2; c.scale(sx, sy); c.drawImage(src, dx, dy, dw, dh);
+    if (split) drawLeafLayer(c, pr, d, sp, t);
     if (pr.charred || pr.burn > 0) { c.globalAlpha = pr.charred ? .55 : .3 + .2 * Math.sin(t * 20); c.globalCompositeOperation = 'multiply'; c.drawImage(src, dx, dy, dw, dh); c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1; }
     c.restore();
   }
