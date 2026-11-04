@@ -2,7 +2,7 @@
 // Put your own weapon PNG at weapons/dollar/dollar.png.
 // The same art is used as the projectile, scaled down in index.html.
 Weapon({
-  name: "Dollar",
+  name: "Robert Loggia",
   type: "gun",
   weight: 1,
 
