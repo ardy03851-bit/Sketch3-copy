@@ -4,7 +4,7 @@
 Weapon({
   name: "Robert Loggia",
   type: "gun",
-  weight: 0.4,
+  weight: 3,
 
   damage: 30,
   knockback: 430,
