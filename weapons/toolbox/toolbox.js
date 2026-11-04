@@ -9,7 +9,7 @@ name: "Tool Box", type: "melee", rarity: "epic",
   weight: 0.8,
 
   tool: true,                       // turns the weapon into the build tool (click = place / dig)
-  tools: ["plank", "beam", "wall", "brick", "crate", "sandbag", "metal", "glass", "ladder", "bulb", "torch", "banner", "campfire", "spring", "spikes", "tnt", "dig", "fill", "repair", "recycle"],
+  tools: ["plank", "beam", "wall", "brick", "crate", "sandbag", "metal", "glass", "ladder", "fence", "pillar", "catwalk", "log", "bulb", "torch", "banner", "campfire", "spring", "spikes", "tnt", "dig", "fill", "repair", "recycle"],
   materials: 40,                    // materials per life (each piece costs 1-3)
   modes: ["expedition"],            // only in The Big Wilds
   sets: ["main", "event"],          // also shows up on the event page (see README: event content)

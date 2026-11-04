@@ -30,10 +30,14 @@ const BUILD = {
   spring:   { n: 'Spring',   w: 44,  h: 14, hp: 70,  mat: 'metal',   solid: 1, cost: 2, fill: '#d9573b', light: '#f08a6a', bounce: 1 },
   spikes:   { n: 'Spikes',   w: 44,  h: 12, hp: 90,  mat: 'metal',   solid: 1, cost: 2, fill: '#9aa4ac', light: '#d6dee4', spikes: 1 },
   tnt:      { n: 'TNT',      w: 28,  h: 28, hp: 1,   mat: 'wood',    solid: 1, cost: 3, fill: '#c9452e', light: '#ea7a5a', tnt: 1 },
+  fence:    { n: 'Fence',    w: 64,  h: 30, hp: 70,  mat: 'plank',   solid: 1, cost: 1, fill: '#b98a5e', light: '#dcb384' },
+  pillar:   { n: 'Pillar',   w: 28,  h: 88, hp: 300, mat: 'stone',   solid: 1, cost: 2, fill: '#a8a29a', light: '#cfc9bb' },
+  catwalk:  { n: 'Catwalk',  w: 104, h: 12, hp: 240, mat: 'metal',   solid: 1, cost: 3, fill: '#8e9aa4', light: '#c9d3da' },
+  log:      { n: 'Log',     w: 90,  h: 26, hp: 90,  mat: 'wood',    solid: 1, cost: 1, fill: '#8a6543', light: '#b08a5c' },
 };
 const TOOL_INFO = { dig: { n: 'Dig', cost: 0 }, fill: { n: 'Fill', cost: 1 }, repair: { n: 'Repair', cost: 1 }, recycle: { n: 'Recycle', cost: 0 } };
-const BUILD_TIPS = { plank: 'light and cheap', beam: 'long and sturdy', wall: 'heavy stone block', brick: 'small stone block', crate: 'wooden box', sandbag: 'soaks up bullets', metal: 'very tough strip', glass: 'see-through, fragile', ladder: 'climb it: hold jump, down to slide', bulb: 'lights the dark', torch: 'a flickering light', banner: 'War: your team respawns here', campfire: 'slowly heals your team', spring: 'launches you up', spikes: 'hurts enemies who touch it', tnt: 'shoot it', dig: 'carve the ground', fill: 'add ground', repair: 'fix a piece', recycle: 'take a piece back' };
-const BUILD_TABS = [['Build', ['plank', 'beam', 'wall', 'brick', 'crate', 'sandbag', 'metal', 'glass', 'ladder']], ['Gadgets', ['bulb', 'torch', 'banner', 'campfire', 'spring', 'spikes', 'tnt']], ['Tools', ['dig', 'fill', 'repair', 'recycle']]];
+const BUILD_TIPS = { plank: 'light and cheap', beam: 'long and sturdy', wall: 'heavy stone block', brick: 'small stone block', crate: 'wooden box', sandbag: 'soaks up bullets', metal: 'very tough strip', glass: 'see-through, fragile', ladder: 'climb it: hold jump, down to slide', bulb: 'lights the dark', torch: 'a flickering light', banner: 'War: your team respawns here', campfire: 'slowly heals your team', spring: 'launches you up', spikes: 'hurts enemies who touch it', tnt: 'shoot it', fence: 'a quick wooden barrier', pillar: 'tall stone column', catwalk: 'long metal platform', log: 'a chunky fallen log', dig: 'carve the ground', fill: 'add ground', repair: 'fix a piece', recycle: 'take a piece back' };
+const BUILD_TABS = [['Build', ['plank', 'beam', 'wall', 'brick', 'crate', 'sandbag', 'metal', 'glass', 'ladder', 'fence', 'pillar', 'catwalk', 'log']], ['Gadgets', ['bulb', 'torch', 'banner', 'campfire', 'spring', 'spikes', 'tnt']], ['Tools', ['dig', 'fill', 'repair', 'recycle']]];
 const ALL_TOOLS = BUILD_TABS.flatMap(t => t[1]);
 const BUILD_REACH = 165, BUILD_CAP = 900;
 
@@ -48,7 +52,7 @@ Build.reset();
 const PieceArt = new Map();
 function pieceSprite(kind) {
   let sp = PieceArt.get(kind); if (sp) return sp; const d = BUILD[kind]; const S = spriteScale(), M = 5; const w = d.w, h = d.h;
-  const c = mkCanvas((w + M * 2) * S, (h + M * 2) * S), x = c.getContext('2d'); sp = { c, x, S, M, w, h };
+  const c = mkCanvas((w + M * 2) * S, (h + M * 2) * S), x = c.getContext('2d'); sp = { c, x, S, M, w, h, cw: c.width, ch: c.height };
   const R = rng(kind.length * 977 + kind.charCodeAt(0));
   x.setTransform(S, 0, 0, S, M * S, M * S); x.lineJoin = 'round'; x.lineCap = 'round';
   const rr = (x, x0, y0, ww, hh, r) => { x.beginPath(); x.moveTo(x0 + r, y0); x.lineTo(x0 + ww - r, y0); x.quadraticCurveTo(x0 + ww, y0, x0 + ww, y0 + r); x.lineTo(x0 + ww, y0 + hh - r); x.quadraticCurveTo(x0 + ww, y0 + hh, x0 + ww - r, y0 + hh); x.lineTo(x0 + r, y0 + hh); x.quadraticCurveTo(x0, y0 + hh, x0, y0 + hh - r); x.lineTo(x0, y0 + r); x.quadraticCurveTo(x0, y0, x0 + r, y0); x.closePath(); x.fill(); };
@@ -101,6 +105,18 @@ function pieceSprite(kind) {
     } else if (kind === 'spikes') {
       inkPiece(sp, { fill: d.fill, light: d.light, rim: 2, line: 1.8, hatch: false, shape: x => { x.fillRect(0, h - 4, w, 4); const n = 6; x.beginPath(); x.moveTo(0, h - 3); for (let i = 0; i < n; i++) { x.lineTo((i + .5) * w / n, 0); x.lineTo((i + 1) * w / n, h - 3); } x.closePath(); x.fill(); },
         detail: x => { x.strokeStyle = 'rgba(255,255,255,.6)'; x.lineWidth = .9; const n = 6; for (let i = 0; i < n; i++) { x.beginPath(); x.moveTo((i + .5) * w / n - .5, 2); x.lineTo((i + .25) * w / n, h - 5); x.stroke(); } x.fillStyle = '#7a3a2a'; x.fillRect(0, h - 4, w, 1.3); } });
+    } else if (kind === 'fence') {
+      inkPiece(sp, { fill: d.fill, light: d.light, rim: 2, line: 1.8, hatchA: .25, shape: x => { const pw = w / 4; for (let i = 0; i < 4; i++) { const px = pw * i + 3, pt = 2 + (i % 2) * 3; x.beginPath(); x.moveTo(px, h - 2); x.lineTo(px, pt + 5); x.lineTo(px + (pw - 6) / 2, pt); x.lineTo(px + pw - 6, pt + 5); x.lineTo(px + pw - 6, h - 2); x.closePath(); x.fill(); } for (const yy of [h * .3, h * .72]) x.fillRect(1, yy, w - 2, 3.6); },
+        detail: x => { x.strokeStyle = rgbaC(INK, .3); x.lineWidth = .9; for (let i = 0; i < 4; i++) { const cx = w / 4 * i + w / 8 + 1; x.beginPath(); x.moveTo(cx, 6); x.lineTo(cx, h - 5); x.stroke(); } x.fillStyle = rgbaC(INK, .6); for (const yy of [h * .3 + 1.8, h * .72 + 1.8]) for (const xx of [3, w - 3]) { x.beginPath(); x.arc(xx, yy, 1, 0, TAU); x.fill(); } } });
+    } else if (kind === 'pillar') {
+      inkPiece(sp, { fill: d.fill, light: d.light, rim: 3, line: 2, shape: x => { rr(x, 2, 6, w - 4, h - 11, 2.5); x.fillRect(0, 1, w, 6); x.fillRect(0, h - 6, w, 5); },
+        detail: x => { x.strokeStyle = rgbaC(INK, .3); x.lineWidth = 1; for (const yy of [h * .3, h * .52, h * .74]) { x.beginPath(); x.moveTo(3, yy); x.lineTo(w - 3, yy + 1); x.stroke(); } x.strokeStyle = rgbaC(INK, .18); x.lineWidth = .8; x.beginPath(); x.moveTo(w * .35, 8); x.lineTo(w * .4, h - 8); x.stroke(); dots(x, R, 5, 4, 10, w - 4, h - 10, rgbaC(INK, .2), .5, 1.2); } });
+    } else if (kind === 'catwalk') {
+      inkPiece(sp, { fill: d.fill, light: d.light, rim: 2.5, line: 1.8, hatch: false, shape: x => rr(x, 0, 0, w, h, 2),
+        detail: x => { x.strokeStyle = 'rgba(255,255,255,.5)'; x.lineWidth = 1; for (let xx = 7; xx < w - 8; xx += 8) { x.beginPath(); x.moveTo(xx, 2.5); x.lineTo(xx + 4, h - 2.5); x.stroke(); } x.fillStyle = rgbaC(INK, .7); for (const xx of [5, w / 2, w - 5]) { x.beginPath(); x.arc(xx, h / 2, 1.3, 0, TAU); x.fill(); } x.strokeStyle = 'rgba(255,255,255,.55)'; x.lineWidth = 1.1; x.beginPath(); x.moveTo(9, 2.6); x.lineTo(w * .4, 2.6); x.stroke(); } });
+    } else if (kind === 'log') {
+      inkPiece(sp, { fill: d.fill, light: d.light, rim: 3, line: 2, hatchA: .3, shape: x => { x.beginPath(); x.ellipse(w / 2, h / 2, w / 2 - 2, h / 2 - 3, 0, 0, TAU); x.fill(); },
+        detail: x => { x.strokeStyle = rgbaC(INK, .55); x.lineWidth = 1.5; x.beginPath(); x.ellipse(w - 11, h / 2, 4, h / 2 - 7, 0, 0, TAU); x.stroke(); x.beginPath(); x.ellipse(w - 11, h / 2, 1.7, h / 4 - 1, 0, 0, TAU); x.stroke(); x.strokeStyle = rgbaC(INK, .25); x.lineWidth = .9; x.beginPath(); x.moveTo(10, h * .32); x.quadraticCurveTo(w * .4, h * .26, w - 18, h * .34); x.stroke(); x.beginPath(); x.moveTo(12, h * .68); x.quadraticCurveTo(w * .4, h * .74, w - 18, h * .66); x.stroke(); } });
     }
   } catch (e) { console.warn('piece art', kind, e); }
   x.setTransform(1, 0, 0, 1, 0, 0); sp.x = null; PieceArt.set(kind, sp); return sp;

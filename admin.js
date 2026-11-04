@@ -183,6 +183,13 @@ addEventListener('keydown', e => {
     e.preventDefault(); if (G.mode === 'play' && Input.enabled) AdminPanel.toggle();
   }
 });
+/* on-screen admin button (next to pause) — touch devices like iPad have no F9 */
+const bAdminBtn = document.getElementById('bAdmin');
+if (bAdminBtn) bAdminBtn.addEventListener('pointerdown', e => {
+  e.preventDefault(); e.stopPropagation(); Audio2.play('ui');
+  if (G.mode === 'play' && !UI.cur) AdminPanel.toggle();
+  else if (G.mode === 'play' && UI.cur === 'pause') { AdminPanel.toggle(); }
+});
 
 /* ---------- Asset Toolbox palette (paper HUD style, like the build bar) ---------- */
 const AdminBar = {
