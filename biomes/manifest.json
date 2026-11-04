@@ -81,6 +81,14 @@
    ]
   },
   {
+   "id": "emerald-tangle",
+   "js": "emerald-tangle.js",
+   "png": null,
+   "files": [
+    "emerald-tangle.js"
+   ]
+  },
+  {
    "id": "glacier-peaks",
    "js": "glacier-peaks.js",
    "png": null,
