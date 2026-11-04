@@ -97,8 +97,8 @@ const PROPS = {
   willow: { w: 190, h: 190, tree: 1, mat: 'wood', leafy: 1, hp: 130, leafAnchor: [.5, .28], art: artWillow },
   acacia: { w: 210, h: 172, tree: 1, mat: 'wood', leafy: 1, hp: 120, leafAnchor: [.5, .3], art: artAcacia },
   baobab: { w: 140, h: 176, tree: 1, mat: 'wood', leafy: 1, hp: 200, leafAnchor: [.5, .3], art: artBaobab },
-  pine: { w: 104, h: 204, tree: 1, mat: 'wood', leafy: 1, hp: 110, leafAnchor: [.5, .55], art: artPine },
-  snowpine: { w: 104, h: 204, tree: 1, mat: 'wood', leafy: 1, hp: 110, leafAnchor: [.5, .55], art: artPine },
+  pine: { w: 104, h: 204, tree: 1, mat: 'wood', leafy: 1, hp: 110, leafAnchor: [.5, .55], conifer: 1, art: artPine },
+  snowpine: { w: 104, h: 204, tree: 1, mat: 'wood', leafy: 1, hp: 110, leafAnchor: [.5, .55], conifer: 1, art: artPine },
   palm: { w: 176, h: 222, tree: 1, mat: 'wood', leafy: 1, hp: 100, leafAnchor: [.5, .22], art: artPalm },
   dead: { w: 126, h: 164, tree: 1, mat: 'wood', hp: 70, art: artDead },
   bamboo: { w: 78, h: 236, tree: 1, mat: 'wood', leafy: 1, hp: 80, leafAnchor: [.5, .45], art: artBamboo },
@@ -461,7 +461,9 @@ function drawBackProps(c, V) {
       const anch = d.leafAnchor || (d.tree ? [.5, .38] : [.5, .96]);
       const ax = (anch[0] - .5) * d.w * s, ay = (anch[1] - 1) * d.h * s;
       const ang = clamp((Env.wind || 0) * .0035, -.2, .2) + Math.sin(t * 1.1 + b.x * .01) * .018;
-      c.translate(ax, ay); c.rotate(ang * .45); c.transform(1, 0, -ang * 1.7, 1, 0, 0); c.translate(-ax, -ay);
+      // same clamped shear as the foreground (see drawLeafLayer)
+      const lean = clamp(-ang * (d.conifer ? .55 : 1.7), d.conifer ? -.1 : -.2, d.conifer ? .1 : .2);
+      c.translate(ax, ay); c.rotate(ang * .45); c.transform(1, 0, lean, 1, 0, 0); c.translate(-ax, -ay);
       c.drawImage(sp.leaf, dx, dy, dw, dh);
     }
     c.restore(); }
@@ -692,17 +694,20 @@ function gustAt(x, t) { return fbm(x * .005 + t * .45, 911, 3); }
 function leafTarget(pr, gust) {
   const d = PROPS[pr.kind], wind = Env.wind || 0;
   const g = gust ? gustAt(pr.x, now()) : .5;
-  const k = d.tree ? .0042 : .0095; // wind speed → canopy angle
-  const amp = d.tree ? .022 : .052, freq = d.tree ? 1.1 : 2.1;
-  return clamp(wind * k * (.6 + g), -.3, .3) + Math.sin(now() * freq + pr.seed * .071) * amp * (.45 + g);
+  // conifers (pines) are stiff spires: they barely lean into the wind and
+  // sway on a slower, smaller rhythm than broadleaf canopies
+  const k = d.conifer ? .0016 : d.tree ? .0042 : .0095; // wind speed → canopy angle
+  const amp = d.conifer ? .011 : d.tree ? .022 : .052, freq = d.conifer ? .65 : d.tree ? 1.1 : 2.1;
+  const cap = d.conifer ? .12 : .3;
+  return clamp(wind * k * (.6 + g), -cap, cap) + Math.sin(now() * freq + pr.seed * .071) * amp * (.45 + g);
 }
 function leafSwayStep(pr, dt) {
   const d = PROPS[pr.kind];
   const off = !visibleWorld(pr.x, pr.y - d.h * pr.s * .4, 140);
   if (off) { pr.leafAng = leafTarget(pr, 0); pr.leafVel = 0; return; } // snap while offscreen (invisible)
   const target = leafTarget(pr, 1);
-  const stiff = d.tree ? 30 : d.small ? 95 : 60;   // trees: slow & heavy, bushes: fast & light
-  const damp = d.tree ? 4.2 : 7;
+  const stiff = d.conifer ? 55 : d.tree ? 30 : d.small ? 95 : 60;   // trees: slow & heavy, bushes: fast & light
+  const damp = d.conifer ? 5.5 : d.tree ? 4.2 : 7;
   pr.leafVel += (target - pr.leafAng) * stiff * dt;
   pr.leafVel *= Math.exp(-damp * dt);
   pr.leafAng = clamp(pr.leafAng + pr.leafVel * dt, -.55, .55);
@@ -733,8 +738,16 @@ function drawLeafLayer(c, pr, d, sp, t) {
   const br = d.small ? 1 + Math.sin(t * 2.2 + pr.seed) * .024 : 1 + Math.sin(t * 1.4 + pr.seed) * .007; // breathe
   if (d.small) c.translate(Math.sin(t * 3.3 + pr.seed * 1.7) * .7, Math.cos(t * 2.6 + pr.seed) * .5); // sub-pixel drift
   c.translate(ax, ay);
-  c.rotate(ang * .45 + jig);
-  c.transform(1, 0, -ang * 1.7, 1, 0, 0); // shear: the higher the foliage, the further it leans
+  c.rotate(ang * (d.conifer ? .3 : .45) + jig);
+  /* shear: the higher the foliage, the further it leans. Conifers (pines) are
+     stiff spires — shearing their tall thin canopy slides the tiers sideways
+     off the trunk, so they get a fraction of the shear. For every prop the
+     shear is clamped so no canopy can ever lean more than ~20% of its own
+     height (10% for conifers): enough to feel alive, never rubbery. */
+  let shear = -ang * (d.conifer ? .55 : 1.7);
+  const maxLean = d.conifer ? .1 : .2;
+  shear = clamp(shear, -maxLean, maxLean);
+  c.transform(1, 0, shear, 1, 0, 0);
   c.scale(1 + (br - 1) * .4, br);
   c.translate(-ax, -ay);
   c.drawImage(sp.leaf, -(d.w / 2 + SPRITE_M), -(d.h + SPRITE_M), d.w + SPRITE_M * 2, d.h + SPRITE_M * 2);
