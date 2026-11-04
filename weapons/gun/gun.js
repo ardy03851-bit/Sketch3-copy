@@ -19,6 +19,7 @@ Weapon({
   ammo: 106,                  // shots per round (0 = infinite). When empty you shove with your fists.
   automatic: false,         // hold to keep firing
   bullets: 1,               // pellets per shot (shotgun = 6+)
+  bulletSize: 4,            // how big the bullet looks (1 = normal, 4 = BIG and chunky)
   spread: 0.025,            // radians of random spread
   bulletSpeed: 2300,        // px/s
   bulletGravity: 120,       // px/s² drop (0 = laser straight)

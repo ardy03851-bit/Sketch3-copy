@@ -338,6 +338,7 @@ const Setup = {
   },
   open(o) {
     this.ensure(); const prevSet = this.s && this.s.set; this.s = Object.assign(this.load(), { set: o.set || 'main', from: o.from || 'title' });
+    if (!SETUP_MODES.some(x => x.id === this.s.mode)) this.s.mode = 'arena'; // sanitize stale/invalid saved mode
     if (prevSet && prevSet !== this.s.set) this.s.biome = -1;
     if (this.s.biome >= 0 && (!THEMES[this.s.biome] || (THEMES[this.s.biome].set || 'main') !== this.s.set)) this.s.biome = -1;
     this.tab = 0; this.render(); UI.show('setup');
@@ -376,7 +377,7 @@ const Setup = {
     this.summary();
   },
   summary() {
-    const s = this.s, v = this.rules(); const m = SETUP_MODES.find(x => x.id === s.mode); const b = s.biome >= 0 && THEMES[s.biome] ? THEMES[s.biome].name : 'random world';
+    const s = this.s, v = this.rules(); const m = SETUP_MODES.find(x => x.id === s.mode) || SETUP_MODES[0]; const b = s.biome >= 0 && THEMES[s.biome] ? THEMES[s.biome].name : 'random world';
     const parts = ['Offline', m.n, s.terrain === 'flat' ? 'flat' : 'hills', b, s.bots + ' bot' + (s.bots === 1 ? '' : 's'), 'first to ' + s.target];
     if (s.mode === 'war') parts.splice(2, 0, Math.max(2, v.teams || 2) + ' teams'); else if (v.teams) parts.splice(2, 0, v.teams + ' teams');
     if (s.set === 'event') parts.unshift(EventInfo.name); $('#suSum').textContent = parts.join(' · ');

@@ -20,7 +20,7 @@
    ===================================================================== */
 'use strict';
 
-const CACHE = 'inkbrawl-v4';
+const CACHE = 'inkbrawl-v5';
 const CORE = [
   './',
   './index.html',

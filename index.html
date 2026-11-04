@@ -1300,6 +1300,8 @@ function drawBullets(c) {
     const tr = b.trail; if (!tr || tr.length < 2) continue;
     const f = b.dead ? clamp(1 - b.fade / .12, 0, 1) : 1; if (f <= 0) continue;
     const w = Weapons.byId[b.wid], col = (w && w.vfx && w.vfx.tracer) || '#ffd9a0';
+    // Per-weapon bullet size (visual only): weapons can set bulletSize (1 = default, 3 = chunky).
+    const bs = clamp(Number(w && w.bulletSize) || 1, 1, 8);
     // Optional weapon-art projectile: reuse that weapon's PNG, drawn much smaller.
     // Because the image is already part of the weapon definition, it also works in multiplayer.
     if (w && w.projectileSprite && w.img) {
@@ -1315,14 +1317,14 @@ function drawBullets(c) {
     c.beginPath(); c.moveTo(tr[0][0], tr[0][1]);
     for (let i = 1; i < tr.length; i++) c.lineTo(tr[i][0], tr[i][1]);
     // Ink edge, warm tracer body, then a thin paper-hot core.
-    c.globalAlpha = f * .72; c.strokeStyle = 'rgba(31,28,36,.42)'; c.lineWidth = 5.2; c.stroke();
-    c.globalAlpha = f * .94; c.strokeStyle = col; c.lineWidth = 3.2; c.stroke();
-    c.globalAlpha = f * .68; c.strokeStyle = '#fff4d9'; c.lineWidth = 1.05; c.stroke();
+    c.globalAlpha = f * .72; c.strokeStyle = 'rgba(31,28,36,.42)'; c.lineWidth = 5.2 * bs; c.stroke();
+    c.globalAlpha = f * .94; c.strokeStyle = col; c.lineWidth = 3.2 * bs; c.stroke();
+    c.globalAlpha = f * .68; c.strokeStyle = '#fff4d9'; c.lineWidth = 1.05 * Math.sqrt(bs); c.stroke();
     const last = tr[tr.length - 1], prev = tr[tr.length - 2];
     const dx = last[0] - prev[0], dy = last[1] - prev[1], len = Math.hypot(dx, dy) || 1;
-    c.globalAlpha = f * .95; c.fillStyle = '#fff9e9'; c.beginPath(); c.arc(last[0], last[1], b.dead ? 1.8 : 2.35, 0, TAU); c.fill();
+    c.globalAlpha = f * .95; c.fillStyle = '#fff9e9'; c.beginPath(); c.arc(last[0], last[1], b.dead ? 1.8 * bs : 2.35 * bs, 0, TAU); c.fill();
     // Tiny direction tick adds a readable sense of speed with only one extra segment.
-    if (!b.dead) { c.globalAlpha = f * .52; c.strokeStyle = col; c.lineWidth = 1.25; c.beginPath(); c.moveTo(last[0] - dx / len * 5, last[1] - dy / len * 5); c.lineTo(last[0] - dx / len * 9, last[1] - dy / len * 9); c.stroke(); }
+    if (!b.dead) { c.globalAlpha = f * .52; c.strokeStyle = col; c.lineWidth = 1.25 * Math.sqrt(bs); c.beginPath(); c.moveTo(last[0] - dx / len * 5 * bs, last[1] - dy / len * 5 * bs); c.lineTo(last[0] - dx / len * 9 * bs, last[1] - dy / len * 9 * bs); c.stroke(); }
   }
   c.globalAlpha = 1; c.restore();
 }
