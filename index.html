@@ -139,10 +139,11 @@ input.txt:focus{box-shadow:0 0 0 3px rgba(233,162,59,.45)}
 /* ---------- HUD ---------- */
 #hud{position:absolute;inset:0;pointer-events:none}
 .hud-top{position:absolute;top:calc(10px + var(--safe-t));left:calc(12px + var(--safe-l));right:calc(12px + var(--safe-r));display:flex;align-items:flex-start;gap:10px}
+.hud-actions{display:flex;gap:8px;flex:none}
 .hud-btn{pointer-events:auto;width:48px;height:48px;display:flex;align-items:center;justify-content:center;border:2.3px solid var(--ink);
   border-radius:var(--r-wob2);background:rgba(246,240,228,.92);box-shadow:3px 3px 0 rgba(31,28,36,.8);cursor:pointer}
 .hud-btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 rgba(31,28,36,.8)}
-.scores{flex:1;display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+.scores{flex:1;display:flex;justify-content:center;gap:8px;flex-wrap:wrap;min-width:0;align-content:flex-start;max-height:calc(100dvh - 120px);overflow:hidden}
 .score{display:flex;align-items:center;gap:7px;padding:5px 11px 5px 7px;border:2px solid var(--ink);border-radius:var(--r-wob2);background:rgba(246,240,228,.9);
   font-weight:800;font-size:15px;transition:transform .3s cubic-bezier(.3,1.6,.4,1)}
 .score .blob{width:18px;height:18px;border-radius:48% 52% 45% 55%/55% 45% 55% 45%;border:2px solid var(--ink);background:var(--c)}
@@ -177,11 +178,13 @@ input.txt:focus{box-shadow:0 0 0 3px rgba(233,162,59,.45)}
 @keyframes bannerIn{0%{opacity:0;transform:scale(2.2) rotate(-8deg)}60%{opacity:1;transform:scale(.94) rotate(2deg)}100%{transform:none}}
 .banner.out{animation:fadeOut .35s ease forwards}@keyframes fadeOut{to{opacity:0;transform:translateY(-14px)}}
 .banner.hide{display:none}
-.reveal{position:absolute;left:50%;top:56%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none}
-.reveal .rc{width:220px;height:130px;border:2.5px solid var(--ink);border-radius:var(--r-wob);background:var(--paper);box-shadow:5px 6px 0 rgba(31,28,36,.85);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;animation:flipIn .8s cubic-bezier(.2,1.3,.3,1) both}
-.reveal .rc img,.reveal .rc canvas{max-width:170px;max-height:70px;object-fit:contain;filter:drop-shadow(2px 3px 0 rgba(31,28,36,.25))}
-.reveal .rc b{font-size:18px}
+.reveal{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;z-index:6}
+.reveal .rc{width:min(268px,72vw);min-height:130px;box-sizing:border-box;padding:12px 14px 13px;border:2.5px solid var(--ink);border-radius:var(--r-wob);background:var(--paper);box-shadow:5px 6px 0 rgba(31,28,36,.85);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;text-align:center;overflow:hidden;animation:flipIn .8s cubic-bezier(.2,1.3,.3,1) both}
+.reveal .rc img,.reveal .rc canvas{max-width:82%;max-height:66px;object-fit:contain;filter:drop-shadow(2px 3px 0 rgba(31,28,36,.25))}
+.reveal .rc b{font-size:18px;line-height:1.15;max-width:100%;overflow-wrap:break-word}
+.reveal .rc .rarity-label{font-size:10px}
+.reveal .rc small{display:block;max-width:100%;line-height:1.4;padding:0 2px;white-space:normal;overflow-wrap:break-word;text-transform:none;letter-spacing:.02em;font-weight:600}
 @keyframes flipIn{0%{opacity:0;transform:perspective(600px) rotateY(100deg) scale(.6)}100%{opacity:1;transform:none}}
 .hint{position:absolute;left:50%;bottom:calc(132px + var(--safe-b));transform:translateX(-50%);padding:8px 16px;border-radius:var(--r-wob2);
   background:rgba(31,28,36,.8);color:var(--paper);font-weight:700;font-size:15px;white-space:nowrap;animation:cardIn .4s both}
@@ -223,7 +226,7 @@ select{font:700 15px var(--font);background:#f6f0e4;border:2px solid var(--ink);
 .exp-note{background:#ded3bd;border-left:3px solid var(--teal);padding:10px 12px;font-size:13px;line-height:1.5;margin:0 0 18px}
 .setting-row{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:14px 0;border-bottom:1px solid #c8bca7;font-weight:700}.setting-row select{width:160px}.setting-row input{width:130px;accent-color:var(--teal)}.setting-row input[type=checkbox]{width:22px;height:22px}
 #wcard{border-top:4px solid var(--rarity,var(--ink))}.rarity-label{text-transform:uppercase;letter-spacing:.12em;font-size:10px;font-weight:800;color:var(--rarity,#645b50);margin-bottom:3px}
-.witem{border-top:4px solid var(--rarity,var(--ink))}.witem .tag{background:var(--rarity,var(--ink));color:#fff}.witem .desc{min-height:44px;line-height:1.4}.reveal .rc{border-top:5px solid var(--rarity,var(--ink));height:auto;min-height:155px}.reveal small{font-size:11px;text-transform:uppercase;letter-spacing:.13em;color:var(--rarity)}
+.witem{border-top:4px solid var(--rarity,var(--ink))}.witem .tag{background:var(--rarity,var(--ink));color:#fff}.witem .desc{min-height:44px;line-height:1.4}.reveal .rc{border-top:5px solid var(--rarity,var(--ink));height:auto;min-height:0}.reveal .rc small{font-size:11px;color:var(--rarity)}
 
 /* ---------- MYTHIC rarity: animated cards ----------
    The mythic gradient sweeps, sparkles drift and twinkle over the card,
@@ -381,8 +384,10 @@ button,.btn,input,select,.screen{touch-action:manipulation}html{-webkit-text-siz
   <!-- HUD -->
   <div id="hud" class="hidden">
     <div class="hud-top">
-      <div class="hud-btn" id="bPause"><svg class="ico"><use href="#i-pause"/></svg></div>
-      <div class="hud-btn" id="bAdmin" title="Admin panel (F9)"><svg class="ico"><use href="#i-gear"/></svg></div>
+      <div class="hud-actions">
+        <div class="hud-btn" id="bPause" role="button" tabindex="0" aria-label="Pause"><svg class="ico"><use href="#i-pause"/></svg></div>
+        <div class="hud-btn" id="bAdmin" title="Asset toolbox (F9)" role="button" tabindex="0" aria-label="Asset toolbox"><svg class="ico"><use href="#i-gear"/></svg></div>
+      </div>
       <div class="scores" id="scores"></div>
     </div>
     <div class="round-chip" id="roundChip"></div><canvas id="miniMap" width="340" height="170" class="hidden"></canvas><div id="fpsReadout" class="hidden"></div><div class="toasts" id="toasts"></div>
@@ -1639,7 +1644,7 @@ function botThink(p, dt) {
 
 /* ---------- 10. session helpers (single-player: bots only) ---------- */
 function loadScript(urls) { return new Promise(res => { let i = 0; const next = () => { if (i >= urls.length) return res(false); const s = document.createElement('script'); s.src = urls[i++]; s.async = true; s.onload = () => res(true); s.onerror = () => { s.remove(); next(); }; document.head.appendChild(s); }; next(); }); }
-const WakeLock = { lock: null, async get() { try { if ('wakeLock' in navigator && !this.lock) { this.lock = await navigator.wakeLock.request('screen'); this.lock.addEventListener('release', () => this.lock = null); } } catch (e) { } }, release() { try { this.lock && this.lock.release(); } catch (e) { } this.lock = null; } };
+var WakeLock = { lock: null, async get() { try { if ('wakeLock' in navigator && !this.lock) { this.lock = await navigator.wakeLock.request('screen'); this.lock.addEventListener('release', () => this.lock = null); } } catch (e) { } }, release() { try { this.lock && this.lock.release(); } catch (e) { } this.lock = null; } };
 function cleanName(n) { return String(n || '').replace(/[<>]/g, '').trim().slice(0, 14) || 'Scribbler'; }
 document.addEventListener('visibilitychange', () => { if (!document.hidden && G.mode === 'play') WakeLock.get(); });
 
@@ -1729,7 +1734,9 @@ const UI = {
     tap('#chipWeapons', () => { this.renderWeapons(); this.show('weapons'); });
     tap('#bRescan', async () => { $('#wSource').textContent = 'Scanning the weapons and character folders…'; await Promise.all([discoverWeapons(), discoverChars()]); this.renderWeapons(); });
     $('#pickFolder').addEventListener('change', async e => { if (e.target.files && e.target.files.length) { await weaponsFromFiles(e.target.files); this.renderWeapons(); } e.target.value = ''; });
-    document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', () => { Audio2.play('ui'); this.show('title'); }));
+    // every panel's Back button returns to the menu it was opened from (the event
+    // page, or the title when a match has just ended) instead of always the title.
+    document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', () => { Audio2.play('ui'); (MainMenu.backFrom ? MainMenu.backFrom(this.cur) : this.show('title')); }));
     tap('#bPause', () => this.togglePause());
     tap('#bResume', () => this.togglePause(false));
     tap('#bLeave', () => leaveGame());
@@ -1739,6 +1746,8 @@ const UI = {
   },
   /* character / colour picker */
   renderPicker() {
+    // the title screen's hero avatar follows the selection
+    if (typeof MainMenu !== 'undefined' && MainMenu.renderAvatar) { try { MainMenu.renderAvatar(); } catch (e) { } }
     const sw = $('#swatches'); if (!sw) return;
     if (Chars.list.length) {
       if (!this.char || !Chars.byId[this.char]) this.char = Chars.list[0].id;
@@ -1772,6 +1781,10 @@ const UI = {
   weaponsChanged() {
     const n = Weapons.list.length; $('#wCount').textContent = !Weapons.ready ? 'loading weapons…' : n ? `${n} weapon${n > 1 ? 's' : ''} loaded` : 'no weapons found (fists only)';
     if (this.cur === 'weapons') this.renderWeapons();
+    // the title screen's arsenal spotlight can only fill once the weapons exist
+    if (typeof MainMenu !== 'undefined' && MainMenu.renderShowcase && (this.cur === 'title' || this.cur === 'event')) {
+      try { MainMenu.renderShowcase(); } catch (e) { }
+    }
   },
   renderWeapons() {
     const how = Weapons.source; const msg = { 'manifest': 'Loaded from the static-host manifest.', 'folder listing': 'Found automatically by reading the weapons/ folder.', 'GitHub repository': 'Found automatically from the GitHub repository behind this page.', 'picked folder': 'Loaded from the folder you picked on this device.', 'from host': 'Supplied by the room host.' }[how] || 'This server does not let pages list folders. Host the game with a folder-listing server or on GitHub Pages, or pick the weapons folder below. See README.';
@@ -1846,14 +1859,33 @@ function tick(dt) {
   G.trauma = Math.max(0, G.trauma - dt * 1.7); G.flash = Math.max(0, G.flash - dt * 2.2);
   if (G.isHost) hostRules();
 }
+/* The loop must never die. Every stage is wrapped so a single thrown error
+   (a bad prop art hook, a biome script, a canvas quirk on an odd GPU) is logged
+   once and skipped instead of freezing the whole game on a black screen. */
+function safeStage(name, fn) {
+  try { fn(); return true; }
+  catch (err) {
+    const key = 'stage:' + name;
+    if (!safeStage._seen) safeStage._seen = new Set();
+    if (!safeStage._seen.has(key)) {
+      safeStage._seen.add(key);
+      console.error('[inkbrawl] ' + name + ' failed (recovered):', err);
+      if (typeof UI !== 'undefined' && UI.hint && G.mode === 'play') UI.hint('A glitch was recovered — the brawl continues', 2.4);
+    }
+    return false;
+  }
+}
 function frame(ts) {
-  const dt = Math.min(.1, (ts - lastFrame) / 1000); lastFrame = ts;
-  if (!manual) { acc += dt; let n = 0; while (acc >= STEP && n < 5) { tick(STEP); acc -= STEP; n++; } if (n >= 5) acc = 0; }
-  processDirtyTerrain(2);
-  if(G.mode==='play' || R8.menuDirty) { render(now()); R8.menuDirty=false; }
-  hudT += dt; if (hudT > .1) { hudT = 0; UI.tickHud(); }
-  fpsT += dt; fpsN++; if (fpsT > 2) { const fps = fpsN / fpsT; fpsT = 0; fpsN = 0; R8.fpsAvg = fps; adaptQuality(fps); }
-  requestAnimationFrame(frame);
+  try {
+    const dt = Math.min(.1, (ts - lastFrame) / 1000); lastFrame = ts;
+    if (!manual) { acc += dt; let n = 0; while (acc >= STEP && n < 5) { safeStage('simulation', () => tick(STEP)); acc -= STEP; n++; } if (n >= 5) acc = 0; }
+    safeStage('terrain', () => processDirtyTerrain(2));
+    if(G.mode==='play' || R8.menuDirty) { safeStage('render', () => render(now())); R8.menuDirty=false; }
+    hudT += dt; if (hudT > .1) { hudT = 0; safeStage('hud', () => UI.tickHud()); }
+    fpsT += dt; fpsN++; if (fpsT > 2) { const fps = fpsN / fpsT; fpsT = 0; fpsN = 0; R8.fpsAvg = fps; safeStage('quality', () => adaptQuality(fps)); }
+  } finally {
+    requestAnimationFrame(frame); // always reschedule — a broken frame must never end the game
+  }
 }
 window.advanceTime = ms => { manual = true; const n = Math.max(1, Math.round(ms / (1000 / 60))); for (let i = 0; i < n; i++) tick(STEP); while (T.dirty && T.dirty.length) processDirtyTerrain(32); render(now()); };
 window.render_game_to_text = () => JSON.stringify({

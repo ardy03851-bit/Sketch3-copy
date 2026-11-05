@@ -30,6 +30,8 @@ function makeEl(tag) {
     children: [], width: 300, height: 150, value: '', checked: false,
     textContent: '', innerHTML: '', firstChild: null,
     addEventListener() {}, removeEventListener() {},
+    setAttribute() {}, getAttribute: () => null, removeAttribute() {}, hasAttribute: () => false,
+    matches: () => false, focusable: false,
     append() {}, prepend() {}, appendChild(c) { return c; }, removeChild(c) { return c; }, remove() {},
     insertAdjacentHTML() {}, closest: () => null, animate() { return {}; }, focus() {},
     querySelector: () => makeEl('div'), querySelectorAll: () => [], cloneNode: () => makeEl('div'), replaceWith() {},

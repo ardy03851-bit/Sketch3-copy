@@ -213,7 +213,9 @@ buildBackground = function (R) {
     x.lineTo(W + M, H + M); x.closePath(); const rg = x.createLinearGradient(0, base - 250, 0, H); rg.addColorStop(0, col); rg.addColorStop(1, shade(col, k ? -.18 : -.1)); x.fillStyle = rg; x.globalAlpha = .92; x.fill(); x.globalAlpha = 1; x.lineWidth = 2.2; x.strokeStyle = 'rgba(31,28,36,.22)'; x.stroke();
     if (k === 1) drawTreeLine(x, R, th, base, M); });
   if (th.bgTrees === 'volcano') { const vx = W * .62, vy = H * .52 - 300; const lg = x.createRadialGradient(vx, vy, 0, vx, vy, 260); lg.addColorStop(0, 'rgba(255,140,60,.55)'); lg.addColorStop(1, 'rgba(255,140,60,0)'); x.fillStyle = lg; x.fillRect(vx - 260, vy - 260, 520, 520); }
-  if (th.style === 'sea') { const sea = Env.water[0].level; x.fillStyle = rgba(th.water, .55); x.fillRect(-M, sea - 26, bw, H + M); x.fillStyle = 'rgba(255,250,235,.32)'; for (let i = 0; i < 80; i++) x.fillRect(-M + R() * bw, sea - 22 + R() * 30, 20 + R() * 60, 1.5); }
+  // The sea band is a backdrop: it must not assume the water body survived (a flat
+  // map, a biome terrain script or the arena path can leave Env.water empty).
+  if (th.style === 'sea' && Env.water.length) { const sea = Env.water[0].level; x.fillStyle = rgba(th.water, .55); x.fillRect(-M, sea - 26, bw, H + M); x.fillStyle = 'rgba(255,250,235,.32)'; for (let i = 0; i < 80; i++) x.fillRect(-M + R() * bw, sea - 22 + R() * 30, 20 + R() * 60, 1.5); }
   const hz = x.createLinearGradient(0, H * .42, 0, H + M); hz.addColorStop(0, rgba(th.skyB, 0)); hz.addColorStop(1, rgba(th.skyB, .5 + (th.haze || 0))); x.fillStyle = hz; x.fillRect(-M, H * .42, bw, H + M);
   biomeHook('background', BiomeAPI.ctx({ x, R, M, big }));
   T.bg = { c, M, s };
@@ -480,7 +482,7 @@ function waterPath(c, b, i0, i1, view, t) {
     if (!wet && open) { open = false; c.lineTo(x - WSTEP / 2, b.level + 1); for (let j = i - 1; j >= i0 && b.bottom[j] > b.level + .5; j--) c.lineTo(b.x0 + j * WSTEP, b.bottom[j] + 2); c.closePath(); } }
 }
 function drawWaterFront(c, view, t) {
-  const refl = reflectionsOn() && Env.water.length;
+  let refl = reflectionsOn() && Env.water.length;
   if (refl) {
     // one offscreen scene render per frame, shared by every water body in view
     let any = false;
