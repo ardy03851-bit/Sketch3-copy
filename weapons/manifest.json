@@ -442,6 +442,15 @@
    ]
   },
   {
+   "id": "robert",
+   "js": "script.js",
+   "png": "Robert.png",
+   "files": [
+    "Robert.png",
+    "script.js"
+   ]
+  },
+  {
    "id": "rocket",
    "js": "rocket.js",
    "png": "rocket.png",

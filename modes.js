@@ -329,7 +329,8 @@ for (const id of ['#hostMode', '#practiceMode']) { const s = $(id); if (s) s.add
 const _startHostModes = startHost;
 startHost = function (opts) {
   const v = Object.assign({}, RULE_DEFAULTS, RulesPanel.vals); const big = opts.gameMode === 'expedition';
-  if (!big) Object.assign(v, { war: 0, storm: 0, crowd: 0, mapSize: 4 }); // teams + friendly fire stay: they work in the arena if (v.war && !v.teams) v.teams = 2;
+  if (!big) Object.assign(v, { war: 0, storm: 0, crowd: 0, mapSize: 4 }); // teams + friendly fire stay: they work in the arena
+  if (v.war && !(v.teams >= 2)) v.teams = 2; // War is always team-based: a stale/zero cookie must not turn it off
   G.opts = v; G.teamScore = {}; G.tickets = {};
   let bots = opts.bots | 0; if (big && v.crowd) bots = v.crowd; if (!big) bots = Math.min(bots, 7);
   G.botCap = big && bots > 7 ? bots + Math.max(opts.max | 0, 8) : (big ? 100 : null);
@@ -415,8 +416,8 @@ function drawInkholdRing(c, V, t) {
   const inside = [];
   for (const p of G.players.values()) if (p.alive && Math.hypot(p.x - h.x, p.y - y) < r) inside.push(p);
   let col = '#e055d8'; // unheld: mythic pink
-  if (inside.length === 1) col = inside[0].col;
-  else if (inside.length > 1) { const tm = new Set(inside.map(p => p.team | 0)); col = tm.size > 1 ? '#f2ecdf' : inside[0].col; }
+  if (inside.length === 1) col = inside[0].color;
+  else if (inside.length > 1) { const tm = new Set(inside.map(p => p.team | 0)); col = tm.size > 1 ? '#f2ecdf' : inside[0].color; }
   // soft glow disc
   const g = c.createRadialGradient(x, y, r * .1, x, y, r);
   g.addColorStop(0, col + '26'); g.addColorStop(.8, col + '14'); g.addColorStop(1, col + '00');
@@ -465,7 +466,7 @@ function drawInkholdRing(c, V, t) {
     }
     if ((e.ph === 'over' || e.ph === 'champion') && e.winner == null) {
       const lead = scoresList().slice().sort((a, b) => b[1] - a[1])[0];
-      if (lead && lead[1] > 0) e = { ...e, ph: 'champion', winner: lead[0] };
+      if (lead && lead[1] > 0) e = { ...e, ph: 'champion', win: lead[0] }; // the phase payload key is `win`
     }
     return _phaseInk.call(this, e);
   };

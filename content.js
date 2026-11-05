@@ -121,6 +121,9 @@ function refreshBiomeSelects() {
 const EventInfo = { name: 'Halloween', tagline: 'pumpkins, ghosts and a very spooky drawer of weapons', accent: '#ff8a2a', accent2: '#8d4bd6', ink: '#1a1222', paper: '#2a2033', title: 'maintitle.png', bg: 'bg.png', loaded: false };
 async function loadEventInfo() {
   try { const r = await fetch('mainmenu/event/event.json', { cache: 'no-store' }); if (r.ok) Object.assign(EventInfo, await r.json()); } catch (e) { }
+  /* `months` in event.json says when the set is in season (1-12). Out of season the
+     menu keeps the event page, it just says so instead of pretending it's live. */
+  EventInfo.isLive = !Array.isArray(EventInfo.months) || !EventInfo.months.length || EventInfo.months.includes(new Date().getMonth() + 1);
   EventInfo.loaded = true;
 }
 

@@ -863,11 +863,26 @@ Ponds and puddles are real bodies of water. When a crater opens a hole in a pond
   "accent": "#ff8a2a",
   "accent2": "#8d4bd6",
   "title": "maintitle.png",
-  "bg": "bg.png"
+  "bg": "bg.png",
+  "months": [10]
 }
 ```
 
-`accent` colours the main button, `accent2` the second one. For Christmas, replace the two PNGs, change the json, and fill `weapons2/` and `biomes2/` with festive content.
+`accent` colours the main button, `accent2` the second one. `months` (optional, 1–12) says when the set is in season: in those months the menu calls it live, in the others the event page still works but says "out of season — back in October". Leave `months` out and the event is treated as always on. For Christmas, replace the two PNGs, change the json, and fill `weapons2/` and `biomes2/` with festive content.
+
+### What is on the main menu
+
+The title screen is one page built from the same content the game loads at boot, so it always tells the truth about the build:
+
+- **Your fighter and your name** — the character picker with a hero portrait of the current choice; both are remembered in a cookie.
+- **Play** (or `Enter`) opens the setup board. **How to play** (or `H`) opens the field notes, which are written for mouse/keyboard or touch depending on the device. **Settings** opens the options.
+- **Pick a mode** — Arena, Inkhold, Big Wilds, War. A card opens the setup board with that mode already selected.
+- **Last match** — after a match the menu shows how the last one went (mode, world, rounds, splats, wins) and offers **Run it again**, which starts the same setup again. Kept in `localStorage` on the device only, and forgotten after two weeks.
+- **In the arsenal** — a slow spotlight over the weapons that actually loaded; click it to open the full list.
+- **The event card and the page-turn tab** — the seasonal page, with its own art, weapons and worlds.
+- The small print at the bottom says it plainly: offline, nothing leaves the device.
+
+Nothing on the menu talks to a server: the only fetches are the local `weapons/`, `biomes/`, `char/` and `mainmenu/` folders, exactly like the rest of the game.
 
 ---
 
@@ -900,6 +915,16 @@ Press **B** (or tap the **Build** button on iPad) to take out the build kit. Tap
 - **Banners** — your team respawns near its banners.
 - **Campfires** heal teammates nearby, **spikes** hurt enemies standing on them.
 - **Repair** patches a damaged piece; **Recycle** gives back the full cost of an undamaged piece (half if it's damaged).
+
+---
+
+## Menu and polish pass
+
+- **A rebuilt title screen.** One scrolling page instead of a stack of boxes: parallax background art, drifting ink motes, a hero portrait of the selected fighter, a single Play button, How to play / Settings beside it, and a right-hand rail with the mode cards, the last match, the seasonal event and a weapon spotlight. Works from a 360px phone up to a 4K screen, and turns into the event page with the same page-flip.
+- **How to play** — a new screen with the real controls (keyboard or touch, detected), the rules, the modes and the offline/PWA notes.
+- **Back buttons remember where you came from** — leaving the weapons list or the setup board from the event page returns to the event page, not the title.
+- Fixed bugs: the sea backdrop crashing on flat/arena maps with no water; a per-frame `TypeError` in the water reflection that could freeze rendering; the inkhold ring reading `p.col` instead of `p.color` (so the ring never took the holder's colour); the event/inkhold victory payload writing `winner` where the rest of the game reads `win`; a War match started with a stale rules cookie losing its teams; a swallowed `if (v.war && !v.teams)` in the setup start path; the HUD action buttons and the score strip overflowing on narrow screens; the weapon reveal card clipping its text; the render loop is now error-isolated per stage so one bad frame cannot kill the game; the Play / Settings / Weapons buttons can no longer fire while a match is running; missing `weapons/manifest.json` and `char/manifest.json` entries (Robert) plus a stray `weapons/F` file.
+- The service worker cache moved to `inkbrawl-v8`, so an update is picked up on the next load.
 
 ---
 
