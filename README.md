@@ -10,6 +10,7 @@ inkbrawl/
 ├── README.md          ← this file
 ├── index.html         ← the core game (engine, UI, art, sound)
 ├── expansion.js       ← biomes, water, weather, props, new weapon mechanics, big-map mode, quality scaling
+├── wardrobe.js        ← the wardrobe: accessories + real cloth physics (capes, scarves)
 ├── manifest.webmanifest ← home-screen app name, icon, standalone window
 ├── sw.js              ← the service worker (offline home-screen app)
 ├── icon-*.png, apple-touch-icon.png ← the app icon (regenerate with tools/make-icon.py)
@@ -50,10 +51,10 @@ You never edit `index.html` to add a weapon. Drop a new folder into `weapons/` a
 19. [Adding weapons (the full guide)](#adding-weapons-the-full-guide)
 20. [Adding biomes](#adding-biomes)
 21. [The main menu folder](#the-main-menu-folder)
-22. [The event page (weapons2 and biomes2)](#the-event-page-weapons2-and-biomes2)
+22. [The wardrobe: accessories and cloth](#the-wardrobe-accessories-and-cloth)
 23. [Setting up a game: flat or normal maps](#setting-up-a-game-flat-or-normal-maps)
 24. [Building in War mode](#building-in-war-mode)
-25. [The Halloween update](#the-halloween-update)
+25. [The Big Overhaul update](#the-big-overhaul-update)
 
 ---
 
@@ -519,7 +520,7 @@ Adaptive mode starts from a guess based on the device (cores, memory, screen siz
 
 ### Hosting without folder listings
 
-Run `python3 tools/make-manifest.py` after adding weapons, biomes or characters. It writes `weapons/manifest.json`, `weapons2/manifest.json`, `biomes/manifest.json`, `biomes2/manifest.json` and `char/manifest.json`, which the game reads on hosts like Netlify or Vercel (and on GitHub Pages when the GitHub API is busy).
+Run `python3 tools/make-manifest.py` after adding weapons, biomes or characters. It writes `weapons/manifest.json`, `biomes/manifest.json` and `char/manifest.json`, which the game reads on hosts like Netlify or Vercel (and on GitHub Pages when the GitHub API is busy).
 
 
 ---
@@ -595,11 +596,8 @@ Everything you add lives in its own folder. The game finds the folders by itself
 | Folder | What goes in it | Shown on |
 | --- | --- | --- |
 | `weapons/<id>/` | `<id>.js` + `<id>.png` — one weapon | normal menu |
-| `weapons2/<id>/` | the same thing, for event weapons | event page |
 | `biomes/<id>/` | `<id>.js` + any images it uses — one biome | normal menu |
-| `biomes2/<id>/` | the same thing, for event biomes | event page |
 | `mainmenu/` | `bg.png`, `maintitle.png` — the main menu art | main menu |
-| `mainmenu/event/` | `bg.png`, `maintitle.png`, `event.json` — the event page art and text | event page |
 | `char/` | character PNGs | both |
 
 After adding or removing a folder, run `python3 tools/make-manifest.py` once and commit. It writes a `manifest.json` into each content folder. GitHub Pages can't list folders, so the game first asks the GitHub API for the repository tree and falls back to these manifest files when the API is busy (it allows 60 requests an hour per network).
@@ -626,13 +624,9 @@ Weapon({
 
 4. Run `python3 tools/make-manifest.py`, commit, push. Refresh the game and the pan is in the random pool.
 
-### Normal weapons vs event weapons
+### The weapon pool
 
-- `weapons/` — the normal pool, used by every game started from the main menu.
-- `weapons2/` — the event pool, used by games started from the event page (the orange arrow on the main menu). It works exactly like `weapons/`: same folder layout, same script, same PNG rules.
-- If `weapons2/` has a folder with the same name as one in `weapons/`, the event one is renamed `ev-<id>` so both exist.
-- If the event pool is empty, event games fall back to the normal weapons.
-- To put one weapon in both pools, add `sets: ["main", "event"]` to its script.
+- `weapons/` — the one and only pool, used by every game. Every folder in it is always in the running.
 
 ### Every field
 
@@ -671,7 +665,7 @@ Biomes work the same way as weapons: one folder, one script, the game finds it.
 2. Write `biomes/frosty-pier/frosty-pier.js`. Copy any existing biome (they're all in `biomes/`) and change it — every built-in biome lives there now, unchanged, so they're good templates.
 3. Run `python3 tools/make-manifest.py`, commit, push.
 
-Event biomes go in `biomes2/` instead and only appear on the event page.
+Every biome in `biomes/` can be picked (or come up in Random) — there is no separate event pool any more.
 
 ```js
 Biome({
@@ -695,7 +689,7 @@ Biome({
 
 | Field | Meaning |
 | --- | --- |
-| `order` | sort order in menus (built-ins use 100–3300; event ones 100–300) |
+| `order` | sort order in menus (built-ins use 100–3300) |
 | `name` | shown in menus (max 28 characters) |
 | `id` | optional; defaults to the folder name |
 | `style` | `float`, `ground`, `sea` or `stepped` |
@@ -731,7 +725,7 @@ newProps: {
 }
 ```
 
-`h` is worked out from the image if you leave it out. Or draw it with the game's ink helpers (look at `biomes/sunflower-hills/sunflower-hills.js` and `biomes2/pumpkin-patch/pumpkin-patch.js`):
+`h` is worked out from the image if you leave it out. Or draw it with the game's ink helpers (look at `biomes/sunflower-hills/sunflower-hills.js`):
 
 ```js
 newProps: {
@@ -849,31 +843,20 @@ Ponds and puddles are real bodies of water. When a crater opens a hole in a pond
 | --- | --- |
 | `mainmenu/bg.png` | the full-screen background (slowly drifts). 1600×900 or bigger. |
 | `mainmenu/maintitle.png` | the game title on the top-left. Transparent PNG, about 3:1. If it's missing the drawn text logo is used. |
-| `mainmenu/event/bg.png` | the event page background |
-| `mainmenu/event/maintitle.png` | the event version of the title |
-| `mainmenu/event/event.json` | the event's name and colours |
 
-`event.json`:
-
-```json
-{
-  "name": "Halloween",
-  "icon": "🎃",
-  "tagline": "pumpkins, ghosts and a very spooky drawer of weapons",
-  "accent": "#ff8a2a",
-  "accent2": "#8d4bd6",
-  "title": "maintitle.png",
-  "bg": "bg.png"
-}
-```
-
-`accent` colours the main button, `accent2` the second one. For Christmas, replace the two PNGs, change the json, and fill `weapons2/` and `biomes2/` with festive content.
 
 ---
 
-## The event page (weapons2 and biomes2)
+## The wardrobe: accessories and cloth
 
-The orange arrow on the right of the main menu turns the page (a 3D page flip) to the event page. Games started there use only `weapons2/` and `biomes2/` — a completely separate set — while everything else (modes, rules, offline play) works the same. The arrow on the event page flips back.
+The **Wardrobe** button on the main menu (also on the title screen) opens the wardrobe. Four slots, all drawn procedurally in the game's ink style — no image assets:
+
+- **Hats** — 14 hats: top hat, crown, wizard hat, party hat, halo, horns, bandana, beret, propeller cap, flower, bucket, pirate hat, chef hat, cap.
+- **Eyewear** — shades, round glasses, monocle, eye patch, star eyes.
+- **Back & cloth** — the star of the show: **capes and scarves are real cloth**, a verlet particle chain pinned to the fighter's neck and solved every frame against gravity, wind (biome wind affects it), the fighter's own movement and the terrain. Also paper wings, backpack, quiver, back shield.
+- **Trails** — sparkles, ink drips, petals behind a running fighter.
+
+Bots pick random outfits (stable per bot, so they keep their look), and your own outfit is saved in the `ib_wardrobe` cookie. Everything is visual only — no gameplay advantage.
 
 ---
 
@@ -903,12 +886,15 @@ Press **B** (or tap the **Build** button on iPad) to take out the build kit. Tap
 
 ---
 
-## The Halloween update
+## The Big Overhaul update
 
-- New main menu: background art, a new title, the buttons on the left, smooth animated transitions. Fixed the menu animations playing far too fast on devices with "reduce motion" on.
-- Event page with its own Halloween title, animated bats and fog, and its own weapons and biomes.
-- 12 new weapons (Anchor, Flare Gun, Paint Roller, Pepperbox, Rubber Chicken, Shovel, Slingshot, Staple Gun, Tomato Launcher, Trident, Brass Blaster, Brolly) and 8 event weapons (Bat Cage, Femur Club, Witch Broom, Candy Corn SMG, Ecto Blaster, Pumpkin Launcher, Reaper Sickle, Skull Cannon).
-- New biomes: Misty Highlands, Coral Shallows, Sunflower Hills, Starfall Plateau; event biomes Pumpkin Patch, Graveyard Fog, Witchwood.
+- New main menu: background art, a new title, the buttons on the left, smooth animated transitions, floating ink doodles. Fixed the menu animations playing far too fast on devices with "reduce motion" on.
+- **Wardrobe**: 30+ accessories, real cloth capes and scarves, bot outfits.
+- **12 new weapons** (90 total): Tidal Soaker, Doodlebuzz chainsaw, Walk the Dog yo-yo, Sketch-Lash whip, Power Chord guitar, Glue Blaster, Magnet Mortar, Pocket Javelin, Pizza Cutter, Beehive Chucker, Gale Gust leaf blower, Plasma Bow.
+- **Building overhaul**: 10 new pieces (window, door, haybale, shelf, gate, statue, bouncy shroom, boom barrel, proximity mine), a collapsible build bar, smarter bot builders, and the build kit now works in Big Wilds as well as War mode.
+- **No caps anywhere**: any bot count, any HP, any target score, custom map sizes in pixels, chaos dials (gravity / run speed / jump power / infinite ammo), 8-team War mode, Nightmare bots, kill-streak toasts.
+- **Offline**: the service worker caches the Google Fonts too, so a home-screen launch on iPad looks right with no network at all.
+- **Removed**: the event page and the separate event pools (weapons2/biomes2). Every weapon and biome is always in the pool.
 - Flat maps for every mode and size; one tidy setup screen.
 - Much more building, an easier build bar on iPad, and no more accidental zooming when tapping fast.
 - The game is now offline-only: the multiplayer netcode (rooms, server list, invite links) was removed and every match is vs bots.

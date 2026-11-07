@@ -6,6 +6,8 @@
    "png": "acid.png",
    "files": [
     "acid.js",
+    "acid.png",
+    "acid.js",
     "acid.png"
    ]
   },
@@ -14,6 +16,8 @@
    "js": "anchor.js",
    "png": "anchor.png",
    "files": [
+    "anchor.js",
+    "anchor.png",
     "anchor.js",
     "anchor.png"
    ]
@@ -24,6 +28,8 @@
    "png": "axe.png",
    "files": [
     "axe.js",
+    "axe.png",
+    "axe.js",
     "axe.png"
    ]
   },
@@ -33,7 +39,18 @@
    "png": "bat.png",
    "files": [
     "bat.js",
+    "bat.png",
+    "bat.js",
     "bat.png"
+   ]
+  },
+  {
+   "id": "beehive",
+   "js": "beehive.js",
+   "png": "beehive.png",
+   "files": [
+    "beehive.js",
+    "beehive.png"
    ]
   },
   {
@@ -41,6 +58,8 @@
    "js": "blunderbuss.js",
    "png": "blunderbuss.png",
    "files": [
+    "blunderbuss.js",
+    "blunderbuss.png",
     "blunderbuss.js",
     "blunderbuss.png"
    ]
@@ -50,7 +69,8 @@
    "js": "boomerang.js",
    "png": "boomerang.png",
    "files": [
-    "F",
+    "boomerang.js",
+    "boomerang.png",
     "boomerang.js",
     "boomerang.png"
    ]
@@ -61,6 +81,8 @@
    "png": "boomerang-blade.png",
    "files": [
     "boomerang-blade.js",
+    "boomerang-blade.png",
+    "boomerang-blade.js",
     "boomerang-blade.png"
    ]
   },
@@ -70,6 +92,8 @@
    "png": "bounce-blaster.png",
    "files": [
     "bounce-blaster.js",
+    "bounce-blaster.png",
+    "bounce-blaster.js",
     "bounce-blaster.png"
    ]
   },
@@ -78,7 +102,8 @@
    "js": "bubble.js",
    "png": "bubble.png",
    "files": [
-    "F",
+    "bubble.js",
+    "bubble.png",
     "bubble.js",
     "bubble.png"
    ]
@@ -89,7 +114,18 @@
    "png": "burstrifle.png",
    "files": [
     "burstrifle.js",
+    "burstrifle.png",
+    "burstrifle.js",
     "burstrifle.png"
+   ]
+  },
+  {
+   "id": "chainsaw",
+   "js": "chainsaw.js",
+   "png": "chainsaw.png",
+   "files": [
+    "chainsaw.js",
+    "chainsaw.png"
    ]
   },
   {
@@ -97,6 +133,8 @@
    "js": "confetti.js",
    "png": "confetti.png",
    "files": [
+    "confetti.js",
+    "confetti.png",
     "confetti.js",
     "confetti.png"
    ]
@@ -107,6 +145,8 @@
    "png": "crossbow.png",
    "files": [
     "crossbow.js",
+    "crossbow.png",
+    "crossbow.js",
     "crossbow.png"
    ]
   },
@@ -115,7 +155,8 @@
    "js": "cryo.js",
    "png": "cryo.png",
    "files": [
-    "(",
+    "cryo.js",
+    "cryo.png",
     "cryo.js",
     "cryo.png"
    ]
@@ -126,6 +167,8 @@
    "png": "crystal-wand.png",
    "files": [
     "crystal-wand.js",
+    "crystal-wand.png",
+    "crystal-wand.js",
     "crystal-wand.png"
    ]
   },
@@ -134,6 +177,8 @@
    "js": "daggers.js",
    "png": "daggers.png",
    "files": [
+    "daggers.js",
+    "daggers.png",
     "daggers.js",
     "daggers.png"
    ]
@@ -144,6 +189,8 @@
    "png": "derringer.png",
    "files": [
     "derringer.js",
+    "derringer.png",
+    "derringer.js",
     "derringer.png"
    ]
   },
@@ -153,7 +200,9 @@
    "png": "dollar.png",
    "files": [
     "dollar.png",
-    "script.js"
+    "script.js",
+    "script.js",
+    "dollar.png"
    ]
   },
   {
@@ -161,6 +210,8 @@
    "js": "firework.js",
    "png": "firework.png",
    "files": [
+    "firework.js",
+    "firework.png",
     "firework.js",
     "firework.png"
    ]
@@ -170,7 +221,8 @@
    "js": "flamer.js",
    "png": "flamer.png",
    "files": [
-    "F",
+    "flamer.js",
+    "flamer.png",
     "flamer.js",
     "flamer.png"
    ]
@@ -181,6 +233,8 @@
    "png": "flamethrower.png",
    "files": [
     "flamethrower.js",
+    "flamethrower.png",
+    "flamethrower.js",
     "flamethrower.png"
    ]
   },
@@ -189,6 +243,8 @@
    "js": "flaregun.js",
    "png": "flaregun.png",
    "files": [
+    "flaregun.js",
+    "flaregun.png",
     "flaregun.js",
     "flaregun.png"
    ]
@@ -199,7 +255,18 @@
    "png": "frost-popper.png",
    "files": [
     "frost-popper.js",
+    "frost-popper.png",
+    "frost-popper.js",
     "frost-popper.png"
+   ]
+  },
+  {
+   "id": "glueblaster",
+   "js": "glueblaster.js",
+   "png": "glueblaster.png",
+   "files": [
+    "glueblaster.js",
+    "glueblaster.png"
    ]
   },
   {
@@ -207,9 +274,19 @@
    "js": "grenade.js",
    "png": "grenade.png",
    "files": [
-    "F",
+    "grenade.js",
+    "grenade.png",
     "grenade.js",
     "grenade.png"
+   ]
+  },
+  {
+   "id": "guitar",
+   "js": "guitar.js",
+   "png": "guitar.png",
+   "files": [
+    "guitar.js",
+    "guitar.png"
    ]
   },
   {
@@ -217,6 +294,8 @@
    "js": "gun.js",
    "png": "gun.png",
    "files": [
+    "gun.js",
+    "gun.png",
     "gun.js",
     "gun.png"
    ]
@@ -226,7 +305,8 @@
    "js": "hammer.js",
    "png": "hammer.png",
    "files": [
-    "Gg",
+    "hammer.js",
+    "hammer.png",
     "hammer.js",
     "hammer.png"
    ]
@@ -237,6 +317,8 @@
    "png": "handcannon.png",
    "files": [
     "handcannon.js",
+    "handcannon.png",
+    "handcannon.js",
     "handcannon.png"
    ]
   },
@@ -245,7 +327,8 @@
    "js": "harpoon.js",
    "png": "harpoon.png",
    "files": [
-    "F",
+    "harpoon.js",
+    "harpoon.png",
     "harpoon.js",
     "harpoon.png"
    ]
@@ -256,6 +339,8 @@
    "png": "hornet.png",
    "files": [
     "hornet.js",
+    "hornet.png",
+    "hornet.js",
     "hornet.png"
    ]
   },
@@ -264,6 +349,8 @@
    "js": "inkblot.js",
    "png": "inkblot.png",
    "files": [
+    "inkblot.js",
+    "inkblot.png",
     "inkblot.js",
     "inkblot.png"
    ]
@@ -274,7 +361,18 @@
    "png": "inksaber.png",
    "files": [
     "inksaber.js",
+    "inksaber.png",
+    "inksaber.js",
     "inksaber.png"
+   ]
+  },
+  {
+   "id": "javelin",
+   "js": "javelin.js",
+   "png": "javelin.png",
+   "files": [
+    "javelin.js",
+    "javelin.png"
    ]
   },
   {
@@ -283,7 +381,18 @@
    "png": "IMG_2301.png",
    "files": [
     "IMG_2301.png",
-    "script.js"
+    "script.js",
+    "script.js",
+    "IMG_2301.png"
+   ]
+  },
+  {
+   "id": "leafblower",
+   "js": "leafblower.js",
+   "png": "leafblower.png",
+   "files": [
+    "leafblower.js",
+    "leafblower.png"
    ]
   },
   {
@@ -291,6 +400,8 @@
    "js": "longbow.js",
    "png": "longbow.png",
    "files": [
+    "longbow.js",
+    "longbow.png",
     "longbow.js",
     "longbow.png"
    ]
@@ -301,7 +412,18 @@
    "png": "mace.png",
    "files": [
     "mace.js",
+    "mace.png",
+    "mace.js",
     "mace.png"
+   ]
+  },
+  {
+   "id": "magnetgun",
+   "js": "magnetgun.js",
+   "png": "magnetgun.png",
+   "files": [
+    "magnetgun.js",
+    "magnetgun.png"
    ]
   },
   {
@@ -309,7 +431,8 @@
    "js": "minigun.js",
    "png": "minigun.png",
    "files": [
-    "U",
+    "minigun.js",
+    "minigun.png",
     "minigun.js",
     "minigun.png"
    ]
@@ -320,6 +443,8 @@
    "png": "mortar.png",
    "files": [
     "mortar.js",
+    "mortar.png",
+    "mortar.js",
     "mortar.png"
    ]
   },
@@ -328,6 +453,8 @@
    "js": "nailgun.js",
    "png": "nailgun.png",
    "files": [
+    "nailgun.js",
+    "nailgun.png",
     "nailgun.js",
     "nailgun.png"
    ]
@@ -338,6 +465,8 @@
    "png": "paintroller.png",
    "files": [
     "paintroller.js",
+    "paintroller.png",
+    "paintroller.js",
     "paintroller.png"
    ]
   },
@@ -346,6 +475,8 @@
    "js": "pan.js",
    "png": "pan.png",
    "files": [
+    "pan.js",
+    "pan.png",
     "pan.js",
     "pan.png"
    ]
@@ -356,6 +487,8 @@
    "png": "pepperbox.png",
    "files": [
     "pepperbox.js",
+    "pepperbox.png",
+    "pepperbox.js",
     "pepperbox.png"
    ]
   },
@@ -365,7 +498,18 @@
    "png": "pickaxe.png",
    "files": [
     "pickaxe.js",
+    "pickaxe.png",
+    "pickaxe.js",
     "pickaxe.png"
+   ]
+  },
+  {
+   "id": "pizzacutter",
+   "js": "pizzacutter.js",
+   "png": "pizzacutter.png",
+   "files": [
+    "pizzacutter.js",
+    "pizzacutter.png"
    ]
   },
   {
@@ -374,7 +518,18 @@
    "png": "plasma.png",
    "files": [
     "plasma.js",
+    "plasma.png",
+    "plasma.js",
     "plasma.png"
+   ]
+  },
+  {
+   "id": "plasmabow",
+   "js": "plasmabow.js",
+   "png": "plasmabow.png",
+   "files": [
+    "plasmabow.js",
+    "plasmabow.png"
    ]
   },
   {
@@ -382,6 +537,8 @@
    "js": "poison-dart.js",
    "png": "poison-dart.png",
    "files": [
+    "poison-dart.js",
+    "poison-dart.png",
     "poison-dart.js",
     "poison-dart.png"
    ]
@@ -392,6 +549,8 @@
    "png": "pop-pistol.png",
    "files": [
     "pop-pistol.js",
+    "pop-pistol.png",
+    "pop-pistol.js",
     "pop-pistol.png"
    ]
   },
@@ -401,6 +560,8 @@
    "png": "prism-lance.png",
    "files": [
     "prism-lance.js",
+    "prism-lance.png",
+    "prism-lance.js",
     "prism-lance.png"
    ]
   },
@@ -409,7 +570,8 @@
    "js": "railgun.js",
    "png": "railgun.png",
    "files": [
-    "G",
+    "railgun.js",
+    "railgun.png",
     "railgun.js",
     "railgun.png"
    ]
@@ -420,6 +582,8 @@
    "png": "raypistol.png",
    "files": [
     "raypistol.js",
+    "raypistol.png",
+    "raypistol.js",
     "raypistol.png"
    ]
   },
@@ -428,6 +592,8 @@
    "js": "ricochet.js",
    "png": "ricochet.png",
    "files": [
+    "ricochet.js",
+    "ricochet.png",
     "ricochet.js",
     "ricochet.png"
    ]
@@ -438,7 +604,18 @@
    "png": "IMG_2305.png",
    "files": [
     "IMG_2305.png",
-    "script.js"
+    "script.js",
+    "script.js",
+    "IMG_2305.png"
+   ]
+  },
+  {
+   "id": "robert",
+   "js": "script.js",
+   "png": "Robert.png",
+   "files": [
+    "script.js",
+    "Robert.png"
    ]
   },
   {
@@ -446,7 +623,8 @@
    "js": "rocket.js",
    "png": "rocket.png",
    "files": [
-    "C",
+    "rocket.js",
+    "rocket.png",
     "rocket.js",
     "rocket.png"
    ]
@@ -457,6 +635,8 @@
    "png": "rosethorn.png",
    "files": [
     "rosethorn.js",
+    "rosethorn.png",
+    "rosethorn.js",
     "rosethorn.png"
    ]
   },
@@ -465,6 +645,8 @@
    "js": "rubberchicken.js",
    "png": "rubberchicken.png",
    "files": [
+    "rubberchicken.js",
+    "rubberchicken.png",
     "rubberchicken.js",
     "rubberchicken.png"
    ]
@@ -475,6 +657,8 @@
    "png": "sawlauncher.png",
    "files": [
     "sawlauncher.js",
+    "sawlauncher.png",
+    "sawlauncher.js",
     "sawlauncher.png"
    ]
   },
@@ -483,7 +667,8 @@
    "js": "scythe.js",
    "png": "scythe.png",
    "files": [
-    "F",
+    "scythe.js",
+    "scythe.png",
     "scythe.js",
     "scythe.png"
    ]
@@ -493,7 +678,8 @@
    "js": "shotgun.js",
    "png": "shotgun.png",
    "files": [
-    "D",
+    "shotgun.js",
+    "shotgun.png",
     "shotgun.js",
     "shotgun.png"
    ]
@@ -504,6 +690,8 @@
    "png": "shovel.png",
    "files": [
     "shovel.js",
+    "shovel.png",
+    "shovel.js",
     "shovel.png"
    ]
   },
@@ -512,6 +700,8 @@
    "js": "slingshot.js",
    "png": "slingshot.png",
    "files": [
+    "slingshot.js",
+    "slingshot.png",
     "slingshot.js",
     "slingshot.png"
    ]
@@ -522,6 +712,8 @@
    "png": "smg.png",
    "files": [
     "smg.js",
+    "smg.png",
+    "smg.js",
     "smg.png"
    ]
   },
@@ -530,7 +722,8 @@
    "js": "sniper.js",
    "png": "sniper.png",
    "files": [
-    "F",
+    "sniper.js",
+    "sniper.png",
     "sniper.js",
     "sniper.png"
    ]
@@ -541,7 +734,18 @@
    "png": "snowball.png",
    "files": [
     "snowball.js",
+    "snowball.png",
+    "snowball.js",
     "snowball.png"
+   ]
+  },
+  {
+   "id": "soaker",
+   "js": "soaker.js",
+   "png": "soaker.png",
+   "files": [
+    "soaker.js",
+    "soaker.png"
    ]
   },
   {
@@ -549,6 +753,8 @@
    "js": "spear.js",
    "png": "spear.png",
    "files": [
+    "spear.js",
+    "spear.png",
     "spear.js",
     "spear.png"
    ]
@@ -559,6 +765,8 @@
    "png": "staplegun.png",
    "files": [
     "staplegun.js",
+    "staplegun.png",
+    "staplegun.js",
     "staplegun.png"
    ]
   },
@@ -567,6 +775,8 @@
    "js": "stickymine.js",
    "png": "stickymine.png",
    "files": [
+    "stickymine.js",
+    "stickymine.png",
     "stickymine.js",
     "stickymine.png"
    ]
@@ -577,6 +787,8 @@
    "png": "storm-serpent.png",
    "files": [
     "storm-serpent.js",
+    "storm-serpent.png",
+    "storm-serpent.js",
     "storm-serpent.png"
    ]
   },
@@ -586,7 +798,9 @@
    "png": "IMG_2303.png",
    "files": [
     "IMG_2303.png",
-    "script.js"
+    "script.js",
+    "script.js",
+    "IMG_2303.png"
    ]
   },
   {
@@ -595,7 +809,9 @@
    "png": "IMG_2298.png",
    "files": [
     "IMG_2298.png",
-    "script.js"
+    "script.js",
+    "script.js",
+    "IMG_2298.png"
    ]
   },
   {
@@ -604,7 +820,9 @@
    "png": "IMG_2296.png",
    "files": [
     "IMG_2296.png",
-    "script.js"
+    "script.js",
+    "script.js",
+    "IMG_2296.png"
    ]
   },
   {
@@ -612,7 +830,8 @@
    "js": "sword.js",
    "png": "sword.png",
    "files": [
-    "Hh",
+    "sword.js",
+    "sword.png",
     "sword.js",
     "sword.png"
    ]
@@ -622,7 +841,8 @@
    "js": "tesla.js",
    "png": "tesla.png",
    "files": [
-    "F",
+    "tesla.js",
+    "tesla.png",
     "tesla.js",
     "tesla.png"
    ]
@@ -633,6 +853,8 @@
    "png": "thunder-hammer.png",
    "files": [
     "thunder-hammer.js",
+    "thunder-hammer.png",
+    "thunder-hammer.js",
     "thunder-hammer.png"
    ]
   },
@@ -641,6 +863,8 @@
    "js": "tomato.js",
    "png": "tomato.png",
    "files": [
+    "tomato.js",
+    "tomato.png",
     "tomato.js",
     "tomato.png"
    ]
@@ -651,6 +875,8 @@
    "png": "toolbox.png",
    "files": [
     "toolbox.js",
+    "toolbox.png",
+    "toolbox.js",
     "toolbox.png"
    ]
   },
@@ -659,6 +885,8 @@
    "js": "trident.js",
    "png": "trident.png",
    "files": [
+    "trident.js",
+    "trident.png",
     "trident.js",
     "trident.png"
    ]
@@ -669,6 +897,8 @@
    "png": "trumpet.png",
    "files": [
     "trumpet.js",
+    "trumpet.png",
+    "trumpet.js",
     "trumpet.png"
    ]
   },
@@ -677,6 +907,8 @@
    "js": "umbrella.js",
    "png": "umbrella.png",
    "files": [
+    "umbrella.js",
+    "umbrella.png",
     "umbrella.js",
     "umbrella.png"
    ]
@@ -687,6 +919,8 @@
    "png": "void-vortex.png",
    "files": [
     "void-vortex.js",
+    "void-vortex.png",
+    "void-vortex.js",
     "void-vortex.png"
    ]
   },
@@ -695,9 +929,19 @@
    "js": "voidgun.js",
    "png": "voidgun.png",
    "files": [
-    "F",
+    "voidgun.js",
+    "voidgun.png",
     "voidgun.js",
     "voidgun.png"
+   ]
+  },
+  {
+   "id": "whip",
+   "js": "whip.js",
+   "png": "whip.png",
+   "files": [
+    "whip.js",
+    "whip.png"
    ]
   },
   {
@@ -706,7 +950,18 @@
    "png": "woodpecker.png",
    "files": [
     "woodpecker.js",
+    "woodpecker.png",
+    "woodpecker.js",
     "woodpecker.png"
+   ]
+  },
+  {
+   "id": "yoyo",
+   "js": "yoyo.js",
+   "png": "yoyo.png",
+   "files": [
+    "yoyo.js",
+    "yoyo.png"
    ]
   }
  ]

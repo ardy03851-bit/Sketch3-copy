@@ -1,23 +1,20 @@
 /* =====================================================================
-   content.js: content folders and the event set
+   content.js: content folders
    ---------------------------------------------------------------------
-   biomes/<id>/<id>.js    normal biomes  (one Biome({...}) call per file)
-   biomes2/<id>/<id>.js   event biomes   (shown on the event page)
-   weapons/  weapons2/    weapons (found by discoverWeapons in index.html)
-   mainmenu/              main menu art (bg.png, maintitle.png, event/...)
+   biomes/<id>/<id>.js    biomes  (one Biome({...}) call per file)
+   weapons/               weapons (found by discoverWeapons in index.html)
+   mainmenu/              main menu art (bg.png, maintitle.png)
    Nothing in index.html has to change to add any of these. See README.
    ===================================================================== */
 'use strict';
 
 RULE_DEFAULTS.terrain = 'normal';   // 'normal' | 'flat'
-RULE_DEFAULTS.set = 'main';         // 'main' | 'event'
-for (const k of ['terrain', 'set']) if (G.opts[k] == null) G.opts[k] = RULE_DEFAULTS[k];
+if (G.opts.terrain == null) G.opts.terrain = RULE_DEFAULTS.terrain;
 
-const Content = { log: [], how: '', ready: false, counts: { main: 0, event: 0 } };
-function contentSet() { return (G.opts && G.opts.set) || 'main'; }
+const Content = { log: [], how: '', ready: false, counts: { main: 0 } };
 function biomeSetOf(t) { return (t && t.set) || 'main'; }
-function biomeIndexes(set = contentSet()) {
-  const r = []; THEMES.forEach((t, i) => { if (biomeSetOf(t) === set) r.push(i); });
+function biomeIndexes() {
+  const r = []; THEMES.forEach((t, i) => { if (biomeSetOf(t) === 'main') r.push(i); });
   if (!r.length) THEMES.forEach((t, i) => { if (biomeSetOf(t) === 'main') r.push(i); });
   return r.length ? r : [0];
 }
@@ -38,18 +35,16 @@ function biomeFromNet(id, idx) {
 function slugOf(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'biome'; }
 for (const t of THEMES) { if (!t.id) t.id = slugOf(t.name); if (!t.set) t.set = 'main'; }
 
-/* ---------- weapons: which set is in play ---------- */
-function weaponInSet(w, set = contentSet()) {
-  if (!w) return false; if (Array.isArray(w.sets)) return w.sets.includes(set);
-  return (w.set || 'main') === set;
+/* ---------- weapons: every weapon in the folder is in play ---------- */
+function weaponInSet(w) {
+  if (!w) return false; if (Array.isArray(w.sets)) return w.sets.includes('main');
+  return (w.set || 'main') === 'main';
 }
 {
   const _allowed = weaponAllowed;
   weaponAllowed = function (w) {
     if (!_allowed(w)) return false;
-    const set = contentSet(); if (weaponInSet(w, set)) return true;
-    // an event with no weapons of its own falls back to the normal ones
-    return set !== 'main' && !Weapons.list.some(x => weaponInSet(x, set) && x.weight > 0) && weaponInSet(w, 'main');
+    return weaponInSet(w);
   };
 }
 
@@ -101,34 +96,26 @@ async function loadBiomeFolder(root, set) {
 }
 async function discoverBiomes() {
   Content.log = [];
-  const [A, B] = await Promise.all([loadBiomeFolder('biomes', 'main'), loadBiomeFolder('biomes2', 'event')]);
+  const A = await loadBiomeFolder('biomes', 'main');
   const builtIn = THEMES.filter(t => biomeSetOf(t) === 'main' && !t.path);
   const main = A.list.length ? A.list : builtIn; // without a biomes folder the built-in ones stay
   const seen = new Set(); const all = [];
-  for (const t of [...main, ...B.list]) { let id = t.id; while (seen.has(id)) id += '-2'; t.id = id; seen.add(id); all.push(t); }
+  for (const t of main) { let id = t.id; while (seen.has(id)) id += '-2'; t.id = id; seen.add(id); all.push(t); }
   THEMES.length = 0; THEMES.push(...all);
-  Content.how = A.list.length ? A.how : 'built in'; Content.counts = { main: main.length, event: B.list.length }; Content.ready = true;
+  Content.how = A.list.length ? A.how : 'built in'; Content.counts = { main: main.length }; Content.ready = true;
   if (Content.log.length) console.warn('Biomes:\n' + Content.log.join('\n'));
   try { refreshBiomeSelects(); } catch (e) { }
 }
 function refreshBiomeSelects() {
-  const opts = '<option value="-1">Random</option>' + THEMES.map((t, i) => biomeSetOf(t) === 'main' ? `<option value="${i}">${esc(t.name)}</option>` : '').join('');
+  const opts = '<option value="-1">Random</option>' + THEMES.map((t, i) => `<option value="${i}">${esc(t.name)}</option>`).join('');
   for (const id of ['#hostBiome', '#practiceBiome']) { const el = $(id); if (el) el.innerHTML = opts; }
   if (typeof Setup !== 'undefined') Setup.refresh();
 }
 
-/* ---------- the event (mainmenu/event/event.json) ---------- */
-const EventInfo = { name: 'Halloween', tagline: 'pumpkins, ghosts and a very spooky drawer of weapons', accent: '#ff8a2a', accent2: '#8d4bd6', ink: '#1a1222', paper: '#2a2033', title: 'maintitle.png', bg: 'bg.png', loaded: false };
-async function loadEventInfo() {
-  try { const r = await fetch('mainmenu/event/event.json', { cache: 'no-store' }); if (r.ok) Object.assign(EventInfo, await r.json()); } catch (e) { }
-  EventInfo.loaded = true;
-}
-
-/* ---------- the content set and terrain travel inside the room rules (G.opts) ---------- */
+/* ---------- terrain travels inside the room rules (G.opts) ---------- */
 {
   const _start = startHost;
   startHost = function (opts) {
-    RulesPanel.vals.set = (opts && opts.set) || 'main';
     if (opts && opts.terrain) RulesPanel.vals.terrain = opts.terrain;
     return _start(opts);
   };

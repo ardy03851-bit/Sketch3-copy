@@ -287,6 +287,7 @@ button,.btn,input,select,.screen{touch-action:manipulation}html{-webkit-text-siz
     <symbol id="i-play" viewBox="0 0 24 24"><g filter="url(#roughI)"><path d="M7.2 4.6l12 7.4-12 7.4z"/></g></symbol>
     <symbol id="i-lock" viewBox="0 0 24 24"><g filter="url(#roughI)"><rect x="4.8" y="10.6" width="14.4" height="9.6" rx="2.2"/><path d="M8.2 10.4V7.6a3.8 3.8 0 0 1 7.6 0v2.8"/></g></symbol>
     <symbol id="i-blank" viewBox="0 0 64 64"><g filter="url(#roughI)" stroke-width="2.4"><path d="M10 46c4-10 10-16 18-18s16 2 22-6"/><circle cx="46" cy="16" r="5"/><path d="M8 54h48"/></g></symbol>
+    <symbol id="i-hat" viewBox="0 0 24 24"><g filter="url(#roughI)"><path d="M3.4 16.8h17.2"/><path d="M6.4 16.6l.5-9.4c0-.7.6-1.2 1.3-1.2h7.6c.7 0 1.3.5 1.3 1.2l.5 9.4"/><path d="M6.6 11.4c2.6 1.4 8.2 1.4 10.8 0"/></g></symbol>
   </defs>
 </svg>
 
@@ -313,7 +314,7 @@ button,.btn,input,select,.screen{touch-action:manipulation}html{-webkit-text-siz
         </div>
       </div>
       <div class="chips">
-        <button class="chip" id="bSettings">Settings</button><span class="chip" id="chipWeapons" role="button" tabindex="0"><svg class="ico"><use href="#i-cross"/></svg><span id="wCount">loading weapons…</span></span>
+        <button class="chip" id="bWardrobe"><svg class="ico"><use href="#i-hat"/></svg>Wardrobe</button><button class="chip" id="bSettings">Settings</button><span class="chip" id="chipWeapons" role="button" tabindex="0"><svg class="ico"><use href="#i-cross"/></svg><span id="wCount">loading weapons…</span></span>
       </div>
     </div>
   </section>
@@ -354,7 +355,6 @@ button,.btn,input,select,.screen{touch-action:manipulation}html{-webkit-text-siz
     </div>
   </section>
 
-  <section class="screen hidden" id="practice"><div class="card" style="max-width:510px"><div class="eyebrow">Offline / your rules</div><h2>The drawing board</h2><p class="sub">Pick a world, grab a random weapon, make a mess.</p><div class="setup-grid"><div class="field"><label class="lbl" for="practiceMode">Mode</label><select id="practiceMode"><option value="arena">Classic arena</option><option value="expedition">The Big Wilds</option></select></div><div class="field"><label class="lbl" for="practiceBiome">Atmosphere</label><select id="practiceBiome"></select></div><div class="field"><label class="lbl" for="practiceBots">Bots</label><select id="practiceBots"><option value="0">None / sandbox</option><option value="1">1 bot</option><option value="3" selected>3 bots</option><option value="5">5 bots</option><option value="7">7 bots</option></select></div><div class="field"><label class="lbl" for="practiceTarget">First to</label><select id="practiceTarget"><option>3</option><option selected>5</option><option>10</option></select></div></div><p class="exp-note" id="modeNote">Classic: tight, destructible arenas. Last scribble standing wins.</p><div class="row" style="justify-content:space-between"><button class="btn ghost" data-back>Back</button><button class="btn primary" id="bPlayPractice">Draw weapons</button></div><p style="font-size:11px;color:var(--ink-soft);margin:18px 0 0">A / D move · Space jump · Click fire · R reload · Esc menu<br>Touch: left thumb move, right thumb aim and release. Jump button above.</p></div></section>
   <section class="screen hidden" id="settings"><div class="card set-card"><div class="eyebrow">Make it feel right</div><h2>Settings</h2><p class="sub">The same messy little game, tuned for your device. Everything is saved on this device.</p>
     <div class="set-group"><div class="set-head">Graphics</div>
       <label class="setting-row">Graphics quality<select id="graphicsSetting"><option value="auto">Adaptive</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></label>
@@ -438,7 +438,8 @@ function smoothPath(ctx, pts) {
 /* ---------- 2. config ---------- */
 const CELL = 4; let W = 1600, H = 1000, GW = W / CELL, GH = H / CELL;
 const PW = 30, PH = 40, HW = PW / 2, HH = PH / 2;
-const GRAV = 2300, RUN = 370, JUMP = 840, JUMP2 = 740, MAXFALL = 1500;
+/* mutable so the Chaos dials (modes.js) can scale them per match */
+let GRAV = 2300, RUN = 370, JUMP = 840, JUMP2 = 740; const MAXFALL = 1500;
 const INK = '#1f1c24';
 const PLAYER_COLORS = ['#d9573b', '#3f8a86', '#e9a23b', '#6c5aa8', '#4c6fa8', '#c95b8a', '#6f9a4f', '#8a6a4f'];
 /* Offline-only: no lobby, no brokers, no room codes. Every match is local vs bots. */
@@ -548,7 +549,7 @@ async function githubTreePaths(g) {
 }
 async function fetchText(u) { try { const r = await fetch(u, { cache: 'no-store' }); if (!r.ok) return null; const t = await r.text(); if (/^\s*<!doctype html|^\s*<html/i.test(t)) return null; return t; } catch (e) { return null; } }
 
-/* Finds the sub-folders of a content folder (weapons, weapons2, biomes, biomes2) and the files in each.
+/* Finds the sub-folders of a content folder (weapons, biomes) and the files in each.
    Tries, in order: the web server's folder listing, the GitHub repository tree (one API call for
    everything), GitHub's folder API, and finally the folder's manifest.json. */
 /* Hardcoded biome folder IDs — the last-resort fallback when folder discovery
@@ -556,8 +557,7 @@ async function fetchText(u) { try { const r = await fetch(u, { cache: 'no-store'
    tree API can be rate-limited or blocked by CORS/redirects). With these the
    game can still fetch every biome script directly by path. */
 const BIOME_IDS = ['autumn-woods', 'bamboo-valley', 'birch-grove', 'cherry-blossom', 'cocoa-hollow', 'coral-shallows', 'crystal-hollow', 'desert-oasis', 'dust-bowl', 'ember-hollow', 'emerald-tangle', 'glacier-peaks', 'glowworm-grotto', 'haunted-hill', 'hexfall-heights', 'lavender-fields', 'lumen-atolls', 'midnight-harbor', 'misty-highlands', 'moss-garden', 'mushroom-grove', 'night-swamp', 'paper-peaks', 'pine-forest', 'rainy-meadow', 'sandstorm-canyon', 'savanna-sunset', 'simple-lands', 'slate-cliffs', 'snowfield', 'starfall-plateau', 'sunflower-hills', 'sunken-ruins', 'sunset-lagoon', 'thunderstorm-ridge', 'tropical-islands', 'volcano', 'willow-marsh'];
-const BIOME2_IDS = ['graveyard-fog', 'pumpkin-patch', 'witchwood'];
-const FALLBACK_DIRS = { biomes: BIOME_IDS, biomes2: BIOME2_IDS };
+const FALLBACK_DIRS = { biomes: BIOME_IDS };
 async function discoverFolder(root) {
   let manifest = null;
   try { const r = await fetch(root + '/manifest.json', { cache: 'no-store' }); if (r.ok) { const j = await r.json(); manifest = j.weapons || j.biomes || j.items || null; } } catch (e) { }
@@ -593,10 +593,8 @@ async function discoverWeaponFolder(root, set) {
 }
 async function discoverWeapons() {
   Weapons.log = [];
-  const [A, B] = await Promise.all([discoverWeaponFolder('weapons', 'main'), discoverWeaponFolder('weapons2', 'event')]);
-  const ids = new Set(A.found.map(w => w.id));
-  for (const w of B.found) if (ids.has(w.id)) w.id = 'ev-' + w.id; // an event weapon may reuse a normal folder name
-  setWeapons([...A.found, ...B.found], A.found.length ? A.how : B.how);
+  const A = await discoverWeaponFolder('weapons', 'main');
+  setWeapons([...A.found], A.how);
 }
 async function weaponsFromFiles(fileList) {
   const groups = {};
@@ -1869,6 +1867,7 @@ window.render_game_to_text = () => JSON.stringify({
 <script src="weather.js"></script>
 <script src="world.js"></script>
 <script src="build.js"></script>
+<script src="wardrobe.js"></script>
 <script src="modes.js"></script>
 <script src="content.js"></script>
 <script src="menu.js"></script>
@@ -1882,7 +1881,7 @@ window.render_game_to_text = () => JSON.stringify({
   UI.init(); initExpansionUI(); startMenu(); requestAnimationFrame(frame);
   const wp = discoverWeapons();
   const cp = discoverChars();
-  const bp = discoverBiomes().catch(e => console.warn('biomes', e)); loadEventInfo().then(() => MainMenu.eventReady());
+  const bp = discoverBiomes().catch(e => console.warn('biomes', e));
   try { await Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 2500))]); } catch (e) { }
   await Promise.race([Promise.all([wp, cp, bp]), new Promise(r => setTimeout(r, 4500))]);
   const L = $('#loading'); L.style.opacity = 0; setTimeout(() => L.remove(), 600);

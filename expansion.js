@@ -117,7 +117,14 @@ function rebuildGridFromMask() {
 /* map sizes: arena 1600x1000. Big Wilds = the same kind of map scaled up
    (4x the area by default, 6x / 9x as match options), with extra tiers of
    reachable platforms filling the height (tier gaps stay under jump reach). */
-function bigMapSize() { const k = { 4: 2, 6: 2.45, 9: 3 }[(G.opts && G.opts.mapSize) || 4] || 2; return [Math.round(1600 * k / 40) * 40, Math.round(1000 * k / 40) * 40]; }
+function bigMapSize() {
+  const o = G.opts || {};
+  if (o.mapSize === -1) { // fully custom: whatever width and height you typed
+    const w = clamp(Math.round((+o.mapW || 3200) / 40) * 40, 800, 40000), h = clamp(Math.round((+o.mapH || 1800) / 40) * 40, 600, 20000);
+    return [w, h];
+  }
+  const k = { 4: 2, 6: 2.45, 9: 3 }[o.mapSize || 4] || 2; return [Math.round(1600 * k / 40) * 40, Math.round(1000 * k / 40) * 40];
+}
 function platformTiers(R, mc, seed, floorY, topY, avoid) {
   const plats = []; let y = floorY - 175 - R() * 40, tier = 0;
   while (y > topY) { const per = Math.max(2, Math.round(W / (520 + R() * 160))); const slot = (W - 160) / per;
@@ -126,9 +133,11 @@ function platformTiers(R, mc, seed, floorY, topY, avoid) {
     y -= 190 + R() * 35; tier++; }
   return plats;
 }
+function customMapSize() { const o = G.opts || {}; const w = clamp(Math.round((+o.mapW || 3200) / 40) * 40, 800, 40000), h = clamp(Math.round((+o.mapH || 1800) / 40) * 40, 600, 20000); return [w, h]; }
 generateMap = function (seed) {
   const th = THEMES[(G.biome ?? (seed % THEMES.length)) % THEMES.length] || THEMES[0];
-  const big = G.gameMode === 'expedition'; const [bw, bh] = big ? bigMapSize() : [1600, 1000];
+  const big = G.gameMode === 'expedition'; const custom = !!(G.opts && G.opts.mapSize === -1);
+  const [bw, bh] = big ? bigMapSize() : custom ? customMapSize() : [1600, 1000];
   setWorldSize(bw, bh); const sx = W / 1600;
   const R = rng(seed); T.seed = seed; T.theme = th; T.craters = []; T.dirty = []; Env.water = []; Env.props = []; Env.crates = []; Env.bolts = []; Env.ripples = []; Env.wind = th.wind || 0; Env.zone = null;
   const mc = T.mctx; mc.setTransform(1, 0, 0, 1, 0, 0); mc.globalCompositeOperation = 'source-over'; mc.clearRect(0, 0, T.mask.width, T.mask.height); mc.setTransform(T.Q, 0, 0, T.Q, 0, 0); mc.fillStyle = '#fff';
@@ -1136,9 +1145,6 @@ const NOTES = { arena: 'Classic: tight, destructible arenas. Last scribble stand
 function initExpansionUI() {
   const opts = '<option value="-1">Random</option>' + THEMES.map((t, i) => `<option value="${i}">${esc(t.name)}</option>`).join('');
   for (const id of ['#hostBiome', '#practiceBiome']) { const el = $(id); if (el) el.innerHTML = opts; }
-  const pm = $('#practiceMode'), note = $('#modeNote'); const upd = () => { note.textContent = NOTES[pm.value] || ''; }; pm.addEventListener('change', upd); upd();
-  const prefs = (() => { try { return JSON.parse(getCookie('ib_practice') || '{}'); } catch (e) { return {}; } })(); for (const k of ['Mode', 'Biome', 'Bots', 'Target']) if (prefs[k] != null && $('#practice' + k)) $('#practice' + k).value = prefs[k]; upd();
-  $('#bPlayPractice').addEventListener('click', () => { Audio2.init(); Audio2.play('ui'); const v = k => $('#practice' + k).value; setCookie('ib_practice', JSON.stringify({ Mode: v('Mode'), Biome: v('Biome'), Bots: v('Bots'), Target: v('Target') })); startHost({ offline: true, name: 'Practice', max: 8, target: +v('Target'), bots: +v('Bots'), gameMode: v('Mode'), biome: +v('Biome') }); });
   const gs = $('#graphicsSetting'), ws = $('#weatherSetting'), ss = $('#shakeSetting'), vs = $('#volumeSetting'), fs = $('#fpsSetting');
   gs.value = Settings.graphics; ws.checked = Settings.weather; ss.checked = Settings.shake; vs.value = Math.round(Settings.volume * 100); fs.checked = Settings.fps;
   gs.addEventListener('change', () => { Settings.graphics = gs.value; qLevel = qFloor = baseQuality(); applyQuality(); saveSettings(); });

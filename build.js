@@ -34,16 +34,25 @@ const BUILD = {
   pillar:   { n: 'Pillar',   w: 28,  h: 88, hp: 300, mat: 'stone',   solid: 1, cost: 2, fill: '#a8a29a', light: '#cfc9bb' },
   catwalk:  { n: 'Catwalk',  w: 104, h: 12, hp: 240, mat: 'metal',   solid: 1, cost: 3, fill: '#8e9aa4', light: '#c9d3da' },
   log:      { n: 'Log',     w: 90,  h: 26, hp: 90,  mat: 'wood',    solid: 1, cost: 1, fill: '#8a6543', light: '#b08a5c' },
+  window:   { n: 'Window',  w: 36,  h: 36, hp: 150, mat: 'stone',   solid: 1, cost: 2, fill: '#a39d90', light: '#cfc8b8' },
+  door:     { n: 'Door',    w: 34,  h: 62, hp: 110, mat: 'wood',    solid: 0, cost: 2, fill: '#8d6542', light: '#b88a5c' },
+  haybale:  { n: 'Haybale', w: 56,  h: 40, hp: 420, mat: 'wood',    solid: 1, cost: 2, fill: '#d9b45e', light: '#f0d68a' },
+  shelf:    { n: 'Shelf',   w: 84,  h: 8,  hp: 70,  mat: 'plank',   solid: 1, cost: 1, fill: '#c08a52', light: '#e2b077' },
+  gate:     { n: 'Gate',    w: 14,  h: 84, hp: 380, mat: 'metal',   solid: 1, cost: 3, fill: '#8e9aa4', light: '#c9d3da' },
+  statue:   { n: 'Statue',  w: 40,  h: 56, hp: 500, mat: 'stone',   solid: 1, cost: 4, fill: '#a8a29a', light: '#cfc9bb' },
+  shroom:   { n: 'Shroom',  w: 46,  h: 34, hp: 60,  mat: 'wood',    solid: 1, cost: 2, fill: '#d9573b', light: '#f08a6a', bounce: 1 },
+  barrel:   { n: 'Barrel',  w: 34,  h: 44, hp: 60,  mat: 'wood',    solid: 1, cost: 3, fill: '#8a6543', light: '#b08a5c', tnt: 1, boomR: 155, boomD: 70 },
+  mine:     { n: 'Mine',    w: 26,  h: 16, hp: 1,   mat: 'metal',   solid: 1, cost: 3, fill: '#6a6470', light: '#9aa4ac', tnt: 1, mine: 1, glow: 1 },
 };
 const TOOL_INFO = { dig: { n: 'Dig', cost: 0 }, fill: { n: 'Fill', cost: 1 }, repair: { n: 'Repair', cost: 1 }, recycle: { n: 'Recycle', cost: 0 } };
-const BUILD_TIPS = { plank: 'light and cheap', beam: 'long and sturdy', wall: 'heavy stone block', brick: 'small stone block', crate: 'wooden box', sandbag: 'soaks up bullets', metal: 'very tough strip', glass: 'see-through, fragile', ladder: 'climb it: hold jump, down to slide', bulb: 'lights the dark', torch: 'a flickering light', banner: 'War: your team respawns here', campfire: 'slowly heals your team', spring: 'launches you up', spikes: 'hurts enemies who touch it', tnt: 'shoot it', fence: 'a quick wooden barrier', pillar: 'tall stone column', catwalk: 'long metal platform', log: 'a chunky fallen log', dig: 'carve the ground', fill: 'add ground', repair: 'fix a piece', recycle: 'take a piece back' };
-const BUILD_TABS = [['Build', ['plank', 'beam', 'wall', 'brick', 'crate', 'sandbag', 'metal', 'glass', 'ladder', 'fence', 'pillar', 'catwalk', 'log']], ['Gadgets', ['bulb', 'torch', 'banner', 'campfire', 'spring', 'spikes', 'tnt']], ['Tools', ['dig', 'fill', 'repair', 'recycle']]];
+const BUILD_TIPS = { plank: 'light and cheap', beam: 'long and sturdy', wall: 'heavy stone block', brick: 'small stone block', crate: 'wooden box', sandbag: 'soaks up bullets', metal: 'very tough strip', glass: 'see-through, fragile', ladder: 'climb it: hold jump, down to slide', bulb: 'lights the dark', torch: 'a flickering light', banner: 'War: your team respawns here', campfire: 'slowly heals your team', spring: 'launches you up', spikes: 'hurts enemies who touch it', tnt: 'shoot it', fence: 'a quick wooden barrier', pillar: 'tall stone column', catwalk: 'long metal platform', log: 'a chunky fallen log', window: 'a wall you can see and shoot through', door: 'decoration you can walk through', haybale: 'huge, cheap, bullet-spongey', shelf: 'a skinny little ledge', gate: 'a portcullis of iron bars', statue: 'a hero of the arena, very tough', shroom: 'a bouncy toadstool', barrel: 'boom barrel: bigger blast than TNT', mine: 'trips when an enemy walks near', dig: 'carve the ground', fill: 'add ground', repair: 'fix a piece', recycle: 'take a piece back' };
+const BUILD_TABS = [['Build', ['plank', 'beam', 'shelf', 'wall', 'brick', 'window', 'door', 'crate', 'sandbag', 'haybale', 'metal', 'glass', 'ladder', 'fence', 'pillar', 'gate', 'catwalk', 'log', 'statue']], ['Gadgets', ['bulb', 'torch', 'banner', 'campfire', 'spring', 'shroom', 'spikes', 'tnt', 'barrel', 'mine']], ['Tools', ['dig', 'fill', 'repair', 'recycle']]];
 const ALL_TOOLS = BUILD_TABS.flatMap(t => t[1]);
 const BUILD_REACH = 165, BUILD_CAP = 900;
 
 const Build = {
-  pieces: new Map(), nextId: 1, own: null, sel: 0, rot: 0, tab: 0, snap: true, supportDirty: false, kitAllowed: () => false, tickT: 0, healT: 0,
-  spec: { ladder: new Set(), spikes: new Set(), heal: new Set(), banner: new Set() },
+  pieces: new Map(), nextId: 1, own: null, sel: 0, rot: 0, tab: 0, snap: true, supportDirty: false, kitAllowed: () => false, tickT: 0, healT: 0, mineT: 0,
+  spec: { ladder: new Set(), spikes: new Set(), heal: new Set(), banner: new Set(), mine: new Set() },
   reset() { this.pieces = new Map(); this.nextId = 1; this.own = new Int32Array(GW * GH); this.supportDirty = false; for (const k in this.spec) this.spec[k].clear(); },
 };
 Build.reset();
@@ -117,6 +126,35 @@ function pieceSprite(kind) {
     } else if (kind === 'log') {
       inkPiece(sp, { fill: d.fill, light: d.light, rim: 3, line: 2, hatchA: .3, shape: x => { x.beginPath(); x.ellipse(w / 2, h / 2, w / 2 - 2, h / 2 - 3, 0, 0, TAU); x.fill(); },
         detail: x => { x.strokeStyle = rgbaC(INK, .55); x.lineWidth = 1.5; x.beginPath(); x.ellipse(w - 11, h / 2, 4, h / 2 - 7, 0, 0, TAU); x.stroke(); x.beginPath(); x.ellipse(w - 11, h / 2, 1.7, h / 4 - 1, 0, 0, TAU); x.stroke(); x.strokeStyle = rgbaC(INK, .25); x.lineWidth = .9; x.beginPath(); x.moveTo(10, h * .32); x.quadraticCurveTo(w * .4, h * .26, w - 18, h * .34); x.stroke(); x.beginPath(); x.moveTo(12, h * .68); x.quadraticCurveTo(w * .4, h * .74, w - 18, h * .66); x.stroke(); } });
+    } else if (kind === 'window') {
+      inkPiece(sp, { fill: d.fill, light: d.light, rim: 3, line: 2, shape: x => rr(x, 0, 0, w, h, 2.5),
+        detail: x => { x.fillStyle = '#bfe2e8'; x.fillRect(5, 5, w - 10, h - 10); x.strokeStyle = rgbaC(INK, .5); x.lineWidth = 1.2; x.strokeRect(5, 5, w - 10, h - 10); x.beginPath(); x.moveTo(w / 2, 5); x.lineTo(w / 2, h - 5); x.moveTo(5, h / 2); x.lineTo(w - 5, h / 2); x.stroke(); x.strokeStyle = 'rgba(255,255,255,.8)'; x.lineWidth = 1.6; x.beginPath(); x.moveTo(8, h - 10); x.lineTo(w - 14, 9); x.stroke(); x.strokeStyle = rgbaC(INK, .35); x.strokeRect(1, 1, w - 2, h - 2); } });
+    } else if (kind === 'door') {
+      inkPiece(sp, { fill: d.fill, light: d.light, rim: 3, line: 2, hatchA: .2, shape: x => rr(x, 2, 2, w - 4, h - 4, 4),
+        detail: x => { x.strokeStyle = rgbaC(INK, .4); x.lineWidth = 1.2; x.strokeRect(6, 8, w - 12, h * .34); x.strokeRect(6, h * .46, w - 12, h * .42); x.fillStyle = '#e9c25a'; x.beginPath(); x.arc(w - 9, h * .62, 2.4, 0, TAU); x.fill(); x.strokeStyle = rgbaC(INK, .6); x.lineWidth = 1; x.stroke(); x.strokeStyle = rgbaC(INK, .3); x.lineWidth = 1; x.beginPath(); x.moveTo(2, 2); x.lineTo(w - 2, 2); x.stroke(); } });
+    } else if (kind === 'haybale') {
+      inkPiece(sp, { fill: d.fill, light: d.light, rim: 4, line: 2.2, hatchA: .25, shape: x => rr(x, 1, 2, w - 2, h - 4, 9),
+        detail: x => { x.strokeStyle = rgbaC(INK, .3); x.lineWidth = .9; for (let i = 0; i < 9; i++) { const yy = 6 + i * (h - 12) / 8; x.beginPath(); x.moveTo(5, yy); x.bezierCurveTo(w * .3, yy + (R() - .5) * 3, w * .7, yy + (R() - .5) * 3, w - 5, yy); x.stroke(); } x.strokeStyle = '#b0883c'; x.lineWidth = 2.2; for (const xx of [w * .25, w * .75]) { x.beginPath(); x.moveTo(xx, 3); x.lineTo(xx + 1, h - 3); x.stroke(); } } });
+    } else if (kind === 'shelf') {
+      inkPiece(sp, { fill: d.fill, light: d.light, rim: 2, line: 1.8, hatchA: .3, shape: x => rr(x, 0, 0, w, h, 2),
+        detail: x => { x.fillStyle = rgbaC(INK, .5); for (const xx of [6, w / 2, w - 6]) { x.beginPath(); x.arc(xx, h / 2, 1.1, 0, TAU); x.fill(); } x.strokeStyle = rgbaC(INK, .3); x.lineWidth = .8; x.beginPath(); x.moveTo(10, h - 2.5); x.lineTo(w - 10, h - 2.5); x.stroke(); } });
+    } else if (kind === 'gate') {
+      inkPiece(sp, { fill: d.fill, light: d.light, rim: 2, line: 1.8, hatch: false, shape: x => { rr(x, 0, 0, w, h, 2); x.fillStyle = rgbaC(INK, .25); for (let i = 0; i < 3; i++) x.fillRect(4, 6 + i * (h - 12) / 2.6, w - 8, 2.2); },
+        detail: x => { x.strokeStyle = 'rgba(255,255,255,.45)'; x.lineWidth = 1; x.beginPath(); x.moveTo(3, 2.5); x.lineTo(w * .5, 2.5); x.stroke(); x.fillStyle = rgbaC(INK, .7); x.beginPath(); x.arc(w / 2, h / 2, 1.6, 0, TAU); x.fill(); } });
+    } else if (kind === 'statue') {
+      inkPiece(sp, { fill: d.fill, light: d.light, rim: 3, line: 2, shape: x => { rr(x, 1, h - 12, w - 2, 11, 2); x.save(); x.translate(w / 2, h - 14); x.beginPath(); x.ellipse(0, -8, 8, 9, 0, 0, TAU); x.fill(); x.beginPath(); x.arc(0, -19, 5.5, 0, TAU); x.fill(); x.beginPath(); x.moveTo(-8, -8); x.lineTo(-13, -4); x.lineTo(-8, -2); x.closePath(); x.fill(); x.restore(); },
+        detail: x => { x.save(); x.translate(w / 2, h - 14); x.strokeStyle = rgbaC(INK, .6); x.lineWidth = 1.1; x.beginPath(); x.arc(0, -19, 5.5, 0, TAU); x.stroke(); x.fillStyle = rgbaC(INK, .8); x.beginPath(); x.arc(-2, -20, .9, 0, TAU); x.arc(2, -20, .9, 0, TAU); x.fill(); x.beginPath(); x.moveTo(-1.5, -17.5); x.lineTo(1.5, -17.5); x.stroke(); x.strokeStyle = rgbaC(INK, .35); x.lineWidth = 1; x.beginPath(); x.moveTo(-5, -24); x.quadraticCurveTo(0, -27, 5, -24); x.stroke(); x.restore(); x.strokeStyle = rgbaC(INK, .25); x.lineWidth = .9; x.beginPath(); x.moveTo(4, h - 9); x.lineTo(w - 4, h - 9); x.stroke(); dots(x, R, 4, 6, h - 11, w - 6, h - 3, rgbaC(INK, .2), .5, 1); } });
+    } else if (kind === 'shroom') {
+      inkPiece(sp, { fill: '#e8dcc4', light: '#f6ecd8', rim: 2, line: 1.8, hatch: false, shape: x => { x.beginPath(); x.moveTo(w / 2 - 7, h); x.quadraticCurveTo(w / 2 - 8, h * .5, w / 2 - 6, h * .42); x.lineTo(w / 2 + 6, h * .42); x.quadraticCurveTo(w / 2 + 8, h * .5, w / 2 + 7, h); x.closePath(); x.fill(); } });
+      inkPiece(sp, { fill: d.fill, light: d.light, rim: 2.5, line: 2, hatch: false, shape: x => { x.beginPath(); x.moveTo(2, h * .44); x.quadraticCurveTo(2, 1, w / 2, 1); x.quadraticCurveTo(w - 2, 1, w - 2, h * .44); x.quadraticCurveTo(w / 2, h * .58, 2, h * .44); x.closePath(); x.fill(); },
+        detail: x => { x.fillStyle = '#fff4e0'; for (const [cx, cy, r] of [[w * .25, h * .3, 2.4], [w * .55, h * .22, 3], [w * .8, h * .34, 2.2], [w * .42, h * .42, 1.8]]) { x.beginPath(); x.ellipse(cx, cy, r, r * .8, 0, 0, TAU); x.fill(); } } });
+    } else if (kind === 'barrel') {
+      inkPiece(sp, { fill: d.fill, light: d.light, rim: 3.5, line: 2.1, hatchA: .25, shape: x => { x.beginPath(); x.moveTo(5, 3); x.quadraticCurveTo(0, h / 2, 5, h - 3); x.lineTo(w - 5, h - 3); x.quadraticCurveTo(w, h / 2, w - 5, 3); x.closePath(); x.fill(); },
+        detail: x => { x.strokeStyle = '#5a4a38'; x.lineWidth = 2.4; for (const yy of [h * .22, h * .5, h * .78]) { x.beginPath(); x.moveTo(3, yy); x.quadraticCurveTo(w / 2, yy + 2.5, w - 3, yy); x.stroke(); } x.strokeStyle = '#e0532f'; x.lineWidth = 1.6; x.beginPath(); x.moveTo(w * .28, h * .36); x.lineTo(w * .72, h * .64); x.moveTo(w * .72, h * .36); x.lineTo(w * .28, h * .64); x.stroke(); x.fillStyle = INK; x.font = '900 6px "Shantell Sans", sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; } });
+      x.setTransform(S, 0, 0, S, M * S, M * S); x.fillStyle = '#e0532f'; x.font = '900 6.5px "Shantell Sans", sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('X', w / 2, h / 2);
+    } else if (kind === 'mine') {
+      inkPiece(sp, { fill: d.fill, light: d.light, rim: 2, line: 1.8, hatch: false, shape: x => { x.beginPath(); x.ellipse(w / 2, h - h / 2, w / 2 - 1, h / 2 - 2, 0, 0, TAU); x.fill(); },
+        detail: x => { x.strokeStyle = rgbaC(INK, .5); x.lineWidth = 1; for (const xx of [w * .25, w * .75]) { x.beginPath(); x.moveTo(xx, 2); x.lineTo(xx + (xx < w / 2 ? -3 : 3), -2); x.stroke(); } x.fillStyle = '#e0532f'; x.beginPath(); x.arc(w / 2, h * .35, 2.6, 0, TAU); x.fill(); x.strokeStyle = INK; x.lineWidth = 1; x.stroke(); x.fillStyle = 'rgba(255,255,255,.7)'; x.beginPath(); x.arc(w / 2 - .8, h * .35 - .8, .8, 0, TAU); x.fill(); } });
     }
   } catch (e) { console.warn('piece art', kind, e); }
   x.setTransform(1, 0, 0, 1, 0, 0); sp.x = null; PieceArt.set(kind, sp); return sp;
@@ -203,7 +241,7 @@ function hostTool(p, x, y, slot, rotDeg) {
 }
 function hostPieceDamage(pc, dmg, by, x, y, power = 300) {
   if (!G.isHost || !pc || pc.dead || !(dmg > 0)) return; const d = BUILD[pc.kind]; const st0 = crackStage(pc); pc.hp -= dmg;
-  if (pc.hp <= 0) { pc.dead = true; emit({ k: 'bx', id: pc.id, m: 'break', x: Math.round(x ?? pc.x), y: Math.round(y ?? pc.y), f: Math.round(clamp(power, 150, 1400)) }); if (d.tnt) setTimeout(() => { if (G.isHost) hostExplode(pc.x, pc.y, { radius: 125, damage: 55, knockback: 1200, crater: 38, selfDamage: 1 }, by || pc.by, '_tnt'); }, 90); Build.supportDirty = true; return; }
+  if (pc.hp <= 0) { pc.dead = true; emit({ k: 'bx', id: pc.id, m: 'break', x: Math.round(x ?? pc.x), y: Math.round(y ?? pc.y), f: Math.round(clamp(power, 150, 1400)) }); if (d.tnt) setTimeout(() => { if (G.isHost) hostExplode(pc.x, pc.y, { radius: d.boomR || 125, damage: d.boomD || 55, knockback: 1200, crater: 38, selfDamage: 1 }, by || pc.by, '_tnt'); }, 90); Build.supportDirty = true; return; }
   if (crackStage(pc) !== st0) emit({ k: 'bh', id: pc.id, hp: Math.round(pc.hp) });
 }
 function crackStage(pc) { const f = pc.hp / BUILD[pc.kind].hp; return f > .66 ? 0 : f > .33 ? 1 : 2; }
@@ -306,8 +344,12 @@ doAttack = function (p, aim) {
   if (!p.alive || !canAttackPhase()) return; const t = now(); if (t < p.nextAtk) return; const list = toolList(p); if (!list) return;
   let slot, rot, tx, ty;
   if (p.isBot) { const q = p.ai && p.ai.target && G.players.get(p.ai.target); const dir = q ? Math.sign(q.x - p.x) || 1 : p.face; const roll = Math.random();
-    if (roll < .55 && list.includes('plank')) { slot = list.indexOf('plank'); rot = 90; tx = p.x + dir * 44; ty = p.y - 14; }
-    else if (roll < .8 && list.includes('wall')) { slot = list.indexOf('wall'); rot = 0; tx = p.x + dir * 42; ty = p.y + 2; }
+    if (roll < .34 && list.includes('plank')) { slot = list.indexOf('plank'); rot = 90; tx = p.x + dir * 44; ty = p.y - 14; }
+    else if (roll < .46 && list.includes('haybale')) { slot = list.indexOf('haybale'); rot = 0; tx = p.x + dir * 42; ty = p.y + 4; }
+    else if (roll < .6 && list.includes('wall')) { slot = list.indexOf('wall'); rot = 0; tx = p.x + dir * 42; ty = p.y + 2; }
+    else if (roll < .7 && list.includes('mine')) { slot = list.indexOf('mine'); rot = 0; tx = p.x + dir * 50; ty = p.y + HH + 6; }
+    else if (roll < .78 && list.includes('spring')) { slot = list.indexOf('spring'); rot = 0; tx = p.x; ty = p.y + HH + 8; }
+    else if (roll < .86 && list.includes('spikes')) { slot = list.indexOf('spikes'); rot = 0; tx = p.x + dir * 46; ty = p.y + HH + 5; }
     else if (list.includes('dig')) { slot = list.indexOf('dig'); rot = 0; tx = p.x + Math.cos(aim) * 60; ty = p.y + Math.sin(aim) * 60; } else return;
     p.nextAtk = t + .9 + Math.random() * .6; }
   else { slot = clamp(Build.sel, 0, list.length - 1); rot = ((Build.rot % 360) + 360) % 360; [tx, ty] = buildTarget(p, aim); p.nextAtk = t + (list[slot] === 'dig' ? .26 : list[slot] === 'fill' ? .2 : .15); }
@@ -384,11 +426,15 @@ const _hostRulesBuild = hostRules;
 hostRules = function () { _hostRulesBuild(); hostSupportPass(); if (!Build.pieces.size) return; const t = now();
   if (Build.spec.spikes.size && t > Build.tickT) { Build.tickT = t + .3; const tOn = typeof teamsOn === 'function' && teamsOn();
     for (const pc of Build.spec.spikes) for (const q of G.players.values()) { if (!q.alive || Math.abs(q.x - pc.x) > pc.hw + HW || q.y + HH < pc.bb[1] - 6 || q.y - HH > pc.bb[3]) continue; if (tOn ? q.team && q.team === pc.team : q.id === pc.by) continue; hostDamage(q, 9, pc.by || null, 'toolbox', (q.x - pc.x) * 4, -460, q.x, pc.bb[1]); } }
+  if (Build.spec.mine.size && t > Build.mineT) { Build.mineT = t + .2; const tOn = typeof teamsOn === 'function' && teamsOn();
+    for (const pc of [...Build.spec.mine]) { if (pc.dead) continue; let trip = false;
+      for (const q of G.players.values()) { if (!q.alive || Math.hypot(q.x - pc.x, q.y - pc.y) > 62) continue; if (tOn ? q.team && q.team === pc.team : q.id === pc.by) continue; trip = true; break; }
+      if (trip) hostPieceDamage(pc, 999, pc.by || null, pc.x, pc.y, 900); } }
   if (Build.spec.heal.size && t > Build.healT) { Build.healT = t + 1; const tOn = typeof teamsOn === 'function' && teamsOn(); const mx = typeof maxHp === 'function' ? maxHp() : 100;
     for (const pc of Build.spec.heal) for (const q of G.players.values()) { if (!q.alive || q.hp >= mx || Math.abs(q.x - pc.x) > 90 || Math.abs(q.y - pc.y) > 70) continue; if (tOn && pc.team && q.team !== pc.team) continue; HookAPI.heal(q.id, 5); } }
 };
 function hostSetKit(p, on) { if (on && !Build.kitAllowed(p)) return; if (p.kitMats == null) p.kitMats = typeof warKitMats === 'function' ? warKitMats() : 120; emit({ k: 'kit', id: p.id, on: on ? 1 : 0, m: p.kitMats }); }
-function toggleKit() { const me = G.players.get(G.myId); if (!me || !me.alive || !Build.kitAllowed(me)) { if (me && G.mode === 'play') UI.hint(G.gameMode === 'expedition' ? 'The build kit is part of War mode' : 'Building lives in the Big Wilds', 1.8); return; } hostSetKit(me, !me.kit); }
+function toggleKit() { const me = G.players.get(G.myId); if (!me || !me.alive || !Build.kitAllowed(me)) { if (me && G.mode === 'play') UI.hint('Building lives in the Big Wilds and War mode', 1.8); return; } hostSetKit(me, !me.kit); }
 NetExt.add({ key: 'b', pack: () => ({ n: Build.nextId, l: [...Build.pieces.values()].filter(pc => !pc.dead).map(pc => [pc.id, pc.kind, Math.round(pc.x), Math.round(pc.y), Math.round(pc.a * 1000), Math.round(pc.hp), pc.team || 0, pc.by || '']) }),
   post: v => { if (!v) return; for (const r of v.l || []) addPiece(r[0], r[1], r[2], r[3], r[4] / 1000, r[5], r[6], r[7] || null); Build.nextId = Math.max(Build.nextId, v.n || 1); } });
 
@@ -437,6 +483,8 @@ const BuildUI = {
 #buildbar .bs.on{border-color:#1f1c24;background:#ffe9b8;transform:translateY(-2px);box-shadow:0 3px 0 #1f1c24}#buildbar .bs i{position:absolute;left:3px;top:0;font-style:normal;font-size:10px;font-weight:800;color:rgba(31,28,36,.55)}#buildbar .bs b{position:absolute;right:3px;bottom:0;font-size:10px;font-weight:800;color:rgba(31,28,36,.75)}
 #buildbar .rot{flex:none;width:40px;height:48px;border:2px solid rgba(31,28,36,.3);border-radius:11px;background:#fbf6ea;font-size:21px;font-weight:800;display:grid;place-items:center;cursor:pointer;color:#1f1c24}
 #buildbar .tip{font-size:12px;color:rgba(31,28,36,.75);text-align:center;min-height:15px;line-height:15px}
+#buildbar.min .row,#buildbar.min .tip{display:none}
+#buildbar .minb{padding:4px 9px;border:2px solid rgba(31,28,36,.3);border-radius:999px;font-size:13px;font-weight:800;background:#fbf6ea;color:#1f1c24;cursor:pointer;line-height:1}
 #buildbar.touch .bs{width:56px;height:56px}#buildbar.touch .bs img{width:48px;height:48px}#buildbar.touch .rot{width:50px;height:56px;font-size:26px}#buildbar.touch .tab{padding:7px 14px;font-size:14px}#buildbar.touch .done{padding:8px 18px;font-size:16px}#buildbar.touch .chip{padding:7px 12px}#buildbar.touch .i10{display:none}
 #buildbar.touch{bottom:auto;top:calc(60px + var(--safe-t,0px))}@keyframes bbInT{from{opacity:0;transform:translate(-50%,-14px)}}#buildbar.touch{animation-name:bbInT}
 @media (max-width:720px){#buildbar{bottom:auto;top:calc(60px + var(--safe-t,0px));padding:4px 5px}#buildbar .bs{width:40px;height:40px}#buildbar .bs img{width:34px;height:34px}#buildbar .rot{width:32px;height:40px}}
@@ -447,7 +495,7 @@ body.kit-on #wcard{opacity:0;pointer-events:none}
     fab.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); toggleKit(); Audio2.play('ui'); });
     const act = e => { const b = e.target.closest('[data-s],[data-r],[data-t],[data-a]'); e.stopPropagation(); if (!b) return; e.preventDefault(); const ds = b.dataset;
       if (ds.s != null) Build.sel = +ds.s; else if (ds.r != null) Build.rot = (Build.rot + +ds.r + 360) % 360; else if (ds.t != null) this.pickTab(+ds.t);
-      else if (ds.a === 'done') { toggleKit(); } else if (ds.a === 'snap') Build.snap = !Build.snap; else if (ds.a === 'r0') Build.rot = Build.rot === 0 ? 90 : 0;
+      else if (ds.a === 'done') { toggleKit(); } else if (ds.a === 'snap') Build.snap = !Build.snap; else if (ds.a === 'r0') Build.rot = Build.rot === 0 ? 90 : 0; else if (ds.a === 'min') Build.uiMin = !Build.uiMin;
       Audio2.play('ui'); this.refresh(true); };
     el.addEventListener('pointerdown', act); for (const ev of ['touchstart', 'touchend', 'touchmove']) el.addEventListener(ev, e => e.stopPropagation(), { passive: true }); return el;
   },
@@ -461,11 +509,13 @@ body.kit-on #wcard{opacity:0;pointer-events:none}
     const fabOn = G.mode === 'play' && Input.usingTouch && me && me.alive && !me.kit && !weaponOf(me).tool && Build.kitAllowed(me) && UI.cur !== 'pause'; if (this.fab.classList.contains('hidden') === fabOn) this.fab.classList.toggle('hidden', !fabOn);
     document.body.classList.toggle('kit-on', !!on); if (!on) { if (!el.classList.contains('hidden')) el.classList.add('hidden'); this.key = ''; return; }
     const list = toolList(me); if (Build.sel >= list.length) Build.sel = 0; const [tabs, tb] = this.curTab(list); const touch = !!Input.usingTouch; const canPutAway = me.kit && !weaponOf(me).tool;
-    const key = list.join(',') + '|' + Build.sel + '|' + Build.rot + '|' + matsOf(me) + '|' + Build.tab + '|' + Build.snap + touch + canPutAway;
+    const key = list.join(',') + '|' + Build.sel + '|' + Build.rot + '|' + matsOf(me) + '|' + Build.tab + '|' + Build.snap + touch + canPutAway + Build.uiMin;
     if (!force && key === this.key) return; this.key = key; el.classList.remove('hidden'); el.classList.toggle('touch', touch);
     const cur = list[Build.sel], cd = BUILD[cur] || TOOL_INFO[cur];
     const slots = (tb ? tb.idx : []).map((gi, n) => { const k = list[gi]; const ic = this.icons[k] || (this.icons[k] = pieceIcon(k)); const d = BUILD[k] || TOOL_INFO[k]; return `<div class="bs${gi === Build.sel ? ' on' : ''}" data-s="${gi}" title="${d.n}${d.cost ? ' · ' + d.cost + ' material' + (d.cost > 1 ? 's' : '') : ''}"><i class="i10">${n < 10 ? (n + 1) % 10 : ''}</i><img src="${ic}" alt="${d.n}">${d.cost ? `<b>${d.cost}</b>` : ''}</div>`; }).join('');
-    el.innerHTML = `<div class="top">${tabs.length > 1 ? tabs.map(t => `<div class="tab${tb && t.ti === tb.ti ? ' on' : ''}" data-t="${t.ti}">${t.n}</div>`).join('') : ''}<div class="sp"></div><div class="mats"><big>${matsOf(me)}</big>mats</div><div class="chip${Build.snap ? ' on' : ''}" data-a="snap">Snap</div><div class="chip" data-a="r0">${Build.rot}&deg;</div>${canPutAway ? `<div class="done" data-a="done">Done &#x2715;</div>` : ''}</div>`
+    el.classList.toggle('min', !!Build.uiMin);
+    if (Build.uiMin) { el.innerHTML = `<div class="top"><div class="minb" data-a="min" title="show pieces">&#x25B8; ${cd ? cd.n : 'Build'}</div><div class="sp"></div><div class="mats"><big>${matsOf(me)}</big>mats</div>${canPutAway ? `<div class="done" data-a="done">Done &#x2715;</div>` : ''}</div>`; return; }
+    el.innerHTML = `<div class="top">${tabs.length > 1 ? tabs.map(t => `<div class="tab${tb && t.ti === tb.ti ? ' on' : ''}" data-t="${t.ti}">${t.n}</div>`).join('') : ''}<div class="sp"></div><div class="mats"><big>${matsOf(me)}</big>mats</div><div class="chip${Build.snap ? ' on' : ''}" data-a="snap">Snap</div><div class="chip" data-a="r0">${Build.rot}&deg;</div><div class="minb" data-a="min" title="hide pieces">&#x2013;</div>${canPutAway ? `<div class="done" data-a="done">Done &#x2715;</div>` : ''}</div>`
       + `<div class="row"><div class="rot" data-r="-15" title="rotate (Q)">&#x21BA;</div>${slots}<div class="rot" data-r="15" title="rotate (E)">&#x21BB;</div></div><div class="tip"><b>${cd ? cd.n : ''}</b> · ${BUILD_TIPS[cur] || ''}</div>`;
   }
 };

@@ -20,7 +20,7 @@
    ===================================================================== */
 'use strict';
 
-const CACHE = 'inkbrawl-v7';
+const CACHE = 'inkbrawl-v9';
 const CORE = [
   './',
   './index.html',
@@ -28,17 +28,30 @@ const CORE = [
   './apple-touch-icon.png',
   './icon-192.png',
   './icon-512.png',
+  './icon-maskable-512.png',
   './content.js', './expansion.js', './weather.js', './world.js',
-  './build.js', './modes.js', './menu.js', './ui3d.js', './admin.js',
+  './build.js', './modes.js', './menu.js', './ui3d.js', './admin.js', './wardrobe.js',
   './mainmenu/bg.png', './mainmenu/maintitle.png',
-  './mainmenu/event/bg.png', './mainmenu/event/maintitle.png', './mainmenu/event/event.json',
-  './weapons/manifest.json', './biomes/manifest.json', './biomes2/manifest.json',
+  './char/manifest.json',
+  './weapons/manifest.json', './biomes/manifest.json',
 ];
 
 self.addEventListener('install', e => {
   e.waitUntil((async () => {
     const c = await caches.open(CACHE);
     await Promise.allSettled(CORE.map(u => c.add(new Request(u, { cache: 'reload' }))));
+    // Google Fonts: cache the CSS and every font file it points to, so the
+    // game's typography survives a fully offline home-screen launch (iPad).
+    try {
+      for (const css of FONT_CSS) {
+        const r = await fetch(new Request(css, { cache: 'reload', mode: 'cors' }));
+        if (!r.ok) continue;
+        await c.put(new Request(css), r.clone());
+        const text = await r.text();
+        const urls = [...text.matchAll(/url\((https:[^)]+)\)/g)].map(m => m[1]);
+        await Promise.allSettled(urls.map(u => fetch(new Request(u, { mode: 'cors' })).then(fr => fr.ok ? c.put(new Request(u), fr.clone()) : null)));
+      }
+    } catch (err) { /* fonts are a nice-to-have: never block install */ }
     await self.skipWaiting();
   })());
 });
@@ -50,11 +63,17 @@ self.addEventListener('activate', e => {
   })());
 });
 
+const FONT_CSS = [
+  'https://fonts.googleapis.com/css2?family=Shantell+Sans:ital,wght,BNCE,INFM@0,300..800,-100..100,0..100;1,300..800,-100..100,0..100&display=swap',
+  'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,200..800&family=Space+Grotesk:wght@300..700&display=swap',
+];
+
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  if (url.origin !== location.origin) return; // GitHub's API etc.: network only
+  const isFont = url.origin === 'https://fonts.googleapis.com' || url.origin === 'https://fonts.gstatic.com';
+  if (url.origin !== location.origin && !isFont) return; // GitHub's API etc.: network only
 
   if (req.mode === 'navigate' || req.destination === 'document') {
     // the page: fresh when online, the cached copy when not
@@ -86,7 +105,7 @@ self.addEventListener('fetch', e => {
     }
     try {
       const r = await fetch(req);
-      if (r && r.ok && (r.type === 'basic' || r.type === 'default')) { const c = await caches.open(CACHE); c.put(req, r.clone()); }
+      if (r && (r.ok || r.type === 'opaque') && (r.type === 'basic' || r.type === 'default' || isFont)) { const c = await caches.open(CACHE); c.put(req, r.clone()); }
       return r;
     } catch (err) {
       return new Response('offline', { status: 503 });

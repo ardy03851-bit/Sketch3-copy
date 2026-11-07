@@ -12,20 +12,20 @@
    Everything here is host-authoritative; clients only receive options/teams.
    ===================================================================== */
 
-const RULE_DEFAULTS = { hp: 100, time: 0, sd: 1, drops: 1, skill: 1, weapons: 'random', teams: 0, ff: 0, mapSize: 4, storm: 0, war: 0, tickets: 10, buildT: 30, crowd: 0, weather: 'biome' };
+const RULE_DEFAULTS = { hp: 100, hpCustom: 0, time: 0, sd: 1, drops: 1, skill: 1, weapons: 'random', teams: 0, ff: 0, mapSize: 4, mapW: 0, mapH: 0, storm: 0, war: 0, tickets: 10, buildT: 30, crowd: 0, weather: 'biome', infAmmo: 0, chaosGrav: 100, chaosSpeed: 100, chaosJump: 100 };
 G.opts = Object.assign({}, RULE_DEFAULTS);
 G.teamScore = {}; G.tickets = {}; G.bases = [];
-const TEAM_INFO = [null, { n: 'Red', c: '#d9573b' }, { n: 'Blue', c: '#3f7fbf' }, { n: 'Green', c: '#5f9a46' }, { n: 'Gold', c: '#e0a22e' }];
+const TEAM_INFO = [null, { n: 'Red', c: '#d9573b' }, { n: 'Blue', c: '#3f7fbf' }, { n: 'Green', c: '#5f9a46' }, { n: 'Gold', c: '#e0a22e' }, { n: 'Purple', c: '#8a63c2' }, { n: 'Orange', c: '#e8823c' }, { n: 'Teal', c: '#3fa8a0' }, { n: 'Pink', c: '#d46a9e' }];
 function teamColor(t) { return (TEAM_INFO[t] || TEAM_INFO[1]).c; }
 function teamName(t) { return (TEAM_INFO[t] || { n: 'Team ' + t }).n; }
-function teamCount() { const o = G.opts || {}; if (o.war && G.gameMode === 'expedition') return clamp(o.teams || 2, 2, 4); const n = o.teams | 0; return n >= 2 ? clamp(n, 2, 4) : 0; } // teams work in the classic arena too
+function teamCount() { const o = G.opts || {}; if (o.war && G.gameMode === 'expedition') return clamp(o.teams || 2, 2, 8); const n = o.teams | 0; return n >= 2 ? clamp(n, 2, 8) : 0; } // teams work in the classic arena too
 function teamsOn() { return teamCount() >= 2; }
 function warOn() { return !!(G.opts && G.opts.war) && G.gameMode === 'expedition'; }
 function fightElapsed() { return (G.roundLen || 150) - (G.phaseEnd - now()); }
 function warBuildPhase() { return warOn() && G.phase === 'fight' && fightElapsed() < (G.opts.buildT | 0); }
 function roundTimeFor() { const o = G.opts; if (G.gameMode === 'inkhold') return 300; if (o.time > 0) return o.time + (warOn() ? o.buildT | 0 : 0); if (warOn()) return 300 + (o.buildT | 0); return G.gameMode === 'expedition' ? 150 : ROUND_TIME; }
 function warKitMats() { return G.opts.mats || 150; }
-Build.kitAllowed = () => warOn() && (G.phase === 'fight' || G.phase === 'warmup' || G.phase === 'countdown');
+Build.kitAllowed = () => (warOn() || G.gameMode === 'expedition') && (G.phase === 'fight' || G.phase === 'warmup' || G.phase === 'countdown');
 BOT_NAMES.push('Eraser', 'Crayon', 'Margin', 'Pastel', 'Gouache', 'Biro', 'Squiggle', 'Hatch', 'Stipple', 'Smear', 'Tracer', 'Pencilneck', 'Rubber', 'Sharpie', 'Staple', 'Folio', 'Doodlebug', 'Scribble', 'Splotch', 'Wobble');
 { const base = BOT_NAMES.slice(); for (const k of ['Jr', 'II', 'Max', 'Mini', 'XL']) for (const n of base) BOT_NAMES.push(n + ' ' + k); }
 
@@ -147,7 +147,7 @@ hostRules = function () {
 };
 
 /* ---------- bots: team aware, skill levels, level-of-detail thinking ---------- */
-const SKILL = [{ err: .42, react: .65, range: 1100 }, { err: .16, react: .36, range: 1500 }, { err: .05, react: .2, range: 1900 }];
+const SKILL = [{ err: .42, react: .65, range: 1100 }, { err: .16, react: .36, range: 1500 }, { err: .05, react: .2, range: 1900 }, { err: .012, react: .09, range: 2600 }];
 function nearestHumanDist(p) { let d = 1e9; for (const q of G.players.values()) if (!q.isBot && q.alive) d = Math.min(d, Math.abs(q.x - p.x) + Math.abs(q.y - p.y)); return d; }
 function botPickTarget(p, ai) {
   const sk = SKILL[G.opts.skill ?? 1] || SKILL[1]; const tm = teamsOn() ? p.team : 0; const cand = [];
@@ -287,15 +287,16 @@ UI.renderScores = function () {
 
 /* ---------- the rules panel (shared by Host and Practice) ---------- */
 const RULE_FIELDS = [
-  { k: 'hp', l: 'Health', o: [[100, 'Normal'], [200, 'Tough ×2'], [300, 'Sturdy ×3'], [500, 'Tank ×5'], [1000, 'Marathon ×10']] },
+  { k: 'hp', l: 'Health', o: [[100, 'Normal'], [200, 'Tough ×2'], [300, 'Sturdy ×3'], [500, 'Tank ×5'], [1000, 'Marathon ×10'], [-1, 'Custom (type it →)']] },
+  { k: 'hpCustom', l: 'Custom health — any number', num: 1, o: [[0, '']] },
   { k: 'time', l: 'Round time', o: [[0, 'Auto'], [60, '1 min'], [120, '2 min'], [180, '3 min'], [300, '5 min'], [600, '10 min']] },
   { k: 'sd', l: 'Sudden death', o: [[1, 'On'], [0, 'Off (timer ends it)']] },
   { k: 'drops', l: 'Supply drops', o: [[1, 'Normal'], [2, 'Lots'], [0, 'Off']] },
   { k: 'weapons', l: 'Starting weapon', o: [['random', 'Random each'], ['same', 'Same for all'], ['fists', 'Fists + drops']] },
-  { k: 'skill', l: 'Bot skill', o: [[0, 'Easy'], [1, 'Normal'], [2, 'Hard']] },
-  { k: 'mapSize', l: 'Map size', w: 1, o: [[4, '4× classic'], [6, '6× classic'], [9, '9× classic']] },
+  { k: 'skill', l: 'Bot skill', o: [[0, 'Easy'], [1, 'Normal'], [2, 'Hard'], [3, 'Nightmare']] },
+  { k: 'mapSize', l: 'Map size', w: 1, o: [[4, '4× classic'], [6, '6× classic'], [9, '9× classic'], [-1, 'Custom (set size →)']] },
   { k: 'crowd', l: 'Bot crowd', w: 1, o: [[0, 'Use bots setting'], [10, '10 bots'], [20, '20 bots'], [40, '40 bots'], [60, '60 bots'], [100, '100 bots']] },
-  { k: 'teams', l: 'Teams', o: [[0, 'Free for all'], [2, '2 teams'], [3, '3 teams'], [4, '4 teams']] },
+  { k: 'teams', l: 'Teams', o: [[0, 'Free for all'], [2, '2 teams'], [3, '3 teams'], [4, '4 teams'], [5, '5 teams'], [6, '6 teams'], [8, '8 teams']] },
   { k: 'ff', l: 'Friendly fire', o: [[0, 'Off'], [1, 'On']] },
   { k: 'war', l: 'War mode', w: 1, o: [[0, 'Off'], [1, 'On (teams + building)']] },
   { k: 'tickets', l: 'War lives', w: 1, o: [[5, 'Few'], [10, 'Some'], [20, 'Many'], [40, 'Loads']] },
@@ -329,12 +330,59 @@ for (const id of ['#hostMode', '#practiceMode']) { const s = $(id); if (s) s.add
 const _startHostModes = startHost;
 startHost = function (opts) {
   const v = Object.assign({}, RULE_DEFAULTS, RulesPanel.vals); const big = opts.gameMode === 'expedition';
-  if (!big) Object.assign(v, { war: 0, storm: 0, crowd: 0, mapSize: 4 }); // teams + friendly fire stay: they work in the arena if (v.war && !v.teams) v.teams = 2;
+  if (!big) Object.assign(v, { war: 0, storm: 0, crowd: 0, mapSize: v.mapSize === -1 ? -1 : 4 }); // teams + friendly fire stay: they work in the arena
+  if (v.war && !v.teams) v.teams = 2;
+  if (v.hp === -1) v.hp = Math.max(1, v.hpCustom | 0) || 100; // custom health: any number you typed
   G.opts = v; G.teamScore = {}; G.tickets = {};
-  let bots = opts.bots | 0; if (big && v.crowd) bots = v.crowd; if (!big) bots = Math.min(bots, 7);
-  G.botCap = big && bots > 7 ? bots + Math.max(opts.max | 0, 8) : (big ? 100 : null);
-  return _startHostModes(Object.assign({}, opts, { bots }));
+  let bots = Math.max(0, opts.bots | 0); if (big && v.crowd) bots = v.crowd; // no cap: as many bots as you like
+  G.botCap = big && bots > 7 ? bots + Math.max(opts.max | 0, 8) : (big ? 100 : bots);
+  applyChaos(v); // gravity / run speed / jump power dials
+  return _startHostModes(Object.assign({}, opts, { bots, max: Math.max(opts.max | 0, 8, bots + 1) }));
 };
+
+/* chaos dials: scale the physics constants (restored to base on every start) */
+const PHYS_BASE = { GRAV: 2300, RUN: 370, JUMP: 840, JUMP2: 740 };
+function applyChaos(v) {
+  GRAV = PHYS_BASE.GRAV * clamp((v.chaosGrav || 100) / 100, 0.02, 20);
+  RUN = PHYS_BASE.RUN * clamp((v.chaosSpeed || 100) / 100, 0.05, 20);
+  JUMP = PHYS_BASE.JUMP * clamp((v.chaosJump || 100) / 100, 0.05, 20);
+  JUMP2 = PHYS_BASE.JUMP2 * clamp((v.chaosJump || 100) / 100, 0.05, 20);
+}
+
+/* infinite ammo: top the magazine up right before every attack */
+{
+  const _hostAttackInf = hostAttack;
+  hostAttack = function (pid, a, x, y, s, remote) {
+    if (G.opts && G.opts.infAmmo) { const p = G.players.get(pid); if (p && p.alive) { const w = weaponOf(p); if (w && w.ammo > 0 && p.ammo < w.ammo) p.ammo = w.ammo; } }
+    return _hostAttackInf(pid, a, x, y, s, remote);
+  };
+}
+
+/* kill streaks: splat 3, 5, 7+ without falling and the whole room hears about it */
+{
+  const STREAKS = { 2: 'Double splat', 3: 'TRIPLE SPLAT', 5: 'RAMPAGE', 7: 'UNSTOPPABLE', 10: 'GODLIKE' };
+  const _hostKillStreak = hostKill;
+  hostKill = function (q, by, wid) {
+    const r = _hostKillStreak(q, by, wid);
+    try {
+      const p = by && G.players.get(by);
+      if (p && p.alive) {
+        p.streak = (p.streak | 0) + 1;
+        const msg = STREAKS[p.streak];
+        if (msg) emit({ k: 'streak', id: p.id, n: p.streak, m: msg });
+      }
+      if (q) q.streak = 0;
+    } catch (e) { }
+    return r;
+  };
+  const _applyStreak = applyEvent;
+  applyEvent = function (e) {
+    if (e.k === 'streak') { const p = G.players.get(e.id); if (p && G.mode === 'play') UI.toast(`<b>${esc(p.name)}</b> · ${e.m} <span style="opacity:.6">×${e.n}</span>`); return; }
+    return _applyStreak(e);
+  };
+  const _startRoundStreak = startRound;
+  startRound = function () { for (const p of G.players.values()) p.streak = 0; return _startRoundStreak(); };
+}
 
 /* ---------- pause menu: bots in tens, War mode on/off ---------- */
 const _renderPauseModes = UI.renderPause.bind(UI);

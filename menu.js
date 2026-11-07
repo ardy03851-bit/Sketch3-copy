@@ -1,12 +1,8 @@
 /* =====================================================================
-   menu.js: the main menu, the event page and the new-game setup screen
+   menu.js: the main menu and the new-game setup screen
    ---------------------------------------------------------------------
    mainmenu/bg.png            background of the main menu
    mainmenu/maintitle.png     the big game title (top left)
-   mainmenu/event/event.json  name, tagline and colours of the event
-   mainmenu/event/bg.png      background of the event page
-   mainmenu/event/maintitle.png  the event-styled title
-   The event page plays with the content in biomes2/ and weapons2/.
    Nothing in index.html needs editing to change any of this.
    ===================================================================== */
 'use strict';
@@ -42,7 +38,7 @@ function mmImage(src) { return new Promise(res => { const i = new Image(); i.onl
 #ui .screen{--mm-bg:#131017;--mm-panel:rgba(19,16,22,.78);--mm-line:rgba(238,232,218,.15);--mm-line-2:rgba(238,232,218,.32);
   --mm-text:#ece6d8;--mm-dim:rgba(236,230,216,.58);--mm-faint:rgba(236,230,216,.36);
   --mm-accent:#e2543a;--mm-gold:#c9a25a;--mm-disp:'Bricolage Grotesque','Space Grotesk',system-ui,sans-serif;--mm-ui:'Space Grotesk',system-ui,sans-serif}
-#settings,#weapons,#practice{background:radial-gradient(130% 110% at 50% 16%,#1d1920 0%,#131017 58%,#0d0b11 100%)}
+#settings,#weapons,#practice,#wardrobe{background:radial-gradient(130% 110% at 50% 16%,#1d1920 0%,#131017 58%,#0d0b11 100%)}
 #pause{background:rgba(13,11,16,.62);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
 #ui .screen ::-webkit-scrollbar{width:8px;height:8px}
 #ui .screen ::-webkit-scrollbar-thumb{background:rgba(238,232,218,.16);border-radius:4px}
@@ -95,7 +91,7 @@ html{scrollbar-width:thin;scrollbar-color:rgba(238,232,218,.2) transparent}
 #loading{background:#131017;color:rgba(236,230,216,.55);font:500 12px 'Space Grotesk',system-ui,sans-serif;letter-spacing:.28em;text-transform:uppercase}
 
 /* ============ the home page ============ */
-#title.home,#event.home{padding:0;justify-content:flex-start;align-items:stretch;background:#131017;overflow:hidden}
+#title.home{padding:0;justify-content:flex-start;align-items:stretch;background:#131017;overflow:hidden}
 .mm-bg{position:absolute;inset:-6%;background-size:cover;background-position:center;animation:mmPan 64s ease-in-out infinite alternate;will-change:transform;filter:saturate(.8) brightness(.88)}
 .mm-bg.fallback{background:radial-gradient(120% 90% at 62% 38%,#27222c 0%,#1a161e 55%,#100d13 100%)}
 @keyframes mmPan{0%{transform:scale(1.03) translate(0,0)}100%{transform:scale(1.09) translate(-1.6%,1%)}}
@@ -128,41 +124,11 @@ html{scrollbar-width:thin;scrollbar-color:rgba(238,232,218,.2) transparent}
 .mm-btns .btn.primary small{opacity:1;color:rgba(21,18,26,.62)}
 .mm-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:10px;animation:mmRise .8s .54s both}
 .mm-chips .chip{font-size:11px;padding:8px 14px}
-.mm-flip{position:absolute;z-index:4;top:50%;right:0;transform:translateY(-50%);display:flex;align-items:center;gap:12px;padding:22px 13px;cursor:pointer;
-  border:1px solid var(--mm-line);border-right:0;border-radius:14px 0 0 14px;background:var(--mm-panel);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-  color:var(--mm-dim);font:600 11px var(--mm-ui);letter-spacing:.3em;text-transform:uppercase;writing-mode:vertical-rl;
-  animation:mmFade .9s .6s both;transition:color .15s,border-color .15s,background .15s}
-@keyframes mmFade{from{opacity:0}to{opacity:1}}
-.mm-flip:hover{transform:translateY(-50%);color:var(--mm-text);background:rgba(24,20,27,.85);border-color:var(--mm-line-2)}
-.mm-flip .ar{display:grid;place-items:center;color:var(--mm-accent)}
-.mm-flip svg{width:15px;height:15px}.mm-flip svg *{fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
-.mm-flip.back{right:auto;left:0;border-right:1px solid var(--mm-line);border-left:0;border-radius:0 14px 14px 0}
-#event .mm-flip.back{left:auto;right:0;border-left:1px solid var(--mm-line);border-right:0;border-radius:14px 0 0 14px}
-/* 3D page turn */
-.screen.pg-out-l{display:flex!important;transform-origin:0 50%;animation:pgOutL .78s cubic-bezier(.55,.05,.35,1) forwards;z-index:5;pointer-events:none;backface-visibility:hidden}
-.screen.pg-under{animation:pgUnder .78s cubic-bezier(.3,.6,.3,1) both;z-index:1}
-.screen.pg-in-l{transform-origin:0 50%;animation:pgInL .78s cubic-bezier(.55,.05,.35,1) both;z-index:5;backface-visibility:hidden}
-.screen.pg-under-out{display:flex!important;animation:pgUnderOut .78s ease forwards;z-index:1;pointer-events:none}
-@keyframes pgOutL{0%{transform:rotateY(0);filter:brightness(1)}100%{transform:rotateY(-104deg);filter:brightness(.55)}}
-@keyframes pgInL{0%{transform:rotateY(-104deg);filter:brightness(.55)}100%{transform:rotateY(0);filter:brightness(1)}}
-@keyframes pgUnder{0%{transform:scale(.93);filter:brightness(.35)}100%{transform:none;filter:none}}
-@keyframes pgUnderOut{0%{transform:none;filter:none}100%{transform:scale(.93);filter:brightness(.35)}}
-/* event page */
-#event{--ev-accent:#ff8a2a;--ev-accent2:#8d4bd6}
-#event .mm-shade{background:linear-gradient(92deg,rgba(14,8,18,.88) 0%,rgba(14,8,18,.62) 34%,rgba(14,8,18,.1) 66%,rgba(14,8,18,0) 100%),linear-gradient(0deg,rgba(30,12,38,.5),rgba(0,0,0,0) 38%)}
-#evCanvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
-#event .mm-title .logo{color:var(--ev-accent)}
-#event .mm-tag{color:rgba(255,226,194,.75)}
-#event .mm-btns .btn.primary{background:var(--ev-accent);color:#1c1014}
-#event .mm-btns .btn.primary:hover{background:#ffa14f}
-.ev-badge{align-self:flex-start;display:inline-flex;gap:8px;align-items:center;padding:7px 14px;border:1px solid rgba(255,138,42,.5);border-radius:999px;background:rgba(255,138,42,.12);color:#ffb377;font:600 11px var(--mm-ui);letter-spacing:.22em;text-transform:uppercase;animation:mmRise .6s .1s both}
-.ev-info{color:var(--mm-dim);font:400 12px var(--mm-ui);letter-spacing:.05em;animation:mmRise .7s .5s both}
-@media (max-width:640px){.mm-left{width:100%;gap:12px;padding:calc(18px + var(--safe-t)) 18px calc(16px + var(--safe-b)) calc(18px + var(--safe-l))}.mm-flip{top:auto;bottom:calc(16px + var(--safe-b));right:auto;left:50%;transform:translate(-50%,0);writing-mode:horizontal-tb;border:1px solid var(--mm-line);border-radius:999px;padding:12px 22px}.mm-flip:hover{transform:translate(-50%,0)}.mm-flip.back{left:50%;right:auto;border:1px solid var(--mm-line);border-radius:999px}.mm-shade{background:rgba(13,11,16,.5)}.mm-btns .btn{min-height:50px}.mm-word{-webkit-text-stroke:1.5px rgba(236,230,216,.9)}.mm-word .o{-webkit-text-stroke-width:1.5px}}
+@media (max-width:640px){.mm-left{width:100%;gap:12px;padding:calc(18px + var(--safe-t)) 18px calc(16px + var(--safe-b)) calc(18px + var(--safe-l))}.mm-shade{background:rgba(13,11,16,.5)}.mm-btns .btn{min-height:50px}.mm-word{-webkit-text-stroke:1.5px rgba(236,230,216,.9)}.mm-word .o{-webkit-text-stroke-width:1.5px}}
 @media (max-height:600px){.mm-left{gap:10px}.mm-word{font-size:clamp(40px,8vh,60px)}.mm-btns .btn{min-height:44px}.mm-who .sw{width:30px;height:30px}.mm-who{padding:12px 14px 8px}}
 
 /* ============ setup screen ============ */
 #setup{background:linear-gradient(rgba(13,11,16,.82),rgba(13,11,16,.9)),url(mainmenu/bg.png) center/cover}
-#setup.event-set{background:linear-gradient(rgba(18,9,24,.82),rgba(11,6,15,.9)),url(mainmenu/event/bg.png) center/cover}
 #setup .card{max-width:780px;padding:22px 24px 16px;display:flex;flex-direction:column;max-height:calc(100dvh - 40px)}
 .su-head{display:flex;gap:14px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
 .su-head h2{margin:0}
@@ -199,180 +165,172 @@ html{scrollbar-width:thin;scrollbar-color:rgba(238,232,218,.2) transparent}
 .su-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--mm-line);padding-top:12px;margin-top:6px}
 .su-sum{flex:1;min-width:200px;font:400 12.5px/1.45 var(--mm-ui);color:var(--mm-dim)}
 .su-note{font:400 12px/1.5 var(--mm-ui);color:var(--mm-faint);margin:4px 0 0}
-#setup.event-set .card{background:rgba(24,15,30,.82)}
-#setup.event-set .su-tabs button.on,#setup.event-set .su-chips button.on{background:var(--ev-accent,#ff8a2a);color:#1c1014}
-#setup.event-set .su-mode.on{border-color:var(--ev-accent,#ff8a2a);background:rgba(255,138,42,.1)}
-#setup.event-set .su-bio.on em,#setup.event-set .su-bio.on{border-color:var(--ev-accent,#ff8a2a)}
-#setup.event-set .su-bio.on em{background:var(--ev-accent,#ff8a2a);color:#1c1014}
+.su-num{display:flex;align-items:center;gap:6px}
+.su-num button,.su-step button{width:42px;height:40px;border:1px solid var(--mm-line);border-radius:9px;background:rgba(255,255,255,.03);color:var(--mm-text);font:600 19px var(--mm-ui);cursor:pointer;transition:border-color .13s,background .13s;flex:none}
+.su-num button:hover,.su-step button:hover{border-color:var(--mm-line-2);background:rgba(255,255,255,.06)}
+.su-num input{width:96px;height:40px;border:1px solid var(--mm-line);border-radius:9px;background:rgba(255,255,255,.045);color:var(--mm-text);font:700 17px var(--mm-ui);text-align:center;box-shadow:none;outline:none;-moz-appearance:textfield}
+.su-num input::-webkit-outer-spin-button,.su-num input::-webkit-inner-spin-button{-webkit-appearance:none}
+.su-num input:focus{border-color:var(--mm-accent)}
+.su-step b{min-width:64px;text-align:center;font:700 20px var(--mm-disp);color:var(--mm-text)}
+.su-num2{display:flex;align-items:center;gap:8px}
+.su-num2 b{font:700 15px var(--mm-disp);color:var(--mm-faint)}
+.su-num2 input{width:104px;height:38px;border:1px solid var(--mm-line);border-radius:9px;background:rgba(255,255,255,.045);color:var(--mm-text);font:700 15px var(--mm-ui);text-align:center;box-shadow:none;outline:none;-moz-appearance:textfield}
+.su-num2 input::-webkit-outer-spin-button,.su-num2 input::-webkit-inner-spin-button{-webkit-appearance:none}
+.su-cmap{margin-top:10px;padding:12px;border:1px dashed var(--mm-line);border-radius:11px}
 @media (max-width:640px){.su-modes{grid-template-columns:1fr}.su-grid2{grid-template-columns:1fr}.su-where{min-width:0;width:100%}#setup .card{padding:14px}}
+
+/* ============ motion & life: enter animations, ink doodles, presses ============ */
+@keyframes scrIn{from{opacity:0;transform:translateY(14px) scale(.992)}to{opacity:1;transform:none}}
+.screen.entering{animation:scrIn .3s cubic-bezier(.16,1,.3,1) both}
+#ui .screen .btn:active,#ui .screen .su-tabs button:active,#ui .screen .chip:active{transform:translateY(1px) scale(.99)}
+#ui .screen .btn{transition:background .15s,border-color .15s,color .15s,transform .08s}
+.mm-ink{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:1}
+.mm-doodle{position:absolute;opacity:0;will-change:transform;animation:doodleIn .9s cubic-bezier(.16,1,.3,1) both}
+@keyframes doodleIn{from{opacity:0;transform:scale(.4) rotate(-14deg)}to{opacity:1;transform:scale(1) rotate(0)}}
+.mm-doodle svg{display:block;animation:mmFloat 9s ease-in-out infinite alternate}
+@keyframes mmFloat{0%{transform:translate(0,0) rotate(0deg)}100%{transform:translate(14px,-22px) rotate(9deg)}}
+.mm-word{position:relative}
+.mm-word::after{content:'';position:absolute;left:2px;right:8%;bottom:-12px;height:10px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 12' preserveAspectRatio='none'%3E%3Cpath d='M3 8 C 60 2, 90 11, 150 6 S 260 2, 297 7' fill='none' stroke='%23e2543a' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat center/100% 100%;animation:inkDraw 1.1s .5s cubic-bezier(.16,1,.3,1) both}
+@keyframes inkDraw{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+.mm-word .o{-webkit-text-stroke:2.5px rgba(236,230,216,.9)}
+@keyframes mmPulse{0%,100%{opacity:.55}50%{opacity:1}}
+.mm-overline::after{content:'';width:6px;height:6px;border-radius:50%;background:var(--mm-accent);margin-left:2px;animation:mmPulse 2.2s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.mm-doodle svg,.mm-bg{animation:none!important}.screen.entering{animation:none}}
 `;
   document.head.append(st);
 }
 
 /* ---------- the home page ---------- */
 const MainMenu = {
-  page: 'title', flipping: false, built: false, evBuilt: false, raf: 0,
+  page: 'title', built: false, raf: 0,
   build() {
     if (this.built) return; this.built = true; const home = $('#title'); if (!home) return;
     const wrap = home.querySelector('.wrap'); const logo = home.querySelector('.logo'); const tag = home.querySelector('.tagline');
-    const keep = {}; for (const id of ['bPractice', 'bSettings', 'chipWeapons']) keep[id] = $('#' + id);
+    const keep = {}; for (const id of ['bPractice', 'bSettings', 'bWardrobe', 'chipWeapons']) keep[id] = $('#' + id);
     const fields = ['#nameIn', '#swatches'].map(id => $(id) && $(id).closest('.field')).filter(Boolean);
     home.classList.add('home'); for (const n of [...Object.values(keep), ...fields, logo, tag]) if (n) n.remove(); home.innerHTML = '';
     const bg = document.createElement('div'); bg.className = 'mm-bg fallback'; home.append(bg, Object.assign(document.createElement('div'), { className: 'mm-shade' }), Object.assign(document.createElement('div'), { className: 'mm-grain' }));
     mmImage(MMENU + 'bg.png').then(i => { if (i) { bg.classList.remove('fallback'); bg.style.backgroundImage = `url("${i.src}")`; } });
     const left = document.createElement('div'); left.className = 'mm-left'; home.append(left);
     const brand = document.createElement('div'); brand.className = 'mm-brand'; left.append(brand);
-    brand.innerHTML = '<div class="mm-overline">Offline turn-based artillery</div><h1 class="mm-word">Ink<span class="o">Brawl</span></h1>';
+    brand.innerHTML = '<div class="mm-overline">Offline · hand-drawn brawls</div><h1 class="mm-word">Ink<span class="o">Brawl</span></h1>';
     if (tag) { tag.className = 'mm-tag'; brand.append(tag); }
     const who = document.createElement('div'); who.className = 'mm-who'; left.append(who);
     for (const f of fields) who.append(f);
     const btns = document.createElement('div'); btns.className = 'mm-btns'; left.append(btns);
-    const bP = keep.bPractice, bS = keep.bSettings;
+    const bP = keep.bPractice, bS = keep.bSettings, bWd = keep.bWardrobe;
     if (bP) { bP.className = 'btn primary'; bP.innerHTML = '<svg class="ico"><use href="#i-play"/></svg>Play<small>vs bots</small>'; btns.append(bP); }
+    if (bWd) { bWd.className = 'btn'; bWd.innerHTML = '<svg class="ico"><use href="#i-hat"/></svg>Wardrobe'; btns.append(bWd); }
     if (bS) { bS.className = 'btn'; bS.innerHTML = '<svg class="ico"><use href="#i-gear"/></svg>Settings'; btns.append(bS); }
     const chips = document.createElement('div'); chips.className = 'mm-chips'; left.append(chips);
     if (keep.chipWeapons) chips.append(keep.chipWeapons);
-    const flip = document.createElement('button'); flip.className = 'mm-flip'; flip.id = 'bEventPage'; flip.innerHTML = `<span class="ar"><svg viewBox="0 0 24 24"><path d="M5 12h13"/><path d="M12.5 5.5 19 12l-6.5 6.5"/></svg></span><span class="lb">${esc(EventInfo.name)} event</span>`;
-    home.append(flip); flip.addEventListener('click', () => { Audio2.init(); Audio2.play('ui'); this.flip('event'); });
-    // Play / Host open the setup screen instead of the old cards
+    // floating hand-drawn ink doodles drifting on the right of the page
+    const ink = document.createElement('div'); ink.className = 'mm-ink'; home.append(ink);
+    const DOODLES = [
+      '<path d="M20 4 C 26 10, 34 8, 30 20 S 12 34, 10 20 S 14 6, 20 4 Z"/>',
+      '<path d="M22 2 L26 16 L40 16 L29 25 L33 39 L22 30 L11 39 L15 25 L4 16 L18 16 Z" fill="none"/>',
+      '<path d="M6 22 C 6 12, 16 6, 24 10 S 36 22, 28 30 S 10 34, 6 22 Z M 24 10 L 36 2" fill="none"/>',
+      '<path d="M6 20 C 10 6, 34 6, 38 20 S 34 36, 20 34 S 2 34, 6 20 Z" fill="none" stroke-dasharray="4 5"/>',
+      '<path d="M38 6 C 10 4, 2 22, 14 32 S 40 40, 38 6 Z" fill="none"/>',
+      '<g fill="none"><path d="M22 2 v40 M2 22 h40"/><path d="M8 8 l28 28 M36 8 l-28 28"/></g>',
+    ];
+    const spots = [[72, 12, 66], [58, 42, 40], [84, 62, 34], [66, 78, 52], [90, 26, 46], [40, 66, 30]];
+    DOODLES.forEach((dd, i) => {
+      const d = document.createElement('div'); d.className = 'mm-doodle';
+      const [top, left, size] = spots[i]; const dur = (7 + (i % 4) * 2.4).toFixed(1) + 's';
+      d.style.top = top + '%'; d.style.left = left + '%'; d.style.animationDelay = (0.35 + i * 0.22) + 's';
+      d.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 44 44" style="animation-duration:${dur}s" fill="none" stroke="rgba(236,230,216,.14)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">${dd}</svg>`;
+      ink.append(d);
+    });
+    // Play opens the setup screen instead of the old cards
     document.addEventListener('click', e => {
       const b = e.target.closest && e.target.closest('#bPractice'); if (!b) return; e.stopPropagation(); e.preventDefault(); Audio2.init(); Audio2.play('ui');
-      Setup.open({ set: 'main', from: 'title' });
+      Setup.open({ from: 'title' });
     }, true);
-  },
-  buildEvent() {
-    if (this.evBuilt) return; this.evBuilt = true; const E = EventInfo;
-    const s = document.createElement('section'); s.className = 'screen hidden home'; s.id = 'event'; $('#ui').insertBefore(s, $('#hud'));
-    s.style.setProperty('--ev-accent', E.accent || '#ff8a2a'); s.style.setProperty('--ev-accent2', E.accent2 || '#8d4bd6');
-    const bg = document.createElement('div'); bg.className = 'mm-bg fallback'; bg.style.background = `radial-gradient(120% 90% at 65% 30%,#4a2f5e 0%,#2a1838 55%,#140b1c 100%)`;
-    const cv = document.createElement('canvas'); cv.id = 'evCanvas';
-    s.append(bg, cv, Object.assign(document.createElement('div'), { className: 'mm-shade' }));
-    mmImage(MMENU + 'event/' + (E.bg || 'bg.png')).then(i => { if (i) { bg.classList.remove('fallback'); bg.style.background = ''; bg.style.backgroundImage = `url("${i.src}")`; bg.style.backgroundSize = 'cover'; bg.style.backgroundPosition = 'center'; } });
-    const left = document.createElement('div'); left.className = 'mm-left'; s.append(left);
-    left.innerHTML = `<div class="ev-badge">${esc(E.icon || '\u{1F383}')} ${esc(E.name)} event</div><div class="mm-title" id="evTitle"></div><div class="mm-tag">${esc(E.tagline || '')}</div>
-      <div class="mm-btns"><button class="btn primary" id="bEvPlay"><svg class="ico"><use href="#i-play"/></svg>Play the event<small>vs bots</small></button></div>
-      <div class="ev-info" id="evInfo"></div>`;
-    const tt = left.querySelector('#evTitle');
-    mmImage(MMENU + 'event/' + (E.title || 'maintitle.png')).then(i => { if (i) { i.alt = 'Inkbrawl ' + E.name; tt.append(i); } else { tt.innerHTML = `<div class="logo" data-t="INKBRAWL">${'INKBRAWL'.split('').map(c => `<span>${c}</span>`).join('')}</div>`; } });
-    const back = document.createElement('button'); back.className = 'mm-flip back'; back.innerHTML = `<span class="ar"><svg viewBox="0 0 24 24"><path d="M19 12H6"/><path d="M11.5 5.5 5 12l6.5 6.5"/></svg></span><span class="lb">Main menu</span>`;
-    s.append(back); back.addEventListener('click', () => { Audio2.play('ui'); this.flip('title'); });
-    $('#bEvPlay').addEventListener('click', () => { Audio2.init(); Audio2.play('ui'); Setup.open({ set: 'event', from: 'event' }); });
-    this.evInfo();
-  },
-  evInfo() { const el = $('#evInfo'); if (!el) return; const nw = Weapons.list.filter(w => w.set === 'event' || (Array.isArray(w.sets) && w.sets.includes('event') && !w.sets.includes('main'))).length; const nb = THEMES.filter(t => t.set === 'event').length; el.textContent = `${nw} event weapon${nw === 1 ? '' : 's'} · ${nb} event biome${nb === 1 ? '' : 's'} · a spooky seasonal set`; },
-  eventReady() {
-    this.build(); this.buildEvent();
-    const f = $('#bEventPage .lb'); if (f) f.textContent = EventInfo.name + ' event';
-    const ev = $('#event'); if (ev) { ev.style.setProperty('--ev-accent', EventInfo.accent || '#ff8a2a'); ev.style.setProperty('--ev-accent2', EventInfo.accent2 || '#8d4bd6'); }
-    const t = $('#title'); if (t) t.style.setProperty('--ev-accent', EventInfo.accent || '#ff8a2a');
-    this.evInfo();
-  },
-  /* the 3D page turn between the main menu and the event page */
-  flip(to) {
-    if (this.flipping || UI.cur === to) return; const from = UI.cur; const a = $('#' + from), b = $('#' + to); if (!a || !b) { UI.show(to); return; }
-    this.flipping = true; this.page = to; const fwd = to === 'event';
-    UI._noFade = true; UI.show(to); UI._noFade = false;
-    if (fwd) { a.classList.add('pg-out-l'); b.classList.add('pg-under'); } else { b.classList.add('pg-in-l'); a.classList.add('pg-under-out'); }
-    Audio2.play('swing', undefined, .6, .7);
-    setTimeout(() => { for (const el of [a, b]) el.classList.remove('pg-out-l', 'pg-under', 'pg-in-l', 'pg-under-out'); this.flipping = false; }, 800);
-  },
-  /* event page canvas: fog, bats, embers and a moon. dt-based so it never runs too fast. */
-  loop() {
-    const cv = $('#evCanvas'); if (!cv) return; const x = cv.getContext('2d'); let last = performance.now(); const P = this.parts || (this.parts = []);
-    const step = n => {
-      this.raf = 0; if (UI.cur !== 'event' && !this.flipping) return; const dt = Math.min(.05, (n - last) / 1000); last = n;
-      const dpr = Math.min(2, devicePixelRatio || 1), W2 = cv.clientWidth, H2 = cv.clientHeight; if (cv.width !== Math.round(W2 * dpr) || cv.height !== Math.round(H2 * dpr)) { cv.width = Math.round(W2 * dpr); cv.height = Math.round(H2 * dpr); }
-      x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, W2, H2); const t = n / 1000;
-      while (P.length < 46) { const k = Math.random(); P.push(k < .25 ? { k: 'bat', x: W2 * (.4 + Math.random() * .7), y: H2 * (.1 + Math.random() * .4), vx: -(30 + Math.random() * 50), ph: Math.random() * 6, s: .6 + Math.random() * .7 } : k < .7 ? { k: 'ember', x: Math.random() * W2, y: H2 + 10, vy: -(18 + Math.random() * 40), ph: Math.random() * 6, s: 1 + Math.random() * 2.2 } : { k: 'fog', x: Math.random() * W2, y: H2 * (.65 + Math.random() * .35), vx: 6 + Math.random() * 14, s: 120 + Math.random() * 180 }); }
-      for (let i = P.length - 1; i >= 0; i--) { const p = P[i];
-        if (p.k === 'bat') { p.x += p.vx * dt; p.y += Math.sin(t * 2 + p.ph) * 12 * dt; const fl = Math.sin(t * 14 + p.ph); x.save(); x.translate(p.x, p.y); x.scale(p.s, p.s); x.fillStyle = 'rgba(20,10,26,.85)'; x.beginPath(); x.moveTo(0, 0); x.quadraticCurveTo(-8, -8 * fl - 3, -16, -2 * fl); x.quadraticCurveTo(-9, 1, -5, 4); x.quadraticCurveTo(0, 2, 5, 4); x.quadraticCurveTo(9, 1, 16, -2 * fl); x.quadraticCurveTo(8, -8 * fl - 3, 0, 0); x.fill(); x.restore(); if (p.x < -40) P.splice(i, 1); }
-        else if (p.k === 'ember') { p.y += p.vy * dt; p.x += Math.sin(t * 1.5 + p.ph) * 14 * dt; const a = .5 + .5 * Math.sin(t * 5 + p.ph); x.fillStyle = `rgba(255,${150 + (a * 60 | 0)},70,${.35 + a * .5})`; x.beginPath(); x.arc(p.x, p.y, p.s, 0, TAU); x.fill(); if (p.y < -10) P.splice(i, 1); }
-        else { p.x += p.vx * dt; const g = x.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.s); g.addColorStop(0, 'rgba(200,180,230,.12)'); g.addColorStop(1, 'rgba(200,180,230,0)'); x.fillStyle = g; x.fillRect(p.x - p.s, p.y - p.s, p.s * 2, p.s * 2); if (p.x - p.s > W2) P.splice(i, 1); } }
-      this.raf = requestAnimationFrame(step);
-    };
-    if (!this.raf) this.raf = requestAnimationFrame(step);
   },
 };
 
-/* ---------- smooth screen changes (and the event page remembers itself) ---------- */
+/* ---------- smooth screen changes ---------- */
 {
   const _show = UI.show.bind(UI);
-  const MENU_SCREENS = new Set(['title', 'event', 'setup', 'weapons', 'settings', 'practice']);
+  const MENU_SCREENS = new Set(['title', 'setup', 'weapons', 'settings', 'wardrobe', 'practice']);
   UI.show = function (id, ...rest) {
-    if (id === 'title' && MainMenu.page === 'event' && !MainMenu.flipping && G.mode !== 'play' && $('#event')) id = 'event';
-    if (id === 'practice') { Setup.open({ set: MainMenu.page === 'event' ? 'event' : 'main', from: MainMenu.page }); return; }
+    if (id === 'practice') { Setup.open({ from: MainMenu.page }); return; }
     const prev = this.cur && $('#' + this.cur); const r = _show(id, ...rest);
     if (!this._noFade && prev && prev.id !== id && MENU_SCREENS.has(prev.id) && id && MENU_SCREENS.has(id)) {
       prev.classList.add('leaving'); clearTimeout(prev._lv); prev._lv = setTimeout(() => prev.classList.remove('leaving'), 270);
     }
+    const next = id && $('#' + id); if (next && MENU_SCREENS.has(id)) { next.classList.add('entering'); clearTimeout(next._en); next._en = setTimeout(() => next.classList.remove('entering'), 340); }
     for (const s of document.querySelectorAll('.screen.leaving')) if (s.id === id) s.classList.remove('leaving');
     if (id === 'weapons' && UI.renderWeapons && !$('#wlist').children.length) UI.renderWeapons();
-    if (id === 'event') { MainMenu.loop(); MainMenu.evInfo(); }
     return r;
   };
 }
 
 /* ---------- the new-game setup screen ---------- */
 const SETUP_MODES = [
-  { id: 'arena', n: 'Arena', d: 'Tight, destructible arenas. Up to 8 players. Last scribble standing.' },
+  { id: 'arena', n: 'Arena', d: 'Tight, destructible arenas. Last scribble standing.' },
   { id: 'inkhold', n: 'Inkhold', d: 'Hold the glowing ink ring to score. First to the target takes the match.' },
   { id: 'wilds', n: 'Big Wilds', d: 'A huge map, bot crowds, the Tool Box and teams if you want.' },
   { id: 'war', n: 'War', d: 'Teams, a build phase with the kit, banners and shared lives.' },
 ];
-const SETUP_BOTS_ARENA = [0, 1, 2, 3, 4, 5, 6, 7], SETUP_BOTS_WILDS = [0, 1, 3, 5, 7, 10, 15, 20, 30, 40, 60, 80, 100];
 const Setup = {
   el: null, tab: 0, s: null,
-  defaults() { return { set: 'main', mode: 'arena', terrain: 'normal', biome: -1, bots: 3, max: 6, target: 5 }; },
+  defaults() { return { mode: 'arena', terrain: 'normal', biome: -1, bots: 3, target: 5 }; },
   load() { try { return Object.assign(this.defaults(), JSON.parse(getCookie('ib_setup') || '{}')); } catch (e) { return this.defaults(); } },
-  save() { const { set, from, ...keep } = this.s; setCookie('ib_setup', JSON.stringify(keep)); },
+  save() { const { from, ...keep } = this.s; setCookie('ib_setup', JSON.stringify(keep)); },
   ensure() {
     if (this.el) return this.el; const s = document.createElement('section'); s.className = 'screen hidden'; s.id = 'setup'; $('#ui').insertBefore(s, $('#hud'));
-    s.innerHTML = `<div class="card"><div class="su-head"><div><div class="eyebrow" id="suEye">New game</div><h2 id="suTitle">Set up a game</h2></div>
+    s.innerHTML = `<div class="card"><div class="su-head"><div><div class="eyebrow" id="suEye">Offline · vs bots</div><h2 id="suTitle">Set up a game</h2></div>
 </div>
       <div class="su-tabs" id="suTabs"><button data-tab="0">Mode &amp; map</button><button data-tab="1">Players</button><button data-tab="2">Rules</button></div>
       <div class="su-body" id="suBody"></div>
       <div class="su-foot"><button class="btn ghost small" id="suBack"><svg class="ico"><use href="#i-back"/></svg>Back</button><div class="su-sum" id="suSum"></div><button class="btn primary" id="suStart"><svg class="ico"><use href="#i-play"/></svg>Start</button></div></div>`;
     this.el = s;
     s.addEventListener('click', e => this.click(e));
+    s.addEventListener('input', e => this.input(e));
+    s.addEventListener('change', e => this.input(e));
     return s;
   },
   open(o) {
-    this.ensure(); const prevSet = this.s && this.s.set; this.s = Object.assign(this.load(), { set: o.set || 'main', from: o.from || 'title' });
+    this.ensure(); this.s = Object.assign(this.load(), { from: o.from || 'title' });
     if (!SETUP_MODES.some(x => x.id === this.s.mode)) this.s.mode = 'arena'; // sanitize stale/invalid saved mode
-    if (prevSet && prevSet !== this.s.set) this.s.biome = -1;
-    if (this.s.biome >= 0 && (!THEMES[this.s.biome] || (THEMES[this.s.biome].set || 'main') !== this.s.set)) this.s.biome = -1;
+    if (this.s.biome >= 0 && !THEMES[this.s.biome]) this.s.biome = -1;
     this.tab = 0; this.render(); UI.show('setup');
   },
-  refresh() { MainMenu.evInfo(); if (this.el && UI.cur === 'setup') this.render(); },
+  refresh() { if (this.el && UI.cur === 'setup') this.render(); },
   isBig() { return this.s.mode === 'wilds' || this.s.mode === 'war'; },
-  botSteps() { return this.isBig() ? SETUP_BOTS_WILDS : SETUP_BOTS_ARENA; },
   rules() { return RulesPanel.vals; },
   chips(key, opts, cur, cls = '') { return `<div class="su-chips ${cls}">${opts.map(([v, n]) => `<button data-pick="${key}" data-v="${v}" class="${String(cur) === String(v) ? 'on' : ''}">${n}</button>`).join('')}</div>`; },
   rf(k) { return RULE_FIELDS.find(f => f.k === k); },
+  num(key, val, min = 0, max = 999999, step = 1) { return `<div class="su-num"><button data-nstep="${key}:-${step}">&minus;</button><input type="number" data-num="${key}" value="${val}" min="${min}" max="${max}" step="${step}" inputmode="numeric"><button data-nstep="${key}:${step}">+</button></div>`; },
   render() {
-    const s = this.s, el = this.el, v = this.rules(), big = this.isBig(), war = s.mode === 'war', ev = s.set === 'event';
-    el.classList.toggle('event-set', ev); if (ev) el.style.setProperty('--ev-accent', EventInfo.accent || '#ff8a2a');
-    $('#suEye').textContent = ev ? `${EventInfo.name} event · biomes2 + weapons2` : 'Offline · vs bots';
-    $('#suTitle').textContent = ev ? `${EventInfo.name} game` : 'Set up a game';
+    const s = this.s, el = this.el, v = this.rules(), big = this.isBig(), war = s.mode === 'war';
     el.querySelectorAll('#suTabs button').forEach(b => b.classList.toggle('on', +b.dataset.tab === this.tab));
-    let bi = biomeIndexes(s.set);
+    let bi = biomeIndexes();
     if (s.mode === 'inkhold') { bi = THEMES.reduce((a, t, i) => { if (t.inkhold) a.push(i); return a; }, []); if (s.biome >= 0 && !THEMES[s.biome]?.inkhold) s.biome = -1; }
-    const steps = this.botSteps(); if (!steps.includes(s.bots)) s.bots = steps.reduce((a, b) => Math.abs(b - s.bots) < Math.abs(a - s.bots) ? b : a, steps[0]);
     const tile = i => { const t = THEMES[i]; const far = (t.far && t.far[0]) || t.mid; return `<button class="su-bio${s.biome === i ? ' on' : ''}" data-pick="biome" data-v="${i}" title="${esc(t.name)}"><i style="background:linear-gradient(180deg,${t.skyT} 0%,${t.skyB} 46%,${far} 46%,${far} 60%,${t.cap || t.top} 60%,${t.top} 66%,${t.mid} 66%,${t.deep} 100%)"></i><em>${esc(t.name)}</em></button>`; };
-    const ruleChips = (k, extra = '') => { const f = this.rf(k); return f ? `<div class="su-sec ${extra}"><span class="lbl">${f.l}</span>${this.chips('r:' + k, f.o, v[k])}</div>` : ''; };
+    const ruleChips = (k, extra = '') => { const f = this.rf(k); if (!f) return ''; const body = f.num ? `<div class="su-step">${this.num(k, v[k] || 0, 1, 999999)}</div>` : this.chips('r:' + k, f.o, v[k]); return `<div class="su-sec ${extra}"><span class="lbl">${f.l}</span>${body}</div>`; };
     const pane0 = `<div class="su-sec"><span class="lbl">Mode</span><div class="su-modes">${SETUP_MODES.map(m => `<button class="su-mode${s.mode === m.id ? ' on' : ''}" data-pick="mode" data-v="${m.id}"><b>${m.n}</b><span>${m.d}</span></button>`).join('')}</div></div>
       <div class="su-grid2"><div class="su-sec"><span class="lbl">Terrain</span>${this.chips('terrain', [['normal', 'Normal hills'], ['flat', 'Flat']], s.terrain)}<p class="su-note">${s.terrain === 'flat' ? 'One long flat field. Great for building and big battles.' : 'Hills, pits, islands and caves, like always.'}</p></div>
       ${ruleChips('weather')}
-      <div class="su-sec${big ? '' : ' su-off'}"><span class="lbl">Map size</span>${this.chips('r:mapSize', this.rf('mapSize').o, v.mapSize)}</div></div>
-      <div class="su-sec"><span class="lbl">World${ev ? ' (event biomes)' : ''}</span><div class="su-biomes"><button class="su-bio rand${s.biome < 0 ? ' on' : ''}" data-pick="biome" data-v="-1"><i></i><b>?</b><em>Random</em></button>${bi.map(tile).join('')}</div></div>`;
-    const tOpts = war ? [[2, '2 teams'], [3, '3 teams'], [4, '4 teams']] : this.rf('teams').o;
-    const pane1 = `<div class="su-grid2"><div class="su-sec"><span class="lbl">Bots</span><div class="su-step"><button data-step="-1">&minus;</button><b id="suBots">${s.bots}</b><button data-step="1">+</button></div><p class="su-note">${big ? 'Big Wilds can take up to 100 bots.' : 'Arena fits up to 7 bots.'}</p></div>
-      <div class="su-sec"><span class="lbl">First to</span>${this.chips('target', [[3, '3'], [5, '5'], [10, '10'], [20, '20']], s.target)}</div>
+      <div class="su-sec"><span class="lbl">Map size</span>${this.chips('r:mapSize', this.rf('mapSize').o, v.mapSize)}
+        <div class="su-cmap"><span class="lbl">Custom map (px)</span><div class="su-num2"><input type="number" data-num="mapW" value="${v.mapW || 3200}" min="800" max="40000" step="200" inputmode="numeric"><b>&times;</b><input type="number" data-num="mapH" value="${v.mapH || 1800}" min="600" max="20000" step="200" inputmode="numeric"></div><p class="su-note">Any size you like — pick “Custom” in Map size to use it. Huge maps are heaviest on old devices.</p></div></div></div>
+      <div class="su-sec"><span class="lbl">World</span><div class="su-biomes"><button class="su-bio rand${s.biome < 0 ? ' on' : ''}" data-pick="biome" data-v="-1"><i></i><b>?</b><em>Random</em></button>${bi.map(tile).join('')}</div></div>`;
+    const tOpts = war ? [[2, '2 teams'], [3, '3 teams'], [4, '4 teams'], [6, '6 teams'], [8, '8 teams']] : this.rf('teams').o;
+    const pane1 = `<div class="su-grid2"><div class="su-sec"><span class="lbl">Bots — no cap</span><div class="su-step">${this.num('bots', s.bots, 0, 9999)}</div><p class="su-note">Type any number. 100+ bots works best in Big Wilds; crowds far off-screen take it easy to stay smooth.</p></div>
+      <div class="su-sec"><span class="lbl">First to — no cap</span><div class="su-step">${this.num('target', s.target, 1, 9999)}</div></div>
       ${ruleChips('skill')}
       <div class="su-sec"><span class="lbl">Teams</span>${this.chips('r:teams', tOpts, war ? Math.max(2, v.teams || 2) : v.teams)}</div>
       </div>`;
-    const pane2 = `<div class="su-grid2">${ruleChips('hp')}${ruleChips('time')}${ruleChips('sd')}${ruleChips('drops')}${ruleChips('weapons')}${ruleChips('ff', (war || v.teams) ? '' : 'su-off')}${ruleChips('storm', big ? '' : 'su-off')}${ruleChips('tickets', war ? '' : 'su-off')}${ruleChips('buildT', war ? '' : 'su-off')}</div>
-      <p class="su-note">Rules are saved for next time. The host can change bots, teams and War mode from the pause menu too.</p>`;
+    const pane2 = `<div class="su-grid2">${ruleChips('hp')}${ruleChips('hpCustom')}${ruleChips('time')}${ruleChips('sd')}${ruleChips('drops')}${ruleChips('weapons')}${ruleChips('ff', (war || v.teams) ? '' : 'su-off')}${ruleChips('storm', big ? '' : 'su-off')}${ruleChips('tickets', war ? '' : 'su-off')}${ruleChips('buildT', war ? '' : 'su-off')}</div>
+      <div class="su-sec"><span class="lbl">Chaos — the unhinged dials</span><div class="su-grid2">
+        <div class="su-sec"><span class="lbl">Gravity %</span><div class="su-step">${this.num('chaosGrav', v.chaosGrav || 100, 1, 2000, 5)}</div></div>
+        <div class="su-sec"><span class="lbl">Run speed %</span><div class="su-step">${this.num('chaosSpeed', v.chaosSpeed || 100, 1, 2000, 5)}</div></div>
+        <div class="su-sec"><span class="lbl">Jump power %</span><div class="su-step">${this.num('chaosJump', v.chaosJump || 100, 1, 2000, 5)}</div></div>
+        <div class="su-sec"><span class="lbl">Infinite ammo</span>${this.chips('r:infAmmo', [[0, 'Off'], [1, 'On']], v.infAmmo)}</div>
+      </div><p class="su-note">100 is normal. Crank them as far as you dare — everything is saved for next time.</p></div>
+      <p class="su-note">Rules are saved for next time. You can change bots, teams and War mode from the pause menu too.</p>`;
     $('#suBody').innerHTML = `<div class="su-pane${this.tab === 0 ? ' on' : ''}">${pane0}</div><div class="su-pane${this.tab === 1 ? ' on' : ''}">${pane1}</div><div class="su-pane${this.tab === 2 ? ' on' : ''}">${pane2}</div>`;
     this.summary();
   },
@@ -380,26 +338,35 @@ const Setup = {
     const s = this.s, v = this.rules(); const m = SETUP_MODES.find(x => x.id === s.mode) || SETUP_MODES[0]; const b = s.biome >= 0 && THEMES[s.biome] ? THEMES[s.biome].name : 'random world';
     const parts = ['Offline', m.n, s.terrain === 'flat' ? 'flat' : 'hills', b, s.bots + ' bot' + (s.bots === 1 ? '' : 's'), 'first to ' + s.target];
     if (s.mode === 'war') parts.splice(2, 0, Math.max(2, v.teams || 2) + ' teams'); else if (v.teams) parts.splice(2, 0, v.teams + ' teams');
-    if (s.set === 'event') parts.unshift(EventInfo.name); $('#suSum').textContent = parts.join(' · ');
+    $('#suSum').textContent = parts.join(' · ');
+  },
+  input(e) {
+    const t = e.target.closest && e.target.closest('[data-num]'); if (!t) return;
+    const s = this.s, v = this.rules(); const k = t.dataset.num; const n = Math.max(0, Math.round(+t.value || 0));
+    if (k === 'bots') { s.bots = n; this.save(); this.summary(); return; }
+    if (k === 'target') { s.target = Math.max(1, n); this.save(); this.summary(); return; }
+    if (k === 'mapW' || k === 'mapH') { v[k] = n; setCookie('ib_rules', JSON.stringify(v)); return; }
+    if (k === 'hpCustom') { v.hpCustom = Math.max(1, +t.value || 1); setCookie('ib_rules', JSON.stringify(v)); return; }
+    if (k.startsWith('chaos')) { v[k] = Math.max(1, +t.value || 100); setCookie('ib_rules', JSON.stringify(v)); return; }
   },
   click(e) {
     const s = this.s, v = this.rules(); let b;
     if ((b = e.target.closest('[data-tab]'))) { this.tab = +b.dataset.tab; Audio2.play('ui'); this.render(); $('#suBody').scrollTop = 0; return; }
-    if ((b = e.target.closest('[data-step]'))) { const st = this.botSteps(); let i = st.indexOf(s.bots); i = clamp(i + +b.dataset.step, 0, st.length - 1); s.bots = st[i]; Audio2.play('ui'); $('#suBots').textContent = s.bots; this.save(); this.summary(); return; }
+    if ((b = e.target.closest('[data-nstep]'))) { const [k, d] = b.dataset.nstep.split(':'); const inp = this.el.querySelector(`[data-num="${k}"]`); if (inp) { inp.value = Math.max(+(inp.min || 0), (+inp.value || 0) + +d); this.input({ target: inp }); } return; }
     if ((b = e.target.closest('[data-pick]'))) { const k = b.dataset.pick, raw = b.dataset.v; Audio2.play('ui');
       if (k.startsWith('r:')) { const f = this.rf(k.slice(2)); v[f.k] = typeof f.o[0][0] === 'number' ? +raw : raw; setCookie('ib_rules', JSON.stringify(v)); }
       else if (k === 'mode' || k === 'terrain') s[k] = raw; else s[k] = +raw;
       if (k === 'mode' && raw === 'war' && !(v.teams >= 2)) v.teams = 2;
+      if (k === 'mode') s.bots = clamp(s.bots, 0, 9999);
       this.save(); const sc = $('#suBody').scrollTop; this.render(); $('#suBody').scrollTop = sc; return; }
-    if (e.target.closest('#suBack')) { Audio2.play('ui'); UI._noFade = false; MainMenu.page = s.from === 'event' ? 'event' : 'title'; UI.show(MainMenu.page); return; }
+    if (e.target.closest('#suBack')) { Audio2.play('ui'); UI._noFade = false; MainMenu.page = 'title'; UI.show('title'); return; }
     if (e.target.closest('#suStart')) { Audio2.init(); Audio2.play('ui'); this.start(); }
   },
   start() {
     const s = this.s, v = this.rules(); const big = this.isBig(), war = s.mode === 'war'; this.save();
-    v.war = war ? 1 : 0; if (war && !(v.teams >= 2)) v.teams = 2; v.crowd = big && s.bots > 7 ? s.bots : 0; v.terrain = s.terrain; v.set = s.set;
-    setCookie('ib_rules', JSON.stringify(Object.assign({}, v, { set: 'main' })));
-    const name = s.set === 'event' ? EventInfo.name : 'Practice';
-    startHost({ name, max: 8, target: s.target, bots: big ? s.bots : Math.min(7, s.bots), gameMode: s.mode === 'inkhold' ? 'inkhold' : (big ? 'expedition' : 'arena'), biome: s.biome, set: s.set, terrain: s.terrain });
+    v.war = war ? 1 : 0; if (war && !(v.teams >= 2)) v.teams = 2; v.crowd = 0; v.terrain = s.terrain;
+    setCookie('ib_rules', JSON.stringify(v));
+    startHost({ name: 'Practice', max: 8, target: Math.max(1, s.target | 0), bots: Math.max(0, s.bots | 0), gameMode: s.mode === 'inkhold' ? 'inkhold' : (big ? 'expedition' : 'arena'), biome: s.biome, terrain: s.terrain });
   },
 };
 
