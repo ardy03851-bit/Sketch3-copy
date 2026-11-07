@@ -117,7 +117,7 @@ Inkbrawl is a proper installable web app, not just a page:
 - **Android (Chrome)** — tap the *Install app* prompt (or *Add to Home screen* from the menu).
 - No store, no account. The files that make this work are `manifest.webmanifest` (name, icon, standalone window), the `icon-*.png` / `apple-touch-icon.png` icons and `sw.js` (the service worker that keeps a copy of the game for offline play).
 
-If you update the game, bump the `CACHE` version at the top of `sw.js` so returning players get the new build.
+The service worker is **network-first**: when a new build is deployed, players get it on the very next launch (no double-refresh needed), and the cached copy is only used when offline. Bump the `CACHE` version at the top of `sw.js` when you deploy so old caches are cleaned up.
 
 ---
 
@@ -851,9 +851,9 @@ Ponds and puddles are real bodies of water. When a crater opens a hole in a pond
 
 The **Wardrobe** button on the main menu (also on the title screen) opens the wardrobe. Four slots, all drawn procedurally in the game's ink style — no image assets:
 
-- **Hats** — 14 hats: top hat, crown, wizard hat, party hat, halo, horns, bandana, beret, propeller cap, flower, bucket, pirate hat, chef hat, cap.
-- **Eyewear** — shades, round glasses, monocle, eye patch, star eyes.
-- **Back & cloth** — the star of the show: **capes and scarves are real cloth**, a verlet particle chain pinned to the fighter's neck and solved every frame against gravity, wind (biome wind affects it), the fighter's own movement and the terrain. Also paper wings, backpack, quiver, back shield.
+- **Hats** — 20 hats: top hat, crown, wizard hat, party hat, halo, horns, bandana, beret, propeller cap, flower, bucket, pirate hat, chef hat, cap, viking helm, ninja band, cowboy hat, straw sun hat, headphones, cat ears.
+- **Eyewear** — shades, round glasses, monocle, eye patch, star eyes, goggles, heart specs, cyber visor.
+- **Back & cloth** — the star of the show: **capes and scarves are real cloth**, a verlet particle chain pinned to the fighter's neck and solved every frame against gravity, wind (biome wind affects it), the fighter's own movement and the terrain. Also paper wings, backpack, quiver, back shield, a back katana and a jetpack that lights its thrusters mid-jump.
 - **Trails** — sparkles, ink drips, petals behind a running fighter.
 
 Bots pick random outfits (stable per bot, so they keep their look), and your own outfit is saved in the `ib_wardrobe` cookie. Everything is visual only — no gameplay advantage.
@@ -894,6 +894,8 @@ Press **B** (or tap the **Build** button on iPad) to take out the build kit. Tap
 - **Building overhaul**: 10 new pieces (window, door, haybale, shelf, gate, statue, bouncy shroom, boom barrel, proximity mine), a collapsible build bar, smarter bot builders, and the build kit now works in Big Wilds as well as War mode.
 - **No caps anywhere**: any bot count, any HP, any target score, custom map sizes in pixels, chaos dials (gravity / run speed / jump power / infinite ammo), 8-team War mode, Nightmare bots, kill-streak toasts.
 - **Offline**: the service worker caches the Google Fonts too, so a home-screen launch on iPad looks right with no network at all.
+- **Wardrobe polish pass**: every accessory redrawn with proper shading, highlights and detail; 11 new items (viking helm, ninja band, cowboy hat, straw sun hat, headphones, cat ears, goggles, heart specs, cyber visor, back katana, jetpack with mid-air thruster flames); shorter, better-proportioned capes; a bigger live preview with a breeze so the cloth is always visible; a *Shuffle tab* button.
+- **Update fix**: the service worker is now network-first, so a new deploy shows up on the very next launch instead of the second one.
 - **Removed**: the event page and the separate event pools (weapons2/biomes2). Every weapon and biome is always in the pool.
 - Flat maps for every mode and size; one tidy setup screen.
 - Much more building, an easier build bar on iPad, and no more accidental zooming when tapping fast.

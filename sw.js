@@ -6,21 +6,18 @@
    window, and keeps working with no network at all.
 
    How it caches:
-     - the page itself (index.html) is network-first: a new deploy is
-       picked up on the next launch, and the cached copy is the offline
-       fallback;
-     - the core scripts are stale-while-revalidate: served instantly from
-       the cache, refreshed in the background for the next launch;
-     - everything else the game fetches (weapon PNGs, biome scripts,
-       manifest.json lists…) is cached the first time it is used, so
-       every part of the game you have already played works offline.
+     - the page and every script/image are NETWORK-FIRST: when you are
+       online you always get the freshly deployed build (an update shows
+       up on the very next launch, not the second one), and the cache is
+       the offline fallback;
+     - fonts are cache-first (they never change).
 
-   When you update the repo, bump CACHE below so players get the new
-   build on their next visit.
+   When you update the repo, bump CACHE below so old caches are cleaned
+   up on the next visit.
    ===================================================================== */
 'use strict';
 
-const CACHE = 'inkbrawl-v9';
+const CACHE = 'inkbrawl-v10';
 const CORE = [
   './',
   './index.html',
@@ -92,23 +89,30 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // everything else: cache-first, refreshed quietly in the background
-  e.respondWith((async () => {
-    const hit = await caches.match(req);
-    if (hit) {
-      const stale = fetch(req).then(async r => {
+  // fonts never change: cache-first
+  if (isFont) {
+    e.respondWith((async () => {
+      const hit = await caches.match(req);
+      if (hit) return hit;
+      try {
+        const r = await fetch(req);
         if (r && r.ok) { const c = await caches.open(CACHE); c.put(req, r.clone()); }
         return r;
-      }).catch(() => null);
-      e.waitUntil(stale);
-      return hit;
-    }
+      } catch (err) { return new Response('offline', { status: 503 }); }
+    })());
+    return;
+  }
+
+  // everything else: network-first so a new deploy is picked up on the
+  // very next launch; the cache is the offline fallback
+  e.respondWith((async () => {
     try {
       const r = await fetch(req);
-      if (r && (r.ok || r.type === 'opaque') && (r.type === 'basic' || r.type === 'default' || isFont)) { const c = await caches.open(CACHE); c.put(req, r.clone()); }
-      return r;
-    } catch (err) {
-      return new Response('offline', { status: 503 });
-    }
+      if (r && r.ok) { const c = await caches.open(CACHE); c.put(req, r.clone()); }
+      if (r) return r;
+    } catch (err) { /* fall through to the cache */ }
+    const hit = await caches.match(req);
+    if (hit) return hit;
+    return new Response('offline', { status: 503 });
   })());
 });
